@@ -20,7 +20,6 @@ package org.apache.flink.api.common.functions.util;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 
-
 public class NoOpFunction extends AbstractRichFunction {
 	private static final long serialVersionUID = 1L;
 }

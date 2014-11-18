@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobgraph;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.flink.runtime.AbstractID;
+import org.apache.flink.util.AbstractID;
 
 public class IntermediateResultPartitionID extends AbstractID {
 

@@ -40,7 +40,7 @@ under the License.
 			<artifactId>flink-shaded</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>commons-collections</groupId>
 			<artifactId>commons-collections</artifactId>
@@ -65,6 +65,13 @@ under the License.
 			<version>${guava.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-all</artifactId>
+			<version>4.0.21.Final</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>

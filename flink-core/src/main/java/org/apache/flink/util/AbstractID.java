@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime;
+package org.apache.flink.util;
 
 import java.io.IOException;
 import java.util.Random;
@@ -24,7 +24,6 @@ import java.util.Random;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.StringUtils;
 
 import io.netty.buffer.ByteBuf;
 
