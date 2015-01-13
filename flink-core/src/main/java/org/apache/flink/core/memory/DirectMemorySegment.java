@@ -18,6 +18,9 @@
 
 package org.apache.flink.core.memory;
 
+import sun.misc.Cleaner;
+import sun.nio.ch.DirectBuffer;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -114,6 +117,11 @@ public final class DirectMemorySegment extends MemorySegment {
 		// this ensures we can place no more data and trigger
 		// the checks for the freed segment
 		this.address = this.addressLimit + 1;
+		// actually free the buffer
+		Cleaner cleaner = ((DirectBuffer) this.buffer).cleaner();
+		if (cleaner != null) {
+			cleaner.clean();
+		}
 	}
 	
 	@Override
