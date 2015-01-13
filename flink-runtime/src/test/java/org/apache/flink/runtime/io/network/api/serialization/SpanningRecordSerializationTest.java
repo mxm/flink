@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.junit.Assert;
 
@@ -104,7 +105,7 @@ public class SpanningRecordSerializationTest {
 		final RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
 		final RecordDeserializer<SerializationTestType> deserializer = new AdaptiveSpanningRecordDeserializer<SerializationTestType>();
 
-		final Buffer buffer = new Buffer(new MemorySegment(new byte[segmentSize]), Mockito.mock(BufferRecycler.class));
+		final Buffer buffer = new Buffer(new HeapMemorySegment(new byte[segmentSize]), Mockito.mock(BufferRecycler.class));
 
 		final ArrayDeque<SerializationTestType> serializedRecords = new ArrayDeque<SerializationTestType>();
 

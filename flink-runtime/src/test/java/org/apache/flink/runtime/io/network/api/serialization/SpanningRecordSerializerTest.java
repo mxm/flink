@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.junit.Assert;
 
@@ -43,7 +44,7 @@ public class SpanningRecordSerializerTest {
 		final int SEGMENT_SIZE = 16;
 
 		final SpanningRecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
-		final Buffer buffer = new Buffer(new MemorySegment(new byte[SEGMENT_SIZE]), Mockito.mock(BufferRecycler.class));
+		final Buffer buffer = new Buffer(new HeapMemorySegment(new byte[SEGMENT_SIZE]), Mockito.mock(BufferRecycler.class));
 		final SerializationTestType randomIntRecord = Util.randomRecord(SerializationTestTypeFactory.INT);
 
 		Assert.assertFalse(serializer.hasData());
@@ -76,7 +77,7 @@ public class SpanningRecordSerializerTest {
 		final int SEGMENT_SIZE = 11;
 
 		final SpanningRecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
-		final Buffer buffer = new Buffer(new MemorySegment(new byte[SEGMENT_SIZE]), Mockito.mock(BufferRecycler.class));
+		final Buffer buffer = new Buffer(new HeapMemorySegment(new byte[SEGMENT_SIZE]), Mockito.mock(BufferRecycler.class));
 
 		try {
 			Assert.assertEquals(SerializationResult.FULL_RECORD, serializer.setNextBuffer(buffer));
@@ -198,7 +199,7 @@ public class SpanningRecordSerializerTest {
 		final int SERIALIZATION_OVERHEAD = 4; // length encoding
 
 		final SpanningRecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
-		final Buffer buffer = new Buffer(new MemorySegment(new byte[segmentSize]), Mockito.mock(BufferRecycler.class));
+		final Buffer buffer = new Buffer(new HeapMemorySegment(new byte[segmentSize]), Mockito.mock(BufferRecycler.class));
 
 		// -------------------------------------------------------------------------------------------------------------
 

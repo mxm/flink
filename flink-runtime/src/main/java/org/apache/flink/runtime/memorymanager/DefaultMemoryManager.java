@@ -28,6 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.flink.core.memory.HeapMemorySegment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.core.memory.MemorySegment;
@@ -380,6 +381,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	public long roundDownToPageSizeMultiple(long numBytes) {
 		return numBytes & this.roundingMask;
 	}
+
 	
 	// ------------------------------------------------------------------------
 	
@@ -406,7 +408,7 @@ public class DefaultMemoryManager implements MemoryManager {
 	
 	// ------------------------------------------------------------------------
 	
-	private static final class DefaultMemorySegment extends MemorySegment {
+	private static final class DefaultMemorySegment extends HeapMemorySegment {
 		
 		private AbstractInvokable owner;
 		
