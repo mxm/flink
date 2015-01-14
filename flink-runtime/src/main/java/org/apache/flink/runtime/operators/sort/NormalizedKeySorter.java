@@ -50,8 +50,6 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	//                               Members
 	// ------------------------------------------------------------------------
 
-	private final byte[] swapBuffer;
-	
 	private final TypeSerializer<T> serializer;
 	
 	private final TypeComparator<T> comparator;
@@ -167,8 +165,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		this.indexEntrySize = this.numKeyBytes + OFFSET_LEN;
 		this.indexEntriesPerSegment = segmentSize / this.indexEntrySize;
 		this.lastIndexEntryOffset = (this.indexEntriesPerSegment - 1) * this.indexEntrySize;
-		this.swapBuffer = new byte[this.indexEntrySize];
-		
+
 		// set to initial state
 		this.currentSortIndexSegment = nextMemorySegment();
 		this.sortIndex.add(this.currentSortIndexSegment);
@@ -362,7 +359,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		final MemorySegment segI = this.sortIndex.get(bufferNumI);
 		final MemorySegment segJ = this.sortIndex.get(bufferNumJ);
 		
-		int val = MemorySegment.compare(segI, segJ, segmentOffsetI + OFFSET_LEN, segmentOffsetJ + OFFSET_LEN, this.numKeyBytes);
+		int val = segI.compare(segJ, segmentOffsetI + OFFSET_LEN, segmentOffsetJ + OFFSET_LEN, this.numKeyBytes);
 		
 		if (val != 0 || this.normalizedKeyFullyDetermines) {
 			return this.useNormKeyUninverted ? val : -val;
@@ -385,7 +382,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 		final MemorySegment segI = this.sortIndex.get(bufferNumI);
 		final MemorySegment segJ = this.sortIndex.get(bufferNumJ);
 		
-		MemorySegment.swapBytes(segI, segJ, this.swapBuffer, segmentOffsetI, segmentOffsetJ, this.indexEntrySize);
+		segI.swapBytes(segJ, segmentOffsetI, segmentOffsetJ, this.indexEntrySize);
 	}
 
 	@Override
