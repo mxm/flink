@@ -34,7 +34,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.HeapMemoryManagerTest;
+import org.apache.flink.runtime.memory.MemoryManagerTest;
 import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 import org.junit.After;
 import org.junit.Before;
@@ -89,7 +89,7 @@ public class IOManagerITCase {
 		LOG.info("Starting parallel channels test.");
 		
 		final Random rnd = new Random(SEED);
-		final AbstractInvokable memOwner = new HeapMemoryManagerTest.DummyInvokable();
+		final AbstractInvokable memOwner = new MemoryManagerTest.DummyInvokable();
 		
 		FileIOChannel.ID[] ids = new FileIOChannel.ID[NUM_CHANNELS];
 		BlockChannelWriter[] writers = new BlockChannelWriter[NUM_CHANNELS];

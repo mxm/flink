@@ -20,7 +20,7 @@
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memory.HeapMemoryManagerTest.DummyInvokable;
+import org.apache.flink.runtime.memory.MemoryManagerTest.DummyInvokable;
 import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 import org.junit.After;
 import org.junit.Assert;
