@@ -20,8 +20,8 @@
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memory.DefaultMemoryManagerTest.DummyInvokable;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memory.HeapMemoryManagerTest.DummyInvokable;
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -39,7 +39,7 @@ public class IOManagerTest {
 	
 	private IOManager ioManager;
 
-	private DefaultMemoryManager memoryManager;
+	private HeapMemoryManager memoryManager;
 	
 	// ------------------------------------------------------------------------
 	//                           Setup & Shutdown
@@ -47,7 +47,7 @@ public class IOManagerTest {
 	
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new DefaultMemoryManager(32 * 1024 * 1024, 1);
+		this.memoryManager = new HeapMemoryManager(32 * 1024 * 1024, 1);
 		this.ioManager = new IOManagerAsync();
 	}
 

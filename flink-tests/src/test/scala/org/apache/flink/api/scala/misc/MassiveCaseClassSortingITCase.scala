@@ -27,7 +27,7 @@ import java.io.BufferedReader
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync
 import java.io.FileReader
 import org.apache.flink.util.MutableObjectIterator
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
+import org.apache.flink.runtime.memorymanager.HeapMemoryManager
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger
@@ -84,7 +84,7 @@ class MassiveCaseClassSortingITCase {
         val serializer = typeInfo.createSerializer()
         val comparator = typeInfo.createComparator(Array(0, 1), Array(true, true), 0)
         
-        val mm = new DefaultMemoryManager(1024 * 1024, 1)
+        val mm = new HeapMemoryManager(1024 * 1024, 1)
         val ioMan = new IOManagerAsync()
         
         sorter = new UnilateralSortMerger[StringTuple](mm, ioMan, inputIterator,
