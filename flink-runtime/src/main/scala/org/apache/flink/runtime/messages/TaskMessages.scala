@@ -128,6 +128,21 @@ object TaskMessages {
   case class FailIntermediateResultPartitions(executionID: ExecutionAttemptID)
     extends TaskMessage
 
+  /**
+   * Check availability of an intermediate result partition
+   * @param partitionID id of intermediate result to be locked
+   * @param numConsumers the number of consumers that want to access this intermediate result
+   */
+  case class LockResultPartition(partitionID: IntermediateResultPartitionID, numConsumers: Int)
+    extends TaskMessage
+
+  /**
+   * Pin/lock an ResultPartition for resuming
+   * @param locked true if ResultPartition for the requested IntermediateResultPartition
+   *               is available
+   */
+  case class LockResultPartitionReply(locked: Boolean)
+    extends TaskMessage
 
   // --------------------------------------------------------------------------
   //  Report Messages

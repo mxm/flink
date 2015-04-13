@@ -35,6 +35,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -55,9 +56,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static akka.dispatch.Futures.future;
@@ -134,10 +136,10 @@ public class ExecutionGraph implements Serializable {
 
 	/** Listeners that receive messages when the entire job switches it status (such as from
 	 * RUNNING to FINISHED) */
-	private final List<ActorRef> jobStatusListenerActors;
+	private final Set<ActorRef> jobStatusListenerActors;
 
 	/** Listeners that receive messages whenever a single task execution changes its status */
-	private final List<ActorRef> executionListenerActors;
+	private final Set<ActorRef> executionListenerActors;
 
 	/** Timestamps (in milliseconds as returned by {@code System.currentTimeMillis()} when
 	 * the execution graph transitioned into a certain state. The index into this array is the
@@ -163,7 +165,7 @@ public class ExecutionGraph implements Serializable {
 
 	/** The mode of scheduling. Decides how to select the initial set of tasks to be deployed.
 	 * May indicate to deploy all sources, or to deploy everything, or to deploy via backtracking
-	 * from results than need to be materialized. */
+	 * from results that need to be materialized. */
 	private ScheduleMode scheduleMode = ScheduleMode.FROM_SOURCES;
 
 	/** Flag that indicate whether the executed dataflow should be periodically snapshotted */
@@ -230,8 +232,8 @@ public class ExecutionGraph implements Serializable {
 		this.verticesInCreationOrder = new ArrayList<ExecutionJobVertex>();
 		this.currentExecutions = new ConcurrentHashMap<ExecutionAttemptID, Execution>();
 
-		this.jobStatusListenerActors  = new CopyOnWriteArrayList<ActorRef>();
-		this.executionListenerActors = new CopyOnWriteArrayList<ActorRef>();
+		this.jobStatusListenerActors  = new CopyOnWriteArraySet<ActorRef>();
+		this.executionListenerActors = new CopyOnWriteArraySet<ActorRef>();
 
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
@@ -406,7 +408,7 @@ public class ExecutionGraph implements Serializable {
 		// we return a specific iterator that does not fail with concurrent modifications
 		// the list is append only, so it is safe for that
 		final int numElements = this.verticesInCreationOrder.size();
-		
+
 		return new Iterable<ExecutionJobVertex>() {
 			@Override
 			public Iterator<ExecutionJobVertex> iterator() {
@@ -489,22 +491,23 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 	
-	public void scheduleForExecution(Scheduler scheduler) throws JobException {
+	public void scheduleForExecution(final Scheduler scheduler) throws JobException {
 		if (scheduler == null) {
 			throw new IllegalArgumentException("Scheduler must not be null.");
 		}
-		
+
 		if (this.scheduler != null && this.scheduler != scheduler) {
 			throw new IllegalArgumentException("Cannot use different schedulers for the same job");
 		}
-		
+
 		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
 			this.scheduler = scheduler;
 
 			switch (scheduleMode) {
 
 				case FROM_SOURCES:
-					// simply take the vertices without inputs.
+					// simply take the ones without inputs (sources) and let them initiate other
+					// task scheduling through the availability of their results
 					for (ExecutionJobVertex ejv : this.tasks.values()) {
 						if (ejv.getJobVertex().isInputVertex()) {
 							ejv.scheduleAll(scheduler, allowQueuedScheduling);
@@ -513,14 +516,38 @@ public class ExecutionGraph implements Serializable {
 					break;
 
 				case ALL:
+					// simply schedule all nodes in a topological order
 					for (ExecutionJobVertex ejv : getVerticesTopologically()) {
 						ejv.scheduleAll(scheduler, allowQueuedScheduling);
 					}
 					break;
 
 				case BACKTRACKING:
-					// go back from vertices that need computation to the ones we need to run
-					throw new JobException("BACKTRACKING is currently not supported as schedule mode.");
+					/**
+					 *  Start from the sinks that do not produce intermediate results and track
+					 *	 back to find available intermediate results.
+					 */
+
+					Backtracking backtracking = new Backtracking(this.tasks.values());
+
+					backtracking.setScheduleAction(new Backtracking.ScheduleAction() {
+						@Override
+						public void schedule(ExecutionVertex ev) {
+							try {
+								ev.scheduleForExecution(scheduler, allowQueuedScheduling);
+							} catch (NoResourceAvailableException e) {
+								e.printStackTrace();
+								fail(e);
+							}
+						}
+					});
+
+					backtracking.scheduleUsingBacktracking();
+
+					break;
+
+				default:
+					throw new JobException("Unsupported scheduling mode.");
 			}
 		}
 		else {
@@ -531,7 +558,7 @@ public class ExecutionGraph implements Serializable {
 	public void cancel() {
 		while (true) {
 			JobStatus current = state;
-			
+
 			if (current == JobStatus.RUNNING || current == JobStatus.CREATED) {
 				if (transitionState(current, JobStatus.CANCELLING)) {
 					for (ExecutionJobVertex ejv : verticesInCreationOrder) {
@@ -565,10 +592,10 @@ public class ExecutionGraph implements Serializable {
 					// set the state of the job to failed
 					transitionState(JobStatus.FAILING, JobStatus.FAILED, t);
 				}
-				
+
 				return;
 			}
-			
+
 			// no need to treat other states
 		}
 	}
@@ -689,18 +716,18 @@ public class ExecutionGraph implements Serializable {
 				// - the second (after it could grab the lock) tries to advance the position again
 				return;
 			}
-			
+
 			// see if we are the next to finish and then progress until the next unfinished one
 			if (verticesInCreationOrder.get(nextPos) == ev) {
 				do {
 					nextPos++;
 				}
 				while (nextPos < verticesInCreationOrder.size() && verticesInCreationOrder.get(nextPos).isInFinalState());
-				
+
 				nextVertexToFinish = nextPos;
-				
+
 				if (nextPos == verticesInCreationOrder.size()) {
-					
+
 					// we are done, transition to the final state
 					JobStatus current;
 					while (true) {
@@ -884,4 +911,11 @@ public class ExecutionGraph implements Serializable {
 			fail(error);
 		}
 	}
+	public void prepareForResuming() {
+		synchronized (progressLock) {
+			transitionState(JobStatus.FINISHED, JobStatus.CREATED);
+			this.currentExecutions.clear();
+		}
+	}
+
 }

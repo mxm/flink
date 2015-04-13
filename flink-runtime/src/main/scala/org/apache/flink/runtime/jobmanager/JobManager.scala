@@ -49,7 +49,7 @@ import org.apache.flink.runtime.{StreamingMode, ActorSynchronousLogging, ActorLo
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
-import org.apache.flink.runtime.jobgraph.{JobVertexID, JobGraph, JobStatus}
+import org.apache.flink.runtime.jobgraph.{ScheduleMode, JobVertexID, JobGraph, JobStatus}
 import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -487,8 +487,9 @@ class JobManager(protected val flinkConfiguration: Configuration,
         executionGraph = currentJob match {
           case Some((graph, _)) if !graph.getState.isTerminalState =>
               throw new Exception("Job still running")
-          case Some((graph, _)) if graph.getJobID == jobId =>
-            // resume here
+          case Some((graph, _)) if graph.getJobID == jobId &&
+                                   graph.getScheduleMode == ScheduleMode.BACKTRACKING =>
+            graph.prepareForResuming()
             graph
           case _ =>
             removeCurrentJob()
@@ -641,7 +642,7 @@ class JobManager(protected val flinkConfiguration: Configuration,
     actorMessage match {
       case ackMessage: AcknowledgeCheckpoint =>
         val jid = ackMessage.getJob()
-        currentJobs.get(jid) match {
+        currentJob match {
           case Some((graph, _)) =>
             val coordinator = graph.getCheckpointCoordinator()
             if (coordinator != null) {
