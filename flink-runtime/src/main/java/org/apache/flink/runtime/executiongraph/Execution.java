@@ -398,7 +398,7 @@ public class Execution implements Serializable {
 				}
 				// else: fall through the loop
 			}
-			
+
 			else if (current == FINISHED || current == FAILED) {
 				// nothing to do any more. finished failed before it could be cancelled.
 				// in any case, the task is removed from the TaskManager already

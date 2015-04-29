@@ -103,9 +103,8 @@ class JobManager(protected val flinkConfiguration: Configuration,
                  protected val mode: StreamingMode)
   extends Actor with ActorLogMessages with ActorSynchronousLogging {
 
-  /** List of current jobs running jobs */
-  protected val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
-
+  /** Last job (for others see [[MemoryArchivist]] */
+  protected var currentJob: Option[(ExecutionGraph, JobInfo)] = None
 
   /**
    * Run when the job manager is started. Simply logs an informational message.
@@ -124,8 +123,10 @@ class JobManager(protected val flinkConfiguration: Configuration,
 
     archive ! PoisonPill
 
-    for((e,_) <- currentJobs.values) {
-      e.fail(new Exception("The JobManager is shutting down."))
+    currentJob match {
+      case Some((graph, f)) =>
+        graph.fail(new Exception("The JobManager is shutting down."))
+      case None =>
     }
 
     instanceManager.shutdown()
@@ -194,8 +195,8 @@ class JobManager(protected val flinkConfiguration: Configuration,
     case CancelJob(jobID) =>
       log.info(s"Trying to cancel job with ID $jobID.")
 
-      currentJobs.get(jobID) match {
-        case Some((executionGraph, _)) =>
+      currentJob match {
+        case Some((executionGraph, _)) if executionGraph.getJobID == jobID =>
           // execute the cancellation asynchronously
           Future {
             executionGraph.cancel()
@@ -212,12 +213,12 @@ class JobManager(protected val flinkConfiguration: Configuration,
       if (taskExecutionState == null) {
         sender ! false
       } else {
-        currentJobs.get(taskExecutionState.getJobID) match {
-          case Some((executionGraph, _)) =>
+        currentJob match {
+          case Some((graph, _)) if graph.getJobID == taskExecutionState.getJobID =>
             val originalSender = sender()
 
             Future {
-              val result = executionGraph.updateState(taskExecutionState)
+              val result = graph.updateState(taskExecutionState)
               originalSender ! result
             }(context.dispatcher)
 
@@ -230,8 +231,8 @@ class JobManager(protected val flinkConfiguration: Configuration,
       }
 
     case RequestNextInputSplit(jobID, vertexID, executionAttempt) =>
-      val serializedInputSplit = currentJobs.get(jobID) match {
-        case Some((executionGraph,_)) =>
+      val serializedInputSplit = currentJob match {
+        case Some((executionGraph,_)) if executionGraph.getJobID == jobID =>
           val execution = executionGraph.getRegisteredExecutions.get(executionAttempt)
 
           if (execution == null) {
@@ -285,8 +286,9 @@ class JobManager(protected val flinkConfiguration: Configuration,
       handleCheckpointMessage(checkpointMessage)
 
     case JobStatusChanged(jobID, newJobStatus, timeStamp, error) =>
-      currentJobs.get(jobID) match {
-        case Some((executionGraph, jobInfo)) => executionGraph.getJobName
+      currentJob match {
+        case Some((executionGraph, jobInfo)) if executionGraph.getJobID == jobID =>
+          executionGraph.getJobName
           log.info(s"Status of job $jobID (${executionGraph.getJobName}) changed to $newJobStatus" +
             s" ${if (error == null) "" else error.getMessage}.")
 
@@ -322,16 +324,14 @@ class JobManager(protected val flinkConfiguration: Configuration,
                 throw exception
             }
 
-            removeJob(jobID)
-
           }
         case None =>
-          removeJob(jobID)
+          removeCurrentJob()
       }
 
     case ScheduleOrUpdateConsumers(jobId, partitionId) =>
-      currentJobs.get(jobId) match {
-        case Some((executionGraph, _)) =>
+      currentJob match {
+        case Some((executionGraph, _)) if executionGraph.getJobID == jobId  =>
           sender ! Acknowledge
           executionGraph.scheduleOrUpdateConsumers(partitionId)
         case None =>
@@ -359,25 +359,28 @@ class JobManager(protected val flinkConfiguration: Configuration,
         taskExecutionId, taskResultId, partitionId.getPartitionId, state)
 
     case RequestJobStatus(jobID) =>
-      currentJobs.get(jobID) match {
-        case Some((executionGraph,_)) => sender ! CurrentJobStatus(jobID, executionGraph.getState)
+      currentJob match {
+        case Some((executionGraph,_)) if executionGraph.getJobID == jobID =>
+          sender ! CurrentJobStatus(jobID, executionGraph.getState)
         case None =>
           // check the archive
           archive forward RequestJobStatus(jobID)
       }
 
     case RequestRunningJobs =>
-      val executionGraphs = currentJobs map {
-        case (_, (eg, jobInfo)) => eg
+      val executionGraph = currentJob match {
+        case Some((eg, jobInfo)) => Seq(eg)
+        case None => Seq()
       }
 
-      sender ! RunningJobs(executionGraphs)
+      sender ! RunningJobs(executionGraph)
 
     case RequestRunningJobsStatus =>
       try {
-        val jobs = currentJobs map {
-          case (_, (eg, _)) => new JobStatusMessage(eg.getJobID, eg.getJobName,
-                                            eg.getState, eg.getStatusTimestamp(JobStatus.CREATED))
+        val jobs = currentJob match {
+          case Some((eg, _)) => Seq(new JobStatusMessage(eg.getJobID, eg.getJobName,
+                                            eg.getState, eg.getStatusTimestamp(JobStatus.CREATED)))
+          case None => Seq()
         }
 
         sender ! RunningJobsStatus(jobs)
@@ -387,8 +390,9 @@ class JobManager(protected val flinkConfiguration: Configuration,
       }
 
     case RequestJob(jobID) =>
-      currentJobs.get(jobID) match {
-        case Some((eg, _)) => sender ! JobFound(jobID, eg)
+      currentJob match {
+        case Some((eg, _)) if eg.getJobID == jobID  =>
+          sender ! JobFound(jobID, eg)
         case None =>
           // check the archive
           archive forward RequestJob(jobID)
@@ -480,11 +484,20 @@ class JobManager(protected val flinkConfiguration: Configuration,
           throw new JobSubmissionException(jobId, "The given job is empty")
         }
 
-        // see if there already exists an ExecutionGraph for the corresponding job ID
-        executionGraph = currentJobs.getOrElseUpdate(jobGraph.getJobID,
-          (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
-            jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys, userCodeLoader),
-            JobInfo(sender(), System.currentTimeMillis())))._1
+        executionGraph = currentJob match {
+          case Some((graph, _)) if !graph.getState.isTerminalState =>
+              throw new Exception("Job still running")
+          case Some((graph, _)) if graph.getJobID == jobId =>
+            // resume here
+            graph
+          case _ =>
+            removeCurrentJob()
+            val newGraph = new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
+              jobGraph.getJobConfiguration, timeout, jobGraph.getUserJarBlobKeys, userCodeLoader)
+            val newJobInfo = JobInfo(sender(), System.currentTimeMillis())
+            currentJob = Option(newGraph, newJobInfo)
+            newGraph
+        }
 
         // configure the execution graph
         val jobNumberRetries = if (jobGraph.getNumberOfExecutionRetries >= 0) {
@@ -583,7 +596,7 @@ class JobManager(protected val flinkConfiguration: Configuration,
           log.error(s"Failed to submit job ${jobId} (${jobName})", t)
 
           libraryCacheManager.unregisterJob(jobId)
-          currentJobs.remove(jobId)
+          currentJob = None
 
           if (executionGraph != null) {
             executionGraph.fail(t)
@@ -722,15 +735,23 @@ class JobManager(protected val flinkConfiguration: Configuration,
 
   /**
    * Removes the job and sends it to the MemoryArchivist
-   * @param jobID ID of the job to remove and archive
    */
-  private def removeJob(jobID: JobID): Unit = {
-    currentJobs.remove(jobID) match {
-      case Some((eg, _)) =>
+  private def removeCurrentJob(): Unit = {
+    currentJob match {
+      case Some((eg, _))  =>
+        currentJob = None
         try {
           eg.prepareForArchiving()
 
-          archive ! ArchiveExecutionGraph(jobID, eg)
+          archive ! ArchiveExecutionGraph(eg.getJobID, eg)
+
+          val jobID = eg.getJobID
+          try {
+            libraryCacheManager.unregisterJob(eg.getJobID)
+          } catch {
+            case t: Throwable =>
+              log.error(s"Could not properly unregister job $jobID form the library cache.", t)
+          }
         } catch {
           case t: Throwable => log.error(s"Could not prepare the execution graph $eg for " +
             "archiving.", t)
@@ -739,12 +760,7 @@ class JobManager(protected val flinkConfiguration: Configuration,
       case None =>
     }
 
-    try {
-      libraryCacheManager.unregisterJob(jobID)
-    } catch {
-      case t: Throwable =>
-        log.error(s"Could not properly unregister job $jobID form the library cache.", t)
-    }
+
   }
 }
 
