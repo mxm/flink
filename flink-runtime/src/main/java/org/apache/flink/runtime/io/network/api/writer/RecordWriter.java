@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
@@ -48,6 +49,18 @@ public class RecordWriter<T extends IOReadableWritable> {
 	private final ChannelSelector<T> channelSelector;
 
 	private final int numChannels;
+
+	/**
+	 * Counter for the number of records emitted.
+	 * @param counter
+	 */
+	private LongCounter recordsOutCounter;
+
+	/**
+	 * Counter for the number of bytes written.
+	 * @param counter
+	 */
+	private LongCounter bytesOutCounter;
 
 	/** {@link RecordSerializer} per outgoing channel */
 	private final RecordSerializer<T>[] serializers;
@@ -81,6 +94,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 			synchronized (serializer) {
 				SerializationResult result = serializer.addRecord(record);
+
 				while (result.isFullBuffer()) {
 					Buffer buffer = serializer.getCurrentBuffer();
 
@@ -90,7 +104,16 @@ public class RecordWriter<T extends IOReadableWritable> {
 					}
 
 					buffer = writer.getBufferProvider().requestBufferBlocking();
+					if (bytesOutCounter != null) {
+						// increase the number of written bytes by the memory segment's size
+						bytesOutCounter.add((long) buffer.getSize());
+					}
+
 					result = serializer.setNextBuffer(buffer);
+				}
+				if(recordsOutCounter != null) {
+					// count number of emitted records
+					recordsOutCounter.add(1L);
 				}
 			}
 		}
@@ -172,5 +195,21 @@ public class RecordWriter<T extends IOReadableWritable> {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Counter for the number of records emitted.
+	 * @param counter
+	 */
+	public void setRecordsOutCounter(LongCounter counter) {
+		recordsOutCounter = counter;
+	}
+
+	/**
+	 * Counter for the number of bytes written.
+	 * @param counter
+	 */
+	public void setBytesOutCounter(LongCounter counter) {
+		bytesOutCounter = counter;
 	}
 }

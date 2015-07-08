@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.task.TaskEvent;
@@ -182,6 +183,15 @@ public class AbstractReaderTest {
 
 		protected MockReader(InputGate inputGate) {
 			super(inputGate);
+		}
+
+		@Override
+		public void setNumRecordsReadAccumulator(LongCounter counter) {
+		}
+
+		@Override
+		public void setNumBytesReadAccumulator(LongCounter counter) {
+
 		}
 	}
 }

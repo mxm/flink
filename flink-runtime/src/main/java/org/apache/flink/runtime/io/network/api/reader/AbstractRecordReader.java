@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
@@ -43,6 +44,10 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 
 	private boolean isFinished;
 
+	/** Accumulators for keeping track of read/written bytes */
+	private LongCounter numRecordsRead = null;
+	private LongCounter numBytesRead = null;
+
 	@SuppressWarnings("unchecked")
 	protected AbstractRecordReader(InputGate inputGate) {
 		super(inputGate);
@@ -64,11 +69,23 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 				DeserializationResult result = currentRecordDeserializer.getNextRecord(target);
 
 				if (result.isBufferConsumed()) {
-					currentRecordDeserializer.getCurrentBuffer().recycle();
+					final Buffer currentBuffer = currentRecordDeserializer.getCurrentBuffer();
+
+					if (numBytesRead != null) {
+						// TODO could be more accurate
+						numBytesRead.add((long) currentBuffer.getSize());
+					}
+
+					currentBuffer.recycle();
 					currentRecordDeserializer = null;
 				}
 
 				if (result.isFullRecord()) {
+
+					if (numRecordsRead != null) {
+						numRecordsRead.add(1L);
+					}
+
 					return true;
 				}
 			}
@@ -89,7 +106,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 							+ "If you are using custom serialization code (Writable or Value types), check their "
 							+ "serialization routines. In the case of Kryo, check the respective Kryo serializer.");
 				}
-				
+
 				if (handleEvent(bufferOrEvent.getEvent())) {
 					if (inputGate.isFinished()) {
 						isFinished = true;
@@ -111,5 +128,13 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 				buffer.recycle();
 			}
 		}
+	}
+
+	public void setNumRecordsReadAccumulator(LongCounter counter) {
+		numRecordsRead = counter;
+	}
+
+	public void setNumBytesReadAccumulator(LongCounter counter) {
+		numBytesRead = counter;
 	}
 }

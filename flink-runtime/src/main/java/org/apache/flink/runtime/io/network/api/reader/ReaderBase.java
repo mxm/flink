@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.api.reader;
 
 import java.io.IOException;
 
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.util.event.EventListener;
 
@@ -50,5 +51,17 @@ public interface ReaderBase {
 	void startNextSuperstep();
 
 	boolean hasReachedEndOfSuperstep();
+
+	/**
+	 * Setter for the counter for the number of records emitted.
+	 * @param counter
+	 */
+	void setNumRecordsReadAccumulator(LongCounter counter);
+
+	/**
+	 * Setter for the number of bytes read.
+	 * @param counter
+	 */
+	void setNumBytesReadAccumulator(LongCounter counter);
 
 }

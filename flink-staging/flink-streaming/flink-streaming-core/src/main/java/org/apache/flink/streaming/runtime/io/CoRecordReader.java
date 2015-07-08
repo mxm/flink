@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingDeque;
 
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.reader.AbstractReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
@@ -254,6 +255,16 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 				buffer.recycle();
 			}
 		}
+	}
+
+	@Override
+	public void setNumRecordsReadAccumulator(LongCounter counter) {
+
+	}
+
+	@Override
+	public void setNumBytesReadAccumulator(LongCounter counter) {
+
 	}
 
 	private class CoBarrierBuffer extends BarrierBuffer {

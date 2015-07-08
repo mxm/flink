@@ -18,10 +18,14 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.streaming.api.collector.StreamOutput;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -46,7 +50,12 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 	@Override
 	public void registerInputOutput() {
 		super.registerInputOutput();
-		outputHandler = new OutputHandler<OUT>(this);
+
+		final AccumulatorRegistry.External registry = getEnvironment().getAccumulatorRegistry().getExternal();
+		Map<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
+//		registry.addMap(getEnvironment().getExecutionId(), accumulatorMap);
+
+		outputHandler = new OutputHandler<OUT>(this, accumulatorMap, outputHandler.numRecordsOut, outputHandler.numBytesOut);
 
 		String iterationId = configuration.getIterationId();
 		iterationWaitTime = configuration.getIterationWaitTime();

@@ -22,8 +22,11 @@ import akka.actor.ActorRef;
 
 import akka.actor.ActorSystem;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.accumulators.AccumulatorEvent;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -38,6 +41,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.runtime.util.SerializedValue;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.util.InstantiationUtil;
@@ -47,10 +51,12 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -127,6 +133,32 @@ public class ExecutionGraph implements Serializable {
 
 	/** The currently executed tasks, for callbacks */
 	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
+
+	/**
+	 * Updates the accumulators during the runtime of a job. Final accumulator results are transferred
+	 * through the UpdateTaskExecutionState message.
+	 * @param flinkAccumulatorEvent The serialized flink accumulators
+	 * @param userAccumulatorEvent The serialized user accumulators
+	 */
+	public void updateAccumulators(AccumulatorEvent flinkAccumulatorEvent,
+								AccumulatorEvent userAccumulatorEvent) {
+		Map<String, Accumulator<?, ?>> flinkAccumulators;
+		Map<String, Accumulator<?, ?>> userAccumulators;
+		try {
+			flinkAccumulators = flinkAccumulatorEvent.deserializeValue(userClassLoader);
+			userAccumulators = userAccumulatorEvent.deserializeValue(userClassLoader);
+
+			ExecutionAttemptID execID = flinkAccumulatorEvent.getExecutionAttemptID();
+			Execution execution = currentExecutions.get(execID);
+			if (execution != null) {
+				execution.setAccumulators(flinkAccumulators, userAccumulators);
+			} else {
+				LOG.warn("Received accumulator result for unknown execution {}.", execID);
+			}
+		} catch (Exception e) {
+			LOG.error("Cannot update accumulators for job " + jobID, e);
+		}
+	}
 
 	/** A list of all libraries required during the job execution. Libraries have to be stored
 	 * inside the BlobService and are referenced via the BLOB keys. */
@@ -485,6 +517,57 @@ public class ExecutionGraph implements Serializable {
 		return executionContext;
 	}
 
+	 * Gets the internal flink accumulator map of maps which contains some metrics.
+	 * @return A map of accumulators for every executed task.
+	 */
+	public Map<ExecutionAttemptID, Map<String, Accumulator<?,?>>> getFlinkAccumulators() {
+		Map<ExecutionAttemptID, Map<String, Accumulator<?, ?>>> flinkAccumulators =
+				new HashMap<ExecutionAttemptID, Map<String, Accumulator<?, ?>>>();
+
+		for (ExecutionVertex vertex : getAllExecutionVertices()) {
+			Map<String, Accumulator<?, ?>> taskAccs = vertex.getCurrentExecutionAttempt().getFlinkAccumulators();
+			flinkAccumulators.put(vertex.getCurrentExecutionAttempt().getAttemptId(), taskAccs);
+			System.out.println(vertex.getCurrentExecutionAttempt().toString() + ": " + taskAccs);
+		}
+
+		return flinkAccumulators;
+	}
+
+	/**
+	 * Merges all accumulator results from the tasks previously executed in the Executions.
+	 * @return The accumulator map
+	 */
+	public Map<String, Accumulator<?,?>> aggregateUserAccumulators() {
+
+		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<String, Accumulator<?, ?>>();
+
+		for (ExecutionVertex vertex : getAllExecutionVertices()) {
+			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getUserAccumulators();
+			if (next != null) {
+				AccumulatorHelper.mergeInto(userAccumulators, next);
+			}
+		}
+
+		return userAccumulators;
+	}
+
+	/**
+	 * Gets a serialized accumulator map.
+	 * @return The accumulator map with serialized accumulator values.
+	 * @throws IOException
+	 */
+	public Map<String, SerializedValue<Object>> getAccumulatorsSerialized() throws IOException {
+
+		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
+
+		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
+		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
+			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue().getLocalValue()));
+		}
+
+		return result;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Actions
 	// --------------------------------------------------------------------------------------------
@@ -791,14 +874,30 @@ public class ExecutionGraph implements Serializable {
 	//  Callbacks and Callback Utilities
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Updates the state of the Task and sets the final accumulator results.
+	 * @param state
+	 * @return
+	 */
 	public boolean updateState(TaskExecutionState state) {
 		Execution attempt = this.currentExecutions.get(state.getID());
 		if (attempt != null) {
+
 			switch (state.getExecutionState()) {
 				case RUNNING:
 					return attempt.switchToRunning();
 				case FINISHED:
-					attempt.markFinished();
+					Map<String, Accumulator<?, ?>> flinkAccumulators = null;
+					Map<String, Accumulator<?, ?>> userAccumulators = null;
+					try {
+						flinkAccumulators = state.getFlinkAccumulators().deserializeValue(userClassLoader);
+						userAccumulators = state.getUserAccumulators().deserializeValue(userClassLoader);
+					} catch (Exception e) {
+						// Exceptions would be thrown in the future here
+						LOG.error("Failed to deserialize final accumulator results.", e);
+					}
+
+					attempt.markFinished(flinkAccumulators, userAccumulators);
 					return true;
 				case CANCELED:
 					attempt.cancelingComplete();

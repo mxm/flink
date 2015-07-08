@@ -24,6 +24,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -198,6 +199,15 @@ public class BarrierBufferTest {
 			super(inputGate);
 		}
 
+		@Override
+		public void setNumRecordsReadAccumulator(LongCounter counter) {
+
+		}
+
+		@Override
+		public void setNumBytesReadAccumulator(LongCounter counter) {
+
+		}
 	}
 
 	protected static BufferOrEvent createSuperstep(long id, int channel) {

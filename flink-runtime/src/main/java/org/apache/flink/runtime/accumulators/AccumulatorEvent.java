@@ -18,15 +18,16 @@
 
 package org.apache.flink.runtime.accumulators;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.util.SerializedValue;
+
 import java.io.IOException;
 import java.util.Map;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.util.SerializedValue;
-
 /**
- * This class encapsulates a map of accumulators for a single job. It is used
+ * This class encapsulates a map of accumulators for a single task. It is used
  * for the transfer from TaskManagers to the JobManager and from the JobManager
  * to the Client.
  */
@@ -34,16 +35,20 @@ public class AccumulatorEvent extends SerializedValue<Map<String, Accumulator<?,
 
 	private static final long serialVersionUID = 8965894516006882735L;
 
-	/** JobID for the target job */
 	private final JobID jobID;
+	private final ExecutionAttemptID executionAttemptID;
 
-
-	public AccumulatorEvent(JobID jobID, Map<String, Accumulator<?, ?>> accumulators) throws IOException {
+	public AccumulatorEvent(JobID jobID, ExecutionAttemptID executionAttemptID, Map<String, Accumulator<?, ?>> accumulators) throws IOException {
 		super(accumulators);
 		this.jobID = jobID;
+		this.executionAttemptID = executionAttemptID;
 	}
 
 	public JobID getJobID() {
-		return this.jobID;
+		return jobID;
+	}
+
+	public ExecutionAttemptID getExecutionAttemptID() {
+		return executionAttemptID;
 	}
 }

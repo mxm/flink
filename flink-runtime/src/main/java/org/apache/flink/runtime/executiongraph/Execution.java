@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import akka.dispatch.OnComplete;
 import akka.dispatch.OnFailure;
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
@@ -54,6 +55,7 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeoutException;
@@ -132,6 +134,31 @@ public class Execution implements Serializable {
 	/** The execution context which is used to execute futures. */
 	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private ExecutionContext executionContext;
+
+	/* Continuously updated map of internal accumulators */
+	private volatile Map<String, Accumulator<?, ?>> flinkAccumulators;
+
+	/**
+	 * Update accumulators (discarded when the Execution has already been terminated).
+	 * @param flinkAccumulators the flink internal accumulators
+	 * @param userAccumulators the user accumulators
+	 */
+	public void setAccumulators(Map<String, Accumulator<?, ?>> flinkAccumulators,
+								Map<String, Accumulator<?, ?>> userAccumulators) {
+		synchronized (accumulatorLock) {
+			if (!state.isTerminal()) {
+				this.flinkAccumulators = flinkAccumulators;
+				this.userAccumulators = userAccumulators;
+			}
+		}
+	}
+	public Map<String, Accumulator<?, ?>> getUserAccumulators() {
+		return userAccumulators;
+	}
+
+	public Map<String, Accumulator<?, ?>> getFlinkAccumulators() {
+		return flinkAccumulators;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -593,6 +620,10 @@ public class Execution implements Serializable {
 	}
 
 	void markFinished() {
+		markFinished(null, null);
+	}
+
+	void markFinished(Map<String, Accumulator<?, ?>> flinkAccumulators, Map<String, Accumulator<?, ?>> userAccumulators) {
 
 		// this call usually comes during RUNNING, but may also come while still in deploying (very fast tasks!)
 		while (true) {
@@ -611,6 +642,11 @@ public class Execution implements Serializable {
 							for (IntermediateResultPartition partition : allPartitions) {
 								scheduleOrUpdateConsumers(partition.getConsumers());
 							}
+						}
+
+						synchronized (accumulatorLock) {
+							this.flinkAccumulators = flinkAccumulators;
+							this.userAccumulators = userAccumulators;
 						}
 
 						assignedResource.releaseSlot();

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -26,6 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
@@ -355,6 +357,16 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		} else {
 			throw new Exception("Illegal input group size in task configuration: " + groupSize);
 		}
+
+		final AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
+		final AccumulatorRegistry.Internal internalRegistry = accumulatorRegistry.getInternal();
+
+		internalRegistry.createMap();
+		LongCounter recordsInCounter = internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_RECORDS_IN);
+		LongCounter bytesInCounter = internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_BYTES_IN);
+
+		inputReader.setNumRecordsReadAccumulator(recordsInCounter);
+		inputReader.setNumBytesReadAccumulator(bytesInCounter);
 
 		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, getUserCodeClassLoader());
 		@SuppressWarnings({ "rawtypes" })
