@@ -56,7 +56,7 @@ object TaskManagerMessages {
    * @param accumulators Accumulators of tasks serialized as Tuple2[internal, user-defined]
    */
   case class Heartbeat(instanceID: InstanceID, metricsReport: Array[Byte],
-     accumulators: Seq[(AccumulatorEvent, AccumulatorEvent)])
+     accumulators: Seq[AccumulatorEvent])
 
 
   // --------------------------------------------------------------------------

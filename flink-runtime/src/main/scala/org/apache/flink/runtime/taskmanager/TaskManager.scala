@@ -794,11 +794,9 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
         throw new IllegalArgumentException(s"Target slot $slot does not exist on TaskManager.")
       }
 
-      val accumulatorRegistry = new AccumulatorRegistry(tdd.getJobID, tdd.getExecutionId)
-
       // create the task. this does not grab any TaskManager resources or download
       // and libraries - the operation does not block
-      val task = new Task(tdd, memoryManager, ioManager, network, bcVarManager, accumulatorRegistry,
+      val task = new Task(tdd, memoryManager, ioManager, network, bcVarManager,
                           self, jobManagerActor, config.timeout, libCache, fileCache)
 
       log.info(s"Received task ${task.getTaskNameWithSubtasks}")
@@ -917,14 +915,14 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
         s"${task.getExecutionState} to JobManager for task ${task.getTaskName} " +
         s"(${task.getExecutionId})")
 
-      val (flinkAccumulators, userAccumulators) = {
+      val accumulators = {
         val registry = task.getAccumulatorRegistry
-        (registry.getExternal.getSnapshot, registry.getExternal.getSnapshot)
+        registry.getSnapshot
       }
 
       self ! UpdateTaskExecutionState(new TaskExecutionState(
         task.getJobID, task.getExecutionId, task.getExecutionState, task.getFailureCause,
-        flinkAccumulators, userAccumulators))
+        accumulators))
     }
     else {
       log.error(s"Cannot find task with ID $executionID to unregister.")
@@ -945,14 +943,13 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
       val metricsReport: Array[Byte] = metricRegistryMapper.writeValueAsBytes(metricRegistry)
 
       val accumulatorEvents =
-        scala.collection.mutable.Buffer[(AccumulatorEvent, AccumulatorEvent)]()
+        scala.collection.mutable.Buffer[AccumulatorEvent]()
 
       runningTasks foreach {
         case (execID, task) =>
           val registry = task.getAccumulatorRegistry
-          val flinkAccumulators = registry.getInternal.getSnapshot
-          val userAccumulators = registry.getExternal.getSnapshot
-          accumulatorEvents.append((flinkAccumulators, userAccumulators))
+          val accumulators = registry.getSnapshot
+          accumulatorEvents.append(accumulators)
       }
 
        currentJobManager foreach {
@@ -1039,9 +1036,6 @@ object TaskManager {
   val DELAY_AFTER_REFUSED_REGISTRATION: FiniteDuration = 10 seconds
 
   val HEARTBEAT_INTERVAL: FiniteDuration = 5000 milliseconds
-
-  /* Interval to send accumulators to the job manager  */
-  val ACCUMULATOR_REPORT_INTERVAL: FiniteDuration = 10 seconds
 
 
   // --------------------------------------------------------------------------

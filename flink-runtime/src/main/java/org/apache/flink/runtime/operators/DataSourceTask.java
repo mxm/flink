@@ -20,7 +20,6 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -41,9 +40,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 /**
@@ -288,18 +287,12 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		this.eventualOutputs = new ArrayList<RecordWriter<?>>();
 
 		final AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
-		final AccumulatorRegistry.Internal internalRegistry = accumulatorRegistry.getInternal();
+		final AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
 
-		internalRegistry.createMap();
-		LongCounter recordsOutCounter = internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_RECORDS_OUT);
-		LongCounter bytesOutCounter = internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_BYTES_OUT);
-
-		AccumulatorRegistry.External externalRegistry = accumulatorRegistry.getExternal();
-		final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
-		externalRegistry.setMap(accumulatorMap);
+		Map<String, Accumulator<?, ?>> accumulatorMap = accumulatorRegistry.getUserMap();
 
 		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs,
-				getExecutionConfig(), recordsOutCounter, bytesOutCounter, accumulatorMap);
+				getExecutionConfig(), reporter, accumulatorMap);
 	}
 
 	// ------------------------------------------------------------------------

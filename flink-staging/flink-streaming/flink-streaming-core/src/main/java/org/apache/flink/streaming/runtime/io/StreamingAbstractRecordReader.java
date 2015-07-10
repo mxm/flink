@@ -61,8 +61,8 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 	/**
 	 * Counters for the number of bytes read and records processed.
 	 */
-	private LongCounter numRecordsRead = null;
-	private LongCounter numBytesRead = null;
+	private LongCounter numRecordsRead;
+	private LongCounter numBytesRead;
 
 	@SuppressWarnings("unchecked")
 	protected StreamingAbstractRecordReader(InputGate inputGate) {
@@ -145,11 +145,4 @@ public abstract class StreamingAbstractRecordReader<T extends IOReadableWritable
 		barrierBuffer.cleanup();
 	}
 
-	public void setNumRecordsReadAccumulator(LongCounter counter) {
-		numRecordsRead = counter;
-	}
-
-	public void setNumBytesReadAccumulator(LongCounter counter) {
-		numBytesRead = counter;
-	}
 }

@@ -26,8 +26,8 @@ import java.util.Map;
 
 import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -65,12 +65,11 @@ public class OutputHandler<OUT> {
 	/**
 	 * Counters for the number of records emitted and bytes written.
 	 */
-	protected LongCounter numRecordsOut;
-	protected LongCounter numBytesOut;
+	protected AccumulatorRegistry.Reporter reporter;
 
 
 	public OutputHandler(StreamTask<OUT, ?> vertex, Map<String, Accumulator<?,?>> accumulatorMap,
-						LongCounter numRecordsOut, LongCounter numBytesOut) {
+						AccumulatorRegistry.Reporter reporter) {
 
 		// Initialize some fields
 		this.vertex = vertex;
@@ -86,8 +85,7 @@ public class OutputHandler<OUT> {
 
 		this.outEdgesInOrder = configuration.getOutEdgesInOrder(cl);
 
-		this.numRecordsOut = numRecordsOut;
-		this.numBytesOut = numBytesOut;
+		this.reporter = reporter;
 
 		// We iterate through all the out edges from this job vertex and create
 		// a stream output
@@ -97,8 +95,7 @@ public class OutputHandler<OUT> {
 					outEdge.getTargetId(),
 					chainedConfigs.get(outEdge.getSourceId()),
 					outEdgesInOrder.indexOf(outEdge),
-					numRecordsOut,
-					numBytesOut);
+					reporter);
 			outputMap.put(outEdge, streamOutput);
 		}
 
@@ -205,7 +202,7 @@ public class OutputHandler<OUT> {
 	 * @return The created StreamOutput
 	 */
 	private <T> StreamOutput<T> createStreamOutput(StreamEdge edge, Integer outputVertex,
-			StreamConfig upStreamConfig, int outputIndex, LongCounter numRecordsOut, LongCounter numBytesOut) {
+			StreamConfig upStreamConfig, int outputIndex, AccumulatorRegistry.Reporter reporter) {
 
 		StreamRecordSerializer<T> outSerializer = upStreamConfig
 				.getTypeSerializerOut1(vertex.userClassLoader);
@@ -224,8 +221,7 @@ public class OutputHandler<OUT> {
 		RecordWriter<SerializationDelegate<StreamRecord<T>>> output =
 				RecordWriterFactory.createRecordWriter(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 
-		output.setRecordsOutCounter(numRecordsOut);
-		output.setBytesOutCounter(numBytesOut);
+		output.setReporter(reporter);
 
 		StreamOutput<T> streamOutput = new StreamOutput<T>(output, outSerializationDelegate);
 

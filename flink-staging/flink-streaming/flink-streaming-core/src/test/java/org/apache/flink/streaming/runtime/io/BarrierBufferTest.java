@@ -199,15 +199,6 @@ public class BarrierBufferTest {
 			super(inputGate);
 		}
 
-		@Override
-		public void setNumRecordsReadAccumulator(LongCounter counter) {
-
-		}
-
-		@Override
-		public void setNumBytesReadAccumulator(LongCounter counter) {
-
-		}
 	}
 
 	protected static BufferOrEvent createSuperstep(long id, int channel) {

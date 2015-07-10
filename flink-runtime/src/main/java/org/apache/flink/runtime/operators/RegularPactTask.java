@@ -20,7 +20,6 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
@@ -71,7 +70,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -218,16 +216,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	protected Map<String, Accumulator<?,?>> accumulatorMap;
 
-	/**
-	 * Counter for the number of records emitted.
-	 */
-	protected LongCounter recordsOutCounter;
-	/**
-	 * Counter for the number of bytes written.
-	 */
-	protected LongCounter bytesOutCounter;
-
-	
 	// --------------------------------------------------------------------------------------------
 	//                                  Task Interface
 	// --------------------------------------------------------------------------------------------
@@ -291,9 +279,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		Environment env = getEnvironment();
 
 		this.runtimeUdfContext = createRuntimeContext(env.getTaskName());
-
-		//AccumulatorRegistry.External accumulatorRegistry = env.getAccumulatorRegistry().getExternal();
-		//accumulatorRegistry.addMap(env.getExecutionId(), accumulatorHashMap);
 
 		// whatever happens in this scope, make sure that the local strategies are cleaned up!
 		// note that the initialization of the local strategies is in the try-finally block as well,
@@ -680,12 +665,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 		int currentReaderOffset = 0;
 
-		AccumulatorRegistry.Internal internalAccumulators = getEnvironment().getAccumulatorRegistry().getInternal();
-		internalAccumulators.createMap();
-
-		// create an Accumulator for every input
-		LongCounter counter = internalAccumulators.createLongCounter(AccumulatorRegistry.Internal.NUM_RECORDS_IN);
-		LongCounter counter2 = internalAccumulators.createLongCounter(AccumulatorRegistry.Internal.NUM_BYTES_IN);
+		AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
+		AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
 
 		for (int i = 0; i < numInputs; i++) {
 			//  ---------------- create the input readers ---------------------
@@ -706,8 +687,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
 
-			inputReaders[i].setNumRecordsReadAccumulator(counter);
-			inputReaders[i].setNumBytesReadAccumulator(counter2);
+			inputReaders[i].setReporter(reporter);
 
 			currentReaderOffset += groupSize;
 		}
@@ -1039,16 +1019,12 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
 		AccumulatorRegistry accumulatorRegistry = getEnvironment().getAccumulatorRegistry();
-		AccumulatorRegistry.Internal internalRegistry = accumulatorRegistry.getInternal();
-		this.recordsOutCounter = internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_RECORDS_OUT);
-		this.bytesOutCounter = internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_BYTES_OUT);
+		AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
 
-		AccumulatorRegistry.External externalRegistry = accumulatorRegistry.getExternal();
-		this.accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
-		externalRegistry.setMap(this.accumulatorMap);
+		this.accumulatorMap = accumulatorRegistry.getUserMap();
 
 		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs,
-				this.getExecutionConfig(), this.recordsOutCounter, this.bytesOutCounter, this.accumulatorMap);
+				this.getExecutionConfig(), reporter, this.accumulatorMap);
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
@@ -1233,7 +1209,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
 	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl,
-			List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs, LongCounter recordsOutCounter, LongCounter bytesOutCounter) throws Exception
+			List<RecordWriter<?>> eventualOutputs, int outputOffset, int numOutputs, AccumulatorRegistry.Reporter reporter) throws Exception
 	{
 		if (numOutputs == 0) {
 			return null;
@@ -1268,8 +1244,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 				// setup accumulator counters
 				final RecordWriter<Record> recordWriter = new RecordWriter<Record>(task.getEnvironment().getWriter(outputOffset + i), oe);
-				recordWriter.setRecordsOutCounter(recordsOutCounter);
-				recordWriter.setBytesOutCounter(bytesOutCounter);
+				recordWriter.setReporter(reporter);
 
 				writers.add(recordWriter);
 			}
@@ -1306,8 +1281,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 				// setup live accumulator counters
 				final RecordWriter<SerializationDelegate<T>> recordWriter = new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe);
-				recordWriter.setRecordsOutCounter(recordsOutCounter);
-				recordWriter.setBytesOutCounter(bytesOutCounter);
+				recordWriter.setReporter(reporter);
 
 				writers.add(recordWriter);
 			}
@@ -1327,7 +1301,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 										List<ChainedDriver<?, ?>> chainedTasksTarget,
 										List<RecordWriter<?>> eventualOutputs,
 										ExecutionConfig executionConfig,
-										LongCounter recordsOutCounter, LongCounter bytesOutCounter,
+										AccumulatorRegistry.Reporter reporter,
 										Map<String, Accumulator<?,?>> accumulatorMap)
 	throws Exception
 	{
@@ -1362,7 +1336,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 				if (i == numChained - 1) {
 					// last in chain, instantiate the output collector for this task
-					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs(), recordsOutCounter, bytesOutCounter);
+					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs(), reporter);
 				}
 
 				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl, executionConfig, accumulatorMap);
@@ -1376,7 +1350,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// else
 
 		// instantiate the output collector the default way from this configuration
-		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, 0, numOutputs, recordsOutCounter, bytesOutCounter);
+		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, 0, numOutputs, reporter);
 	}
 	
 	// --------------------------------------------------------------------------------------------

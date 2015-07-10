@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -40,101 +41,104 @@ public class AccumulatorRegistry {
 	protected final JobID jobID;
 	protected final ExecutionAttemptID taskID;
 
-	private final Internal internalRegistry = new Internal();
-	private final External externalRegistry = new External();
+	/* Flink's internal Accumulator values stored for the executing task. */
+	private final Map<Metric, Accumulator<?, ?>> flinkAccumulators =
+			new HashMap<Metric, Accumulator<?, ?>>();
+
+	/* User-defined Accumulator values stored for the executing task. */
+	private final Map<String, Accumulator<?, ?>> userAccumulators =
+			Collections.synchronizedMap(new HashMap<String, Accumulator<?, ?>>());
+
+	/* The reporter returned to reporting tasks. */
+	private final ReadWriteReporter reporter;
+
+	/**
+	 * Flink metrics supported
+	 */
+	public enum Metric {
+		NUM_RECORDS_IN,
+		NUM_RECORDS_OUT,
+		NUM_BYTES_IN,
+		NUM_BYTES_OUT
+	}
+
 
 	public AccumulatorRegistry(JobID jobID, ExecutionAttemptID taskID) {
 		this.jobID = jobID;
 		this.taskID = taskID;
-	}
-
-	public Internal getInternal() {
-		return internalRegistry;
-	}
-
-	public External getExternal() {
-		return externalRegistry;
+		this.reporter = new ReadWriteReporter(flinkAccumulators);
 	}
 
 	/**
-	 * Abstract class which contains the core logic for accumulator registries.
+	 * Creates a snapshot of this accumulator registry.
+	 * @return a serialized accumulator map
 	 */
-	abstract class Registry {
-
-		/* Accumulator values stored for the executing task. */
-		Map<String, Accumulator<?, ?>> accumulators;
-
-		public AccumulatorEvent getSnapshot() {
-			try {
-				return new AccumulatorEvent(jobID, taskID, accumulators);
-			} catch (IOException e) {
-				LOG.warn("Failed to serialize accumulators for task.", e);
-				return null;
-			}
+	public AccumulatorEvent getSnapshot() {
+		try {
+			return new AccumulatorEvent(jobID, taskID, flinkAccumulators, userAccumulators);
+		} catch (IOException e) {
+			LOG.warn("Failed to serialize accumulators for task.", e);
+			return null;
 		}
-
 	}
 
 	/**
-	 * Registry for per-task user-defined accumulators.
+	 * Gets the map for user-defined accumulators.
 	 */
-	public class External extends Registry {
-
-		/**
-		 * Sets a user accumulator map (can only be called once).
-		 * @param accumulatorMap the accumulator map
-		 */
-		public void setMap(Map<String, Accumulator<?, ?>> accumulatorMap) {
-			if(accumulators == null) {
-				accumulators = accumulatorMap;
-			} else {
-				throw new IllegalStateException("The map for has already been registered.");
-			}
-		}
-
+	public Map<String, Accumulator<?, ?>> getUserMap() {
+		return userAccumulators;
 	}
 
 	/**
-	 * Registry for keeping track of internal metrics (e.g. bytes and records in/out)
+	 * Gets the reporter for flink internal metrics.
 	 */
-	public class Internal extends Registry {
+	public Reporter getReadWriteReporter() {
+		return reporter;
+	}
 
-		/**
-		 * The built-in Flink accumulators
-		 */
-		public static final String NUM_RECORDS_IN  = "num_records_in";
-		public static final String NUM_RECORDS_OUT = "num_records_out";
-		public static final String NUM_BYTES_IN  = "num_bytes_in";
-		public static final String NUM_BYTES_OUT = "num_bytes_out";
+	/**
+	 * Interface for Flink's internal accumulators.
+	 */
+	public interface Reporter {
+		void report(Metric metric, long value);
+	}
 
+	/**
+	 * Accumulator based reporter for keeping track of internal metrics (e.g. bytes and records in/out)
+	 */
+	public static class ReadWriteReporter implements Reporter {
 
-		/**
-		 * Creates an accumulator map once.
-		 */
-		public void createMap() {
-			if(accumulators == null) {
-				accumulators = new HashMap<String, Accumulator<?, ?>>();
-			} else {
-				throw new IllegalStateException("The map for has already been registered.");
-			}
+		private LongCounter numRecordsIn = new LongCounter();
+		private LongCounter numRecordsOut = new LongCounter();
+		private LongCounter numBytesIn = new LongCounter();
+		private LongCounter numBytesOut = new LongCounter();
+
+		public ReadWriteReporter(Map<Metric, Accumulator<?,?>> accumulatorMap) {
+			accumulatorMap.put(Metric.NUM_RECORDS_IN, numRecordsIn);
+			accumulatorMap.put(Metric.NUM_RECORDS_OUT, numRecordsOut);
+			accumulatorMap.put(Metric.NUM_BYTES_IN, numBytesIn);
+			accumulatorMap.put(Metric.NUM_BYTES_OUT, numBytesOut);
 		}
 
-		/**
-		 * Creates a long counter for a previously registered task accumulator map.
-		 * @param name the name of the counter
-		 * @return the counter
-		 */
-		public LongCounter createLongCounter(String name) {
-			if(accumulators != null) {
-				LongCounter longCounter = new LongCounter();
-				accumulators.put(name, longCounter);
-				return longCounter;
-			} else {
-				throw new IllegalStateException("The map for hasn't been registered yet.");
+		@Override
+		public void report(Metric metric, long value) {
+			switch (metric) {
+				case NUM_RECORDS_IN:
+					numRecordsIn.add(1L);
+					break;
+				case NUM_RECORDS_OUT:
+					numRecordsOut.add(1L);
+					break;
+				case NUM_BYTES_IN:
+					numBytesIn.add(1L);
+					break;
+				case NUM_BYTES_OUT:
+					numBytesOut.add(1L);
+					break;
+				default:
+					throw new IllegalStateException("No handle for metric " + metric);
 			}
 		}
-
-
 	}
 
 }

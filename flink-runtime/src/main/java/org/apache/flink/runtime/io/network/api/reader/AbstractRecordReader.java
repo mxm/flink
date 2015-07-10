@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
@@ -44,9 +44,8 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 
 	private boolean isFinished;
 
-	/** Accumulators for keeping track of read/written bytes */
-	private LongCounter numRecordsRead = null;
-	private LongCounter numBytesRead = null;
+	/** For keeping track of read/written bytes */
+	private AccumulatorRegistry.Reporter reporter;
 
 	@SuppressWarnings("unchecked")
 	protected AbstractRecordReader(InputGate inputGate) {
@@ -71,9 +70,9 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 				if (result.isBufferConsumed()) {
 					final Buffer currentBuffer = currentRecordDeserializer.getCurrentBuffer();
 
-					if (numBytesRead != null) {
+					if (reporter != null) {
 						// TODO could be more accurate
-						numBytesRead.add((long) currentBuffer.getSize());
+						reporter.report(AccumulatorRegistry.Metric.NUM_BYTES_IN, (long) currentBuffer.getSize());
 					}
 
 					currentBuffer.recycle();
@@ -82,8 +81,8 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 
 				if (result.isFullRecord()) {
 
-					if (numRecordsRead != null) {
-						numRecordsRead.add(1L);
+					if (reporter != null) {
+						reporter.report(AccumulatorRegistry.Metric.NUM_RECORDS_IN, 1L);
 					}
 
 					return true;
@@ -130,11 +129,8 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 		}
 	}
 
-	public void setNumRecordsReadAccumulator(LongCounter counter) {
-		numRecordsRead = counter;
-	}
-
-	public void setNumBytesReadAccumulator(LongCounter counter) {
-		numBytesRead = counter;
+	@Override
+	public void setReporter(AccumulatorRegistry.Reporter reporter) {
+		this.reporter = reporter;
 	}
 }

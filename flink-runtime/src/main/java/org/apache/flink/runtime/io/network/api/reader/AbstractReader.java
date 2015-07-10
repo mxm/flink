@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -49,6 +50,9 @@ public abstract class AbstractReader implements ReaderBase {
 	 * finished after an end of superstep event has been received for each input channel.
 	 */
 	private int currentNumberOfEndOfSuperstepEvents;
+
+	/** For keeping track of read/written bytes */
+	private AccumulatorRegistry.Reporter reporter;
 
 	protected AbstractReader(InputGate inputGate) {
 		this.inputGate = inputGate;
@@ -146,5 +150,10 @@ public abstract class AbstractReader implements ReaderBase {
 		checkState(currentNumberOfEndOfSuperstepEvents + 1 <= inputGate.getNumberOfInputChannels(), "Received too many (" + currentNumberOfEndOfSuperstepEvents + ") end of superstep events.");
 
 		return ++currentNumberOfEndOfSuperstepEvents == inputGate.getNumberOfInputChannels();
+	}
+
+	@Override
+	public void setReporter(AccumulatorRegistry.Reporter reporter) {
+		this.reporter = reporter;
 	}
 }

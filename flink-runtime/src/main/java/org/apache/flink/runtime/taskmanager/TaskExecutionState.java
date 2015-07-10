@@ -53,10 +53,8 @@ public class TaskExecutionState implements java.io.Serializable {
 	// class may not be part of the system class loader.
 	private transient Throwable cachedError;
 
-	/** Serialized Internal flink accumulators */
-	private final AccumulatorEvent flinkAccumulators;
-	/** Serialized User-defined accumulators */
-	private final AccumulatorEvent userAccumulators;
+	/** Serialized flink and user-defined accumulators */
+	private final AccumulatorEvent accumulators;
 
 	/**
 	 * Creates a new task execution state update, with no attached exception and no accumulators.
@@ -69,7 +67,7 @@ public class TaskExecutionState implements java.io.Serializable {
 	 *        the execution state to be reported
 	 */
 	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId, ExecutionState executionState) {
-		this(jobID, executionId, executionState, null, null, null);
+		this(jobID, executionId, executionState, null, null);
 	}
 
 	/**
@@ -81,11 +79,10 @@ public class TaskExecutionState implements java.io.Serializable {
 	 *        the ID of the task execution whose state is to be reported
 	 * @param executionState
 	 *        the execution state to be reported
-	 * @param error
-	 *        an optional error
-	 */	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId,
+	 */
+	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId,
 							ExecutionState executionState, Throwable error) {
-		this(jobID, executionId, executionState, error, null, null);
+		this(jobID, executionId, executionState, error, null);
 	}
 
 	/**
@@ -100,15 +97,12 @@ public class TaskExecutionState implements java.io.Serializable {
 	 *        the execution state to be reported
 	 * @param error
 	 *        an optional error
-	 * @param flinkAccumulators
-	 *        The internal accumulators which may be null.
-	 * @param userAccumulators
-	 *        The user-defined accumulators which may be null.
+	 * @param accumulators
+	 *        The flink and user-defined accumulators which may be null.
 	 */
 	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId,
 			ExecutionState executionState, Throwable error,
-			AccumulatorEvent flinkAccumulators,
-			AccumulatorEvent userAccumulators) {
+			AccumulatorEvent accumulators) {
 
 
 			if (jobID == null || executionId == null || executionState == null) {
@@ -119,8 +113,7 @@ public class TaskExecutionState implements java.io.Serializable {
 		this.executionId = executionId;
 		this.executionState = executionState;
 		this.cachedError = error;
-		this.flinkAccumulators = flinkAccumulators;
-		this.userAccumulators = userAccumulators;
+		this.accumulators = accumulators;
 
 		if (error != null) {
 			byte[] serializedError;
@@ -210,17 +203,10 @@ public class TaskExecutionState implements java.io.Serializable {
 	}
 
 	/**
-	 * Gets flink accumulators in serialized form.
+	 * Gets flink and user-defined accumulators in serialized form.
 	 */
-	public AccumulatorEvent getFlinkAccumulators() {
-		return flinkAccumulators;
-	}
-
-	/**
-	 * Gets the user-defined accumulators in serialized form.
-	 */
-	public AccumulatorEvent getUserAccumulators() {
-		return userAccumulators;
+	public AccumulatorEvent getAccumulators() {
+		return accumulators;
 	}
 
 	// --------------------------------------------------------------------------------------------

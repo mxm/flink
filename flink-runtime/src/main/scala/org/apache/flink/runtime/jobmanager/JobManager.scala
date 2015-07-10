@@ -405,10 +405,10 @@ class JobManager(
 
       Future {
         accumulators foreach {
-          case (flinkSerialized, userSerialized) =>
-              currentJobs.get(flinkSerialized.getJobID) match {
+          case accumulators =>
+              currentJobs.get(accumulators.getJobID) match {
                 case Some((jobGraph, jobInfo)) =>
-                  jobGraph.updateAccumulators(flinkSerialized, userSerialized)
+                  jobGraph.updateAccumulators(accumulators)
                 case None =>
                   log.error("Received accumulators for unknown job")
               }

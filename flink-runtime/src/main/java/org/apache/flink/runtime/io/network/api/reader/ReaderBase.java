@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.api.reader;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.util.event.EventListener;
 
@@ -53,15 +53,8 @@ public interface ReaderBase {
 	boolean hasReachedEndOfSuperstep();
 
 	/**
-	 * Setter for the counter for the number of records emitted.
-	 * @param counter
+	 * Setter for the reporter, e.g. for the number of records emitted and the number of bytes read.
 	 */
-	void setNumRecordsReadAccumulator(LongCounter counter);
-
-	/**
-	 * Setter for the number of bytes read.
-	 * @param counter
-	 */
-	void setNumBytesReadAccumulator(LongCounter counter);
+	void setReporter(AccumulatorRegistry.Reporter reporter);
 
 }

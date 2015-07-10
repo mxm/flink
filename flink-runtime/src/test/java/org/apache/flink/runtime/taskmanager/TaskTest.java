@@ -743,7 +743,6 @@ public class TaskTest {
 						mock(IOManager.class),
 						networkEnvironment,
 						mock(BroadcastVariableManager.class),
-						mock(AccumulatorRegistry.class),
 						taskManagerMock, jobManagerMock,
 						new FiniteDuration(60, TimeUnit.SECONDS),
 						libCache,

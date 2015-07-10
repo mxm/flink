@@ -218,20 +218,6 @@ public class RuntimeEnvironment implements Environment {
 		return inputGates;
 	}
 
-//	@Override
-//	public void reportAccumulators(Map<String, Accumulator<?, ?>> accumulators) {
-//		AccumulatorEvent evt;
-//		try {
-//			evt = new AccumulatorEvent(getJobID(), accumulators);
-//		}
-//		catch (IOException e) {
-//			throw new RuntimeException("Cannot serialize accumulators to send them to JobManager", e);
-//		}
-//
-//		ReportAccumulatorResult accResult = new ReportAccumulatorResult(jobId, executionId, evt);
-//		jobManagerActor.tell(accResult, ActorRef.noSender());
-//	}
-
 	@Override
 	public void acknowledgeCheckpoint(long checkpointId) {
 		acknowledgeCheckpoint(checkpointId, null);

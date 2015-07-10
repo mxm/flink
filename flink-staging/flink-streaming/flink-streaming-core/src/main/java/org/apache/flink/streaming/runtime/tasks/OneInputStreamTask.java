@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
@@ -54,12 +53,10 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			InputGate inputGate = InputGateFactory.createInputGate(getEnvironment().getAllInputGates());
 			inputs = new IndexedMutableReader<DeserializationDelegate<StreamRecord<IN>>>(inputGate);
 
-			AccumulatorRegistry.Internal internalRegistry = getEnvironment().getAccumulatorRegistry().getInternal();
-			LongCounter numRecordsOut = internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_RECORDS_IN);
-			LongCounter numBytesOut = internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_BYTES_IN);
+			AccumulatorRegistry registry = getEnvironment().getAccumulatorRegistry();
+			AccumulatorRegistry.Reporter reporter = registry.getReadWriteReporter();
 
-			inputs.setNumRecordsReadAccumulator(numRecordsOut);
-			inputs.setNumBytesReadAccumulator(numBytesOut);
+			inputs.setReporter(reporter);
 
 			inputs.registerTaskEventListener(getSuperstepListener(), StreamingSuperstep.class);
 

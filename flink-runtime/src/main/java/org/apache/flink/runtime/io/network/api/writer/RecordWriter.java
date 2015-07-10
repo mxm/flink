@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
@@ -51,16 +51,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 	private final int numChannels;
 
 	/**
-	 * Counter for the number of records emitted.
+	 * Counter for the number of records emitted and for the number of bytes written.
 	 * @param counter
 	 */
-	private LongCounter recordsOutCounter;
-
-	/**
-	 * Counter for the number of bytes written.
-	 * @param counter
-	 */
-	private LongCounter bytesOutCounter;
+	private AccumulatorRegistry.Reporter reporter;
 
 	/** {@link RecordSerializer} per outgoing channel */
 	private final RecordSerializer<T>[] serializers;
@@ -104,16 +98,16 @@ public class RecordWriter<T extends IOReadableWritable> {
 					}
 
 					buffer = writer.getBufferProvider().requestBufferBlocking();
-					if (bytesOutCounter != null) {
+					if (reporter != null) {
 						// increase the number of written bytes by the memory segment's size
-						bytesOutCounter.add((long) buffer.getSize());
+						reporter.report(AccumulatorRegistry.Metric.NUM_BYTES_OUT, (long) buffer.getSize());
 					}
 
 					result = serializer.setNextBuffer(buffer);
 				}
-				if(recordsOutCounter != null) {
+				if(reporter != null) {
 					// count number of emitted records
-					recordsOutCounter.add(1L);
+					reporter.report(AccumulatorRegistry.Metric.NUM_RECORDS_OUT, 1L);
 				}
 			}
 		}
@@ -198,18 +192,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	/**
-	 * Counter for the number of records emitted.
-	 * @param counter
+	 * Counter for the number of records emitted and the records processed.
 	 */
-	public void setRecordsOutCounter(LongCounter counter) {
-		recordsOutCounter = counter;
+	public void setReporter(AccumulatorRegistry.Reporter reporter) {
+		this.reporter = reporter;
 	}
 
-	/**
-	 * Counter for the number of bytes written.
-	 * @param counter
-	 */
-	public void setBytesOutCounter(LongCounter counter) {
-		bytesOutCounter = counter;
-	}
 }

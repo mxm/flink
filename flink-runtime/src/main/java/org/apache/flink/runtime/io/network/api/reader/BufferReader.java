@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -47,15 +46,5 @@ public final class BufferReader extends AbstractReader {
 				}
 			}
 		}
-	}
-
-	@Override
-	public void setNumRecordsReadAccumulator(LongCounter counter) {
-
-	}
-
-	@Override
-	public void setNumBytesReadAccumulator(LongCounter counter) {
-
 	}
 }

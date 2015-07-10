@@ -60,7 +60,7 @@ import static org.junit.Assert.*;
  * Test the availability of accumulator results during runtime.
  */
 @SuppressWarnings("serial")
-public class LiveAccumulatorITCase {
+public class AccumulatorLiveITCase {
 
 	private static ActorSystem system;
 	private static ActorRef jobManager;

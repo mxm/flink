@@ -73,8 +73,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 										ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
 										Map<String, Future<Path>> cpTasks,
-										Map<String, Accumulator<?,?>> accumulators
-									) {
+										Map<String, Accumulator<?,?>> accumulators) {
 		this.name = name;
 		this.numParallelSubtasks = numParallelSubtasks;
 		this.subtaskIndex = subtaskIndex;

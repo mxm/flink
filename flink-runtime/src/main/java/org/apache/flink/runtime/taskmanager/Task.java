@@ -187,10 +187,6 @@ public class Task implements Runnable {
 	/** The registry of this task which enables live reporting of accumulators */
 	private final AccumulatorRegistry accumulatorRegistry;
 
-	public AccumulatorRegistry getAccumulatorRegistry() {
-		return accumulatorRegistry;
-	}
-
 	/** The thread that executes the task */
 	private final Thread executingThread;
 
@@ -228,7 +224,6 @@ public class Task implements Runnable {
 				IOManager ioManager,
 				NetworkEnvironment networkEnvironment,
 				BroadcastVariableManager bcVarManager,
-				AccumulatorRegistry accumulatorRegistry,
 				ActorRef taskManagerActor,
 				ActorRef jobManagerActor,
 				FiniteDuration actorAskTimeout,
@@ -255,7 +250,7 @@ public class Task implements Runnable {
 		this.memoryManager = checkNotNull(memManager);
 		this.ioManager = checkNotNull(ioManager);
 		this.broadcastVariableManager = checkNotNull(bcVarManager);
-		this.accumulatorRegistry = accumulatorRegistry;
+		this.accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 
 		this.jobManager = checkNotNull(jobManagerActor);
 		this.taskManager = checkNotNull(taskManagerActor);
@@ -369,6 +364,10 @@ public class Task implements Runnable {
 
 	public SingleInputGate getInputGateById(IntermediateDataSetID id) {
 		return inputGatesById.get(id);
+	}
+
+	public AccumulatorRegistry getAccumulatorRegistry() {
+		return accumulatorRegistry;
 	}
 
 	public Thread getExecutingThread() {

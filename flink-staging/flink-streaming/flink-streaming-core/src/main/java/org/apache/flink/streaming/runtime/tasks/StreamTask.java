@@ -20,14 +20,12 @@ package org.apache.flink.streaming.runtime.tasks;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.functors.NotNullPredicate;
 import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
@@ -92,21 +90,12 @@ public abstract class StreamTask<OUT, O extends StreamOperator<OUT>> extends Abs
 		streamOperator = configuration.getStreamOperator(userClassLoader);
 
 		// Create and register Accumulators
-		Map<String, Accumulator<?, ?>> accumulatorMap = new HashMap<String, Accumulator<?, ?>>();
 		Environment env = getEnvironment();
-		final AccumulatorRegistry accumulatorRegistry = env.getAccumulatorRegistry();
+		AccumulatorRegistry accumulatorRegistry = env.getAccumulatorRegistry();
+		Map<String, Accumulator<?, ?>> accumulatorMap = accumulatorRegistry.getUserMap();
+		AccumulatorRegistry.Reporter reporter = accumulatorRegistry.getReadWriteReporter();
 
-		AccumulatorRegistry.External externalRegistry = accumulatorRegistry.getExternal();
-		externalRegistry.setMap(accumulatorMap);
-
-		AccumulatorRegistry.Internal internalRegistry = accumulatorRegistry.getInternal();
-		internalRegistry.createMap();
-		internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_RECORDS_IN);
-		internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_BYTES_IN);
-		LongCounter recordsOutCounter = internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_RECORDS_OUT);
-		LongCounter bytesOutCounter = internalRegistry.createLongCounter(AccumulatorRegistry.Internal.NUM_BYTES_OUT);
-
-		outputHandler = new OutputHandler<OUT>(this, accumulatorMap, recordsOutCounter, bytesOutCounter);
+		outputHandler = new OutputHandler<OUT>(this, accumulatorMap, reporter);
 
 		if (streamOperator != null) {
 			// IterationHead and IterationTail don't have an Operator...

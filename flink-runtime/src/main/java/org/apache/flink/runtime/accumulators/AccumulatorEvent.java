@@ -24,6 +24,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.util.SerializedValue;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Map;
 
 /**
@@ -31,17 +32,23 @@ import java.util.Map;
  * for the transfer from TaskManagers to the JobManager and from the JobManager
  * to the Client.
  */
-public class AccumulatorEvent extends SerializedValue<Map<String, Accumulator<?, ?>>> {
+public class AccumulatorEvent implements Serializable {
 
-	private static final long serialVersionUID = 8965894516006882735L;
+	private static final long serialVersionUID = 42L;
 
 	private final JobID jobID;
 	private final ExecutionAttemptID executionAttemptID;
 
-	public AccumulatorEvent(JobID jobID, ExecutionAttemptID executionAttemptID, Map<String, Accumulator<?, ?>> accumulators) throws IOException {
-		super(accumulators);
+	private final Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
+	private final SerializedValue<Map<String, Accumulator<?, ?>>> userAccumulators;
+
+	public AccumulatorEvent(JobID jobID, ExecutionAttemptID executionAttemptID,
+							Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
+							Map<String, Accumulator<?, ?>> userAccumulators) throws IOException {
 		this.jobID = jobID;
 		this.executionAttemptID = executionAttemptID;
+		this.flinkAccumulators = flinkAccumulators;
+		this.userAccumulators = new SerializedValue<Map<String, Accumulator<?, ?>>>(userAccumulators);
 	}
 
 	public JobID getJobID() {
@@ -50,5 +57,21 @@ public class AccumulatorEvent extends SerializedValue<Map<String, Accumulator<?,
 
 	public ExecutionAttemptID getExecutionAttemptID() {
 		return executionAttemptID;
+	}
+
+	/**
+	 * Gets the flink (internal) accumulators values.
+	 * @return the serialized map
+	 */
+	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getFlinkAccumulators() {
+		return flinkAccumulators;
+	}
+
+	/**
+	 * Gets the user-defined accumulators values.
+	 * @return the serialized map
+	 */
+	public Map<String, Accumulator<?, ?>> deserializeUserAccumulators(ClassLoader classLoader) throws IOException, ClassNotFoundException {
+		return userAccumulators.deserializeValue(classLoader);
 	}
 }

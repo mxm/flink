@@ -27,6 +27,7 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -137,18 +138,15 @@ public class ExecutionGraph implements Serializable {
 	/**
 	 * Updates the accumulators during the runtime of a job. Final accumulator results are transferred
 	 * through the UpdateTaskExecutionState message.
-	 * @param flinkAccumulatorEvent The serialized flink accumulators
-	 * @param userAccumulatorEvent The serialized user accumulators
+	 * @param accumulatorEvent The serialized flink and user-defined accumulators
 	 */
-	public void updateAccumulators(AccumulatorEvent flinkAccumulatorEvent,
-								AccumulatorEvent userAccumulatorEvent) {
-		Map<String, Accumulator<?, ?>> flinkAccumulators;
+	public void updateAccumulators(AccumulatorEvent accumulatorEvent) {
+		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators = accumulatorEvent.getFlinkAccumulators();
 		Map<String, Accumulator<?, ?>> userAccumulators;
 		try {
-			flinkAccumulators = flinkAccumulatorEvent.deserializeValue(userClassLoader);
-			userAccumulators = userAccumulatorEvent.deserializeValue(userClassLoader);
+			userAccumulators = accumulatorEvent.deserializeUserAccumulators(userClassLoader);
 
-			ExecutionAttemptID execID = flinkAccumulatorEvent.getExecutionAttemptID();
+			ExecutionAttemptID execID = accumulatorEvent.getExecutionAttemptID();
 			Execution execution = currentExecutions.get(execID);
 			if (execution != null) {
 				execution.setAccumulators(flinkAccumulators, userAccumulators);
@@ -517,17 +515,17 @@ public class ExecutionGraph implements Serializable {
 		return executionContext;
 	}
 
+	/**
 	 * Gets the internal flink accumulator map of maps which contains some metrics.
 	 * @return A map of accumulators for every executed task.
 	 */
-	public Map<ExecutionAttemptID, Map<String, Accumulator<?,?>>> getFlinkAccumulators() {
-		Map<ExecutionAttemptID, Map<String, Accumulator<?, ?>>> flinkAccumulators =
-				new HashMap<ExecutionAttemptID, Map<String, Accumulator<?, ?>>>();
+	public Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?,?>>> getFlinkAccumulators() {
+		Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators =
+				new HashMap<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>>();
 
 		for (ExecutionVertex vertex : getAllExecutionVertices()) {
-			Map<String, Accumulator<?, ?>> taskAccs = vertex.getCurrentExecutionAttempt().getFlinkAccumulators();
+			Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> taskAccs = vertex.getCurrentExecutionAttempt().getFlinkAccumulators();
 			flinkAccumulators.put(vertex.getCurrentExecutionAttempt().getAttemptId(), taskAccs);
-			System.out.println(vertex.getCurrentExecutionAttempt().toString() + ": " + taskAccs);
 		}
 
 		return flinkAccumulators;
@@ -887,11 +885,12 @@ public class ExecutionGraph implements Serializable {
 				case RUNNING:
 					return attempt.switchToRunning();
 				case FINISHED:
-					Map<String, Accumulator<?, ?>> flinkAccumulators = null;
+					Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators = null;
 					Map<String, Accumulator<?, ?>> userAccumulators = null;
 					try {
-						flinkAccumulators = state.getFlinkAccumulators().deserializeValue(userClassLoader);
-						userAccumulators = state.getUserAccumulators().deserializeValue(userClassLoader);
+						AccumulatorEvent accumulators = state.getAccumulators();
+						flinkAccumulators = accumulators.getFlinkAccumulators();
+						userAccumulators = accumulators.deserializeUserAccumulators(userClassLoader);
 					} catch (Exception e) {
 						// Exceptions would be thrown in the future here
 						LOG.error("Failed to deserialize final accumulator results.", e);
