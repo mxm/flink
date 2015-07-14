@@ -149,13 +149,13 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
 
     case RequestAccumulatorValues(jobID) =>
 
-      val accumulators = currentJobs.get(jobID) match {
+      val (flinkAccumulators, userAccumulators) = currentJobs.get(jobID) match {
         case Some((graph, jobInfo)) =>
-          graph.aggregateUserAccumulators()
+          (graph.getFlinkAccumulators, graph.aggregateUserAccumulators)
         case None => null
       }
 
-      sender ! RequestAccumulatorValuesResponse(jobID, accumulators)
+      sender ! RequestAccumulatorValuesResponse(jobID, flinkAccumulators, userAccumulators)
 
     case NotifyWhenJobStatus(jobID, state) =>
       val jobStatusListener = waitForJobStatus.getOrElseUpdate(jobID,

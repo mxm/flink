@@ -37,7 +37,7 @@ import grizzled.slf4j.Logger
 
 import org.apache.flink.configuration.{Configuration, ConfigConstants, GlobalConfiguration, IllegalConfigurationException}
 import org.apache.flink.runtime.messages.checkpoint.{NotifyCheckpointComplete, TriggerCheckpoint, AbstractCheckpointMessage}
-import org.apache.flink.runtime.accumulators.{AccumulatorEvent, AccumulatorRegistry}
+import org.apache.flink.runtime.accumulators.{AccumulatorSnapshot, AccumulatorRegistry}
 import org.apache.flink.runtime.{StreamingMode, ActorSynchronousLogging, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobService, BlobCache}
@@ -943,7 +943,7 @@ extends Actor with ActorLogMessages with ActorSynchronousLogging {
       val metricsReport: Array[Byte] = metricRegistryMapper.writeValueAsBytes(metricRegistry)
 
       val accumulatorEvents =
-        scala.collection.mutable.Buffer[AccumulatorEvent]()
+        scala.collection.mutable.Buffer[AccumulatorSnapshot]()
 
       runningTasks foreach {
         case (execID, task) =>

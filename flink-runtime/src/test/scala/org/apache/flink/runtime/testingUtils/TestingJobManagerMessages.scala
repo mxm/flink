@@ -20,6 +20,7 @@ package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.InstanceGateway
 import org.apache.flink.runtime.jobgraph.JobStatus
@@ -58,5 +59,6 @@ object TestingJobManagerMessages {
 
   case class RequestAccumulatorValues(jobID: JobID)
   case class RequestAccumulatorValuesResponse(jobID: JobID,
-                              accumulators: Map[String, Accumulator[_,_]])
+    flinkAccumulators: Map[ExecutionAttemptID, Map[AccumulatorRegistry.Metric, Accumulator[_,_]]],
+    userAccumulators: Map[String, Accumulator[_,_]])
 }

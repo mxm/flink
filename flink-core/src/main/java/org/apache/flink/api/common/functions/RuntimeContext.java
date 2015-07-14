@@ -100,9 +100,11 @@ public interface RuntimeContext {
 	<V, A extends Serializable> Accumulator<V, A> getAccumulator(String name);
 
 	/**
-	 * For system internal usage only. Use getAccumulator(...) to obtain a
-	 * accumulator. The returned map must NOT be modified.
+	 * Returns a map of all registered accumulators for this task.
+	 * The returned map must not be modified.
+	 * @deprecated Use getAccumulator(..) to obtain the value of an accumulator.
 	 */
+	@Deprecated
 	Map<String, Accumulator<?, ?>> getAllAccumulators();
 
 	/**

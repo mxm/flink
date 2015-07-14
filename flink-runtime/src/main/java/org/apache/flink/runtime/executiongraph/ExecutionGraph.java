@@ -26,7 +26,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -138,15 +138,15 @@ public class ExecutionGraph implements Serializable {
 	/**
 	 * Updates the accumulators during the runtime of a job. Final accumulator results are transferred
 	 * through the UpdateTaskExecutionState message.
-	 * @param accumulatorEvent The serialized flink and user-defined accumulators
+	 * @param accumulatorSnapshot The serialized flink and user-defined accumulators
 	 */
-	public void updateAccumulators(AccumulatorEvent accumulatorEvent) {
-		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators = accumulatorEvent.getFlinkAccumulators();
+	public void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
+		Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators = accumulatorSnapshot.getFlinkAccumulators();
 		Map<String, Accumulator<?, ?>> userAccumulators;
 		try {
-			userAccumulators = accumulatorEvent.deserializeUserAccumulators(userClassLoader);
+			userAccumulators = accumulatorSnapshot.deserializeUserAccumulators(userClassLoader);
 
-			ExecutionAttemptID execID = accumulatorEvent.getExecutionAttemptID();
+			ExecutionAttemptID execID = accumulatorSnapshot.getExecutionAttemptID();
 			Execution execution = currentExecutions.get(execID);
 			if (execution != null) {
 				execution.setAccumulators(flinkAccumulators, userAccumulators);
@@ -888,7 +888,7 @@ public class ExecutionGraph implements Serializable {
 					Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators = null;
 					Map<String, Accumulator<?, ?>> userAccumulators = null;
 					try {
-						AccumulatorEvent accumulators = state.getAccumulators();
+						AccumulatorSnapshot accumulators = state.getAccumulators();
 						flinkAccumulators = accumulators.getFlinkAccumulators();
 						userAccumulators = accumulators.deserializeUserAccumulators(userClassLoader);
 					} catch (Exception e) {

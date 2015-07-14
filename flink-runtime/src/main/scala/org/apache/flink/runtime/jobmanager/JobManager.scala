@@ -410,7 +410,7 @@ class JobManager(
                 case Some((jobGraph, jobInfo)) =>
                   jobGraph.updateAccumulators(accumulators)
                 case None =>
-                  log.error("Received accumulators for unknown job")
+                  // ignore accumulator values for old job
               }
         }
       }(context.dispatcher)

@@ -65,15 +65,15 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 										Map<String, Accumulator<?,?>> accumulators)
 	{
 		this(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig,
-				Collections.<String, Future<Path>>emptyMap(), accumulators);
+				accumulators, Collections.<String, Future<Path>>emptyMap());
 	}
 
 	public AbstractRuntimeUDFContext(String name,
 										int numParallelSubtasks, int subtaskIndex,
 										ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
-										Map<String, Future<Path>> cpTasks,
-										Map<String, Accumulator<?,?>> accumulators) {
+										Map<String, Accumulator<?,?>> accumulators,
+										Map<String, Future<Path>> cpTasks) {
 		this.name = name;
 		this.numParallelSubtasks = numParallelSubtasks;
 		this.subtaskIndex = subtaskIndex;

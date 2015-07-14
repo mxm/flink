@@ -32,17 +32,24 @@ import java.util.Map;
  * for the transfer from TaskManagers to the JobManager and from the JobManager
  * to the Client.
  */
-public class AccumulatorEvent implements Serializable {
+public class AccumulatorSnapshot implements Serializable {
 
 	private static final long serialVersionUID = 42L;
 
 	private final JobID jobID;
 	private final ExecutionAttemptID executionAttemptID;
 
+	/**
+	 * Flink internal accumulators which can be serialized using the system class loader.
+	 */
 	private final Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators;
+
+	/**
+	 * Serialized user accumulators which may require the custom user class loader.
+	 */
 	private final SerializedValue<Map<String, Accumulator<?, ?>>> userAccumulators;
 
-	public AccumulatorEvent(JobID jobID, ExecutionAttemptID executionAttemptID,
+	public AccumulatorSnapshot(JobID jobID, ExecutionAttemptID executionAttemptID,
 							Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> flinkAccumulators,
 							Map<String, Accumulator<?, ?>> userAccumulators) throws IOException {
 		this.jobID = jobID;
@@ -60,7 +67,7 @@ public class AccumulatorEvent implements Serializable {
 	}
 
 	/**
-	 * Gets the flink (internal) accumulators values.
+	 * Gets the Flink (internal) accumulators values.
 	 * @return the serialized map
 	 */
 	public Map<AccumulatorRegistry.Metric, Accumulator<?, ?>> getFlinkAccumulators() {

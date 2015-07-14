@@ -417,7 +417,7 @@ public abstract class DataSet<T> {
 				throw new RuntimeException("Serialization error while deserializing collected data", e);
 			}
 		} else {
-			throw new RuntimeException("The job result did not contain any accumulator data.");
+			throw new RuntimeException("The call to collect() could not retrieve the DataSet.");
 		}
 	}
 

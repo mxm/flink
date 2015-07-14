@@ -27,6 +27,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -37,11 +38,14 @@ import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.*;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.Collector;
@@ -88,6 +92,7 @@ public class AccumulatorLiveITCase {
 		for (int i=0; i < NUM_ITERATIONS; i++) {
 			inputData.add(i, String.valueOf(i+1));
 		}
+
 	}
 
 	@After
@@ -120,30 +125,74 @@ public class AccumulatorLiveITCase {
 				Thread.sleep(WAIT_TIME);
 
 				jobManager.tell(new RequestAccumulatorValues(jobGraph.getJobID()), getRef());
-				Map<String, Accumulator<?, ?>> accumulators =
-						expectMsgClass(RequestAccumulatorValuesResponse.class).accumulators();
 
-				if (accumulators.containsKey(NAME) && expected != ((IntCounter)accumulators.get(NAME)).getLocalValue()) {
+				RequestAccumulatorValuesResponse response =
+						expectMsgClass(RequestAccumulatorValuesResponse.class);
+
+				Map<String, Accumulator<?, ?>> userAccumulators = response.userAccumulators();
+				Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?,?>>> flinkAccumulators =
+						response.flinkAccumulators();
+
+				if (checkUserAccumulators(expected, userAccumulators) && checkFlinkAccumulators(Math.max(0, i - 1), i, flinkAccumulators)) {
+					System.out.println("Passed round " + i);
+					// We passed this round
+					i += 1;
+					expected += i;
+					retries = 0;
+				} else {
 					if (retries < NUM_RETRIES) {
 						// try again
 						retries += 1;
-						//System.out.println("retrying for the " + retries + " time.");
-						continue;
+						System.out.println("retrying for the " + retries + " time.");
 					} else {
 						fail("Failed in round #" + i + " after " + retries + " retries.");
 					}
-				} else {
-					// passed
-					//System.out.println("passed round #" + i);
-					retries = 0;
 				}
-				i += 1;
-				expected += i;
 			}
 
 			expectMsgClass(JobManagerMessages.JobResultSuccess.class);
 		}};
 	}
+
+	private static boolean checkUserAccumulators(int expected, Map<String, Accumulator<?,?>> accumulatorMap) {
+		return accumulatorMap.containsKey(NAME) && expected == ((IntCounter)accumulatorMap.get(NAME)).getLocalValue();
+	}
+
+	private static boolean checkFlinkAccumulators(int expectedRead, int expectedWrite, Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?,?>>> accumulatorMap) {
+		System.out.println(accumulatorMap);
+		System.out.println("reads: " + expectedRead);
+		System.out.println("writes: " + expectedWrite);
+		boolean returnValue = false;
+		for(Map<AccumulatorRegistry.Metric, Accumulator<?,?>> taskMap : accumulatorMap.values()) {
+			if (taskMap != null) {
+				for (Map.Entry<AccumulatorRegistry.Metric, Accumulator<?, ?>> entry : taskMap.entrySet()) {
+					switch (entry.getKey()) {
+						case NUM_RECORDS_IN:
+//							assertTrue(((LongCounter) entry.getValue()).getLocalValue() == expectedRead);
+							returnValue = true;
+							break;
+						case NUM_RECORDS_OUT:
+							assertTrue(((LongCounter) entry.getValue()).getLocalValue() == expectedWrite);
+							returnValue = true;
+							break;
+						case NUM_BYTES_IN:
+							// we're reading from a collection
+							//assertTrue(((LongCounter) entry.getValue()).getLocalValue() == 0);
+							returnValue = true;
+							break;
+						case NUM_BYTES_OUT:
+							//assertTrue(((LongCounter) entry.getValue()).getLocalValue() == expectedWrite);
+							returnValue = true;
+							break;
+						default:
+							fail("Unknown accumulator found.");
+					}
+				}
+			}
+		}
+		return returnValue;
+	}
+
 
 
 	/**

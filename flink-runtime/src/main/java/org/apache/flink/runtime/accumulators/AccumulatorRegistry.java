@@ -73,9 +73,9 @@ public class AccumulatorRegistry {
 	 * Creates a snapshot of this accumulator registry.
 	 * @return a serialized accumulator map
 	 */
-	public AccumulatorEvent getSnapshot() {
+	public AccumulatorSnapshot getSnapshot() {
 		try {
-			return new AccumulatorEvent(jobID, taskID, flinkAccumulators, userAccumulators);
+			return new AccumulatorSnapshot(jobID, taskID, flinkAccumulators, userAccumulators);
 		} catch (IOException e) {
 			LOG.warn("Failed to serialize accumulators for task.", e);
 			return null;
