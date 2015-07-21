@@ -36,6 +36,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -52,6 +53,8 @@ import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.After;
 import org.junit.Before;
@@ -60,7 +63,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
-import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -75,6 +77,23 @@ import static org.junit.Assert.*;
 /**
  * Tests the availability of accumulator results during runtime. The test case tests a user-defined
  * accumulator and Flink's internal accumulators for two consecutive tasks.
+ *
+ * Batch
+ * =====
+ *
+ * CHAINED[Source -> Map] -> Sink
+ *
+ * Two checks are performed as the elements are passed from the chained Source to the sink.
+ * The synchronization occurs after every element has reached the next operator.
+ *
+ * Streaming
+ * =========
+ *
+ * Source -> CHAINED[Map -> Sink]
+ *
+ * One check is performed as the elements are streamed from the Source to the Chained operators.
+ * The synchronization occurs after every element has reached the sink.
+ *
  */
 public class AccumulatorLiveITCase {
 
@@ -83,10 +102,12 @@ public class AccumulatorLiveITCase {
 	private static ActorSystem system;
 	private static ActorGateway jobManagerGateway;
 	private static ActorRef taskManager;
+
 	private static JobID jobID;
+	private static JobGraph jobGraph;
 
 	// name of user accumulator
-	private static String NAME = "test";
+	private static String ACCUMULATOR_NAME = "test";
 
 	// number of heartbeat intervals to check
 	private static final int NUM_ITERATIONS = 5;
@@ -118,24 +139,53 @@ public class AccumulatorLiveITCase {
 	@After
 	public void after() throws Exception {
 		JavaTestKit.shutdownActorSystem(system);
+		inputData.clear();
 	}
 
 	@Test
-	public void testProgram() throws Exception {
+	public void testBatch() throws Exception {
 
+		/** The program **/
+		ExecutionEnvironment env = new BatchPlanExtractor();
+		env.setParallelism(1);
+
+		DataSet<String> input = env.fromCollection(inputData);
+		input
+				.flatMap(new WaitingUDF())
+				.output(new WaitingOutputFormat());
+		env.execute();
+
+		// Extract job graph and set job id for the task to notify of accumulator changes.
+		jobGraph = getOptimizedPlan(((BatchPlanExtractor) env).plan);
+		jobID = jobGraph.getJobID();
+
+		verifyBatch();
+	}
+
+
+	@Test
+	public void testStreaming() throws Exception {
+
+
+		StreamExecutionEnvironment env = new StreamJobExtractor();
+		env.setParallelism(1);
+
+		DataStream<String> input = env.fromCollection(inputData).disableChaining();
+		input
+				.flatMap(new WaitingUDF())
+				.write(new DiscardingOutputFormat<Integer>(), 1000);
+
+		env.execute();
+
+		jobGraph = ((StreamJobExtractor) env).graph;
+		jobID = jobGraph.getJobID();
+
+		verifyStreaming();
+	}
+
+
+	private static void verifyBatch() {
 		new JavaTestKit(system) {{
-
-			/** The program **/
-			ExecutionEnvironment env = new PlanExtractor();
-			DataSet<String> input = env.fromCollection(inputData);
-			input
-					.flatMap(new WaitingUDF())
-					.output(new WaitingOutputFormat());
-			env.execute();
-
-			// Extract job graph and set job id for the task to notify of accumulator changes.
-			JobGraph jobGraph = getOptimizedPlan(((PlanExtractor) env).plan);
-			jobID = jobGraph.getJobID();
 
 			ActorGateway selfGateway = new AkkaActorGateway(getRef(), jobManagerGateway.leaderSessionID());
 
@@ -235,9 +285,81 @@ public class AccumulatorLiveITCase {
 		}};
 	}
 
+
+	public static void verifyStreaming() {
+
+		new JavaTestKit(system) {{
+
+			ActorGateway selfGateway = new AkkaActorGateway(getRef(), jobManagerGateway.leaderSessionID());
+
+			// register for accumulator changes
+			jobManagerGateway.tell(new TestingJobManagerMessages.NotifyWhenAccumulatorChange(jobID), selfGateway);
+			expectMsgEquals(TIMEOUT, true);
+
+			// submit job
+			jobManagerGateway.tell(new JobManagerMessages.SubmitJob(jobGraph, false), selfGateway);
+			expectMsgClass(TIMEOUT, Status.Success.class);
+
+			TestingJobManagerMessages.UpdatedAccumulators msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
+			Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators = msg.flinkAccumulators();
+			Map<String, Accumulator<?, ?>> userAccumulators = msg.userAccumulators();
+
+			LOG.info("{}", flinkAccumulators);
+			LOG.info("{}", userAccumulators);
+
+			// find the first task id
+			ExecutionAttemptID sourceTaskID = null;
+			for (Map.Entry<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> entry : flinkAccumulators.entrySet()) {
+				if (((LongCounter) entry.getValue().get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT)).getLocalValue() == NUM_ITERATIONS) {
+					sourceTaskID = entry.getKey();
+					break;
+				}
+			}
+
+			ExecutionAttemptID mapTaskID = null;
+			// find the second task id
+			for (ExecutionAttemptID key : flinkAccumulators.keySet()) {
+				if (key != sourceTaskID) {
+					mapTaskID = key;
+					break;
+				}
+			}
+
+			int expectedAccVal = 0;
+
+			if (checkUserAccumulators(expectedAccVal, userAccumulators) && checkFlinkAccumulators(sourceTaskID, 0, NUM_ITERATIONS, 0, NUM_ITERATIONS * 2, flinkAccumulators)) {
+				LOG.info("Passed initial check.");
+			} else {
+				fail("Failed initial check.");
+			}
+
+			for (int i = 1; i <= NUM_ITERATIONS; i++) {
+				expectedAccVal += i;
+
+				// receive message
+				msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
+				flinkAccumulators = msg.flinkAccumulators();
+				userAccumulators = msg.userAccumulators();
+
+				LOG.info("{}", flinkAccumulators);
+				LOG.info("{}", userAccumulators);
+
+				if (checkUserAccumulators(expectedAccVal, userAccumulators) && checkFlinkAccumulators(mapTaskID, i, 0, i * 2, 0, flinkAccumulators)) {
+					LOG.info("Passed round " + i);
+				} else {
+					fail("Failed in round #" + i);
+				}
+			}
+
+			expectMsgClass(TIMEOUT, JobManagerMessages.JobResultSuccess.class);
+
+		}};
+	}
+
+
 	private static boolean checkUserAccumulators(int expected, Map<String, Accumulator<?,?>> accumulatorMap) {
 		LOG.info("checking user accumulators");
-		return accumulatorMap.containsKey(NAME) && expected == ((IntCounter)accumulatorMap.get(NAME)).getLocalValue();
+		return accumulatorMap.containsKey(ACCUMULATOR_NAME) && expected == ((IntCounter)accumulatorMap.get(ACCUMULATOR_NAME)).getLocalValue();
 	}
 
 	private static boolean checkFlinkAccumulators(ExecutionAttemptID taskKey, int expectedRecordsIn, int expectedRecordsOut, int expectedBytesIn, int expectedBytesOut,
@@ -292,7 +414,7 @@ public class AccumulatorLiveITCase {
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			getRuntimeContext().addAccumulator(NAME, counter);
+			getRuntimeContext().addAccumulator(ACCUMULATOR_NAME, counter);
 			notifyTaskManagerOfAccumulatorUpdate();
 		}
 
@@ -334,7 +456,7 @@ public class AccumulatorLiveITCase {
 	 */
 	public static void notifyTaskManagerOfAccumulatorUpdate() {
 		new JavaTestKit(system) {{
-			Timeout timeout = new Timeout(Duration.create(5, "seconds"));
+			Timeout timeout = new Timeout(TIMEOUT);
 			Future<Object> ask = Patterns.ask(taskManager, new TestingTaskManagerMessages.AccumulatorsChanged(jobID), timeout);
 			try {
 				Await.result(ask, timeout.duration());
@@ -354,7 +476,7 @@ public class AccumulatorLiveITCase {
 		return jgg.compileJobGraph(op);
 	}
 
-	private static class PlanExtractor extends LocalEnvironment {
+	private static class BatchPlanExtractor extends LocalEnvironment {
 
 		private Plan plan = null;
 
@@ -363,6 +485,22 @@ public class AccumulatorLiveITCase {
 			plan = createProgramPlan();
 			return new JobExecutionResult(new JobID(), -1, null);
 		}
+	}
 
+
+	private static class StreamJobExtractor extends StreamExecutionEnvironment {
+
+		private JobGraph graph = null;
+
+		@Override
+		public JobExecutionResult execute() throws Exception {
+			return execute("default");
+		}
+
+		@Override
+		public JobExecutionResult execute(String jobName) throws Exception {
+			graph = this.streamGraph.getJobGraph();
+			return new JobExecutionResult(new JobID(), -1, null);
+		}
 	}
 }
