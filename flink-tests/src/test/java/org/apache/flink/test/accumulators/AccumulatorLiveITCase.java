@@ -24,6 +24,7 @@ import akka.actor.Status;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
+import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
@@ -36,7 +37,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -78,22 +78,12 @@ import static org.junit.Assert.*;
  * Tests the availability of accumulator results during runtime. The test case tests a user-defined
  * accumulator and Flink's internal accumulators for two consecutive tasks.
  *
- * Batch
- * =====
- *
  * CHAINED[Source -> Map] -> Sink
  *
- * Two checks are performed as the elements are passed from the chained Source to the sink.
- * The synchronization occurs after every element has reached the next operator.
- *
- * Streaming
- * =========
- *
- * Source -> CHAINED[Map -> Sink]
- *
- * One check is performed as the elements are streamed from the Source to the Chained operators.
- * The synchronization occurs after every element has reached the sink.
- *
+ * Two checks are performed as the elements are passed from the chained Source/Mapper to the Sink.
+ * The synchronization occurs after every element has reached the next operator. In the case of
+ * streaming, the two tasks are brought up simultanously which requires to block the execution of
+ * the second map task until the source task is finished.
  */
 public class AccumulatorLiveITCase {
 
@@ -112,7 +102,7 @@ public class AccumulatorLiveITCase {
 	// number of heartbeat intervals to check
 	private static final int NUM_ITERATIONS = 5;
 
-	private static List<String> inputData = new ArrayList<String>(NUM_ITERATIONS);
+	private static List<String> inputData = new ArrayList<>(NUM_ITERATIONS);
 
 	private static final FiniteDuration TIMEOUT = new FiniteDuration(10, TimeUnit.SECONDS);
 
@@ -134,6 +124,8 @@ public class AccumulatorLiveITCase {
 		for (int i=0; i < NUM_ITERATIONS; i++) {
 			inputData.add(i, String.valueOf(i+1));
 		}
+
+		NotifyingMapper.finished = false;
 	}
 
 	@After
@@ -151,40 +143,41 @@ public class AccumulatorLiveITCase {
 
 		DataSet<String> input = env.fromCollection(inputData);
 		input
-				.flatMap(new WaitingUDF())
-				.output(new WaitingOutputFormat());
+				.flatMap(new NotifyingMapper())
+				.output(new NotifyingOutputFormat());
+
 		env.execute();
 
 		// Extract job graph and set job id for the task to notify of accumulator changes.
 		jobGraph = getOptimizedPlan(((BatchPlanExtractor) env).plan);
 		jobID = jobGraph.getJobID();
 
-		verifyBatch();
+		verifyResults();
 	}
 
 
 	@Test
 	public void testStreaming() throws Exception {
 
-
 		StreamExecutionEnvironment env = new StreamJobExtractor();
-		env.setParallelism(1);
+		env.setParallelism(1);env.getConfig().setExecutionMode(ExecutionMode.BATCH);
 
-		DataStream<String> input = env.fromCollection(inputData).disableChaining();
+		DataStream<String> input = env.fromCollection(inputData);
 		input
-				.flatMap(new WaitingUDF())
-				.write(new DiscardingOutputFormat<Integer>(), 1000);
+				.flatMap(new NotifyingMapper())
+				.write(new NotifyingOutputFormat(), 1000).disableChaining();
 
 		env.execute();
 
 		jobGraph = ((StreamJobExtractor) env).graph;
 		jobID = jobGraph.getJobID();
 
-		verifyStreaming();
+		verifyResults();
+
 	}
 
 
-	private static void verifyBatch() {
+	private static void verifyResults() {
 		new JavaTestKit(system) {{
 
 			ActorGateway selfGateway = new AkkaActorGateway(getRef(), jobManagerGateway.leaderSessionID());
@@ -199,11 +192,11 @@ public class AccumulatorLiveITCase {
 			expectMsgClass(TIMEOUT, Status.Success.class);
 
 
-			ExecutionAttemptID mapperTaskID = null;
-
 			TestingJobManagerMessages.UpdatedAccumulators msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
 			Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators = msg.flinkAccumulators();
 			Map<String, Accumulator<?, ?>> userAccumulators = msg.userAccumulators();
+
+			ExecutionAttemptID mapperTaskID = null;
 
 			// find out the first task's execution attempt id
 			for (Map.Entry<ExecutionAttemptID, ?> entry : flinkAccumulators.entrySet()) {
@@ -213,8 +206,19 @@ public class AccumulatorLiveITCase {
 				}
 			}
 
+			ExecutionAttemptID sinkTaskID = null;
+
+			// find the second's task id
+			for (ExecutionAttemptID key : flinkAccumulators.keySet()) {
+				if (key != mapperTaskID) {
+					sinkTaskID = key;
+					break;
+				}
+			}
+
 			/* Check for accumulator values */
-			if(checkUserAccumulators(0, userAccumulators) && checkFlinkAccumulators(mapperTaskID, 0, 0, 0, 0, flinkAccumulators)) {
+			if(checkUserAccumulators(0, userAccumulators) &&
+					checkFlinkAccumulators(mapperTaskID, 0, 0, 0, 0, flinkAccumulators)) {
 				LOG.info("Passed initial check for map task.");
 			} else {
 				fail("Wrong accumulator results when map task begins execution.");
@@ -222,7 +226,6 @@ public class AccumulatorLiveITCase {
 
 
 			int expectedAccVal = 0;
-			ExecutionAttemptID sinkTaskID = null;
 
 			/* for mapper task */
 			for (int i = 1; i <= NUM_ITERATIONS; i++) {
@@ -236,8 +239,16 @@ public class AccumulatorLiveITCase {
 				LOG.info("{}", flinkAccumulators);
 				LOG.info("{}", userAccumulators);
 
-				if (checkUserAccumulators(expectedAccVal, userAccumulators) && checkFlinkAccumulators(mapperTaskID, 0, i, 0, i * 4, flinkAccumulators)) {
-					LOG.info("Passed round " + i);
+				if (checkUserAccumulators(expectedAccVal, userAccumulators) &&
+						checkFlinkAccumulators(mapperTaskID, 0, i, 0, i * 4, flinkAccumulators)) {
+					LOG.info("Passed round #" + i);
+				} else if (checkUserAccumulators(expectedAccVal, userAccumulators) &&
+						checkFlinkAccumulators(sinkTaskID, 0, i, 0, i * 4, flinkAccumulators)) {
+					// we determined the wrong task id and need to switch the two here
+					ExecutionAttemptID temp = mapperTaskID;
+					mapperTaskID = sinkTaskID;
+					sinkTaskID = temp;
+					LOG.info("Passed round #" + i);
 				} else {
 					fail("Failed in round #" + i);
 				}
@@ -247,15 +258,8 @@ public class AccumulatorLiveITCase {
 			flinkAccumulators = msg.flinkAccumulators();
 			userAccumulators = msg.userAccumulators();
 
-			// find the second's task id
-			for (ExecutionAttemptID key : flinkAccumulators.keySet()) {
-				if (key != mapperTaskID) {
-					sinkTaskID = key;
-					break;
-				}
-			}
-
-			if(checkUserAccumulators(expectedAccVal, userAccumulators) && checkFlinkAccumulators(sinkTaskID, 0, 0, 0, 0, flinkAccumulators)) {
+			if(checkUserAccumulators(expectedAccVal, userAccumulators) &&
+					checkFlinkAccumulators(sinkTaskID, 0, 0, 0, 0, flinkAccumulators)) {
 				LOG.info("Passed initial check for sink task.");
 			} else {
 				fail("Wrong accumulator results when sink task begins execution.");
@@ -273,79 +277,9 @@ public class AccumulatorLiveITCase {
 				LOG.info("{}", flinkAccumulators);
 				LOG.info("{}", userAccumulators);
 
-				if (checkUserAccumulators(expectedAccVal, userAccumulators) && checkFlinkAccumulators(sinkTaskID, i, 0, i*4, 0, flinkAccumulators)) {
-					LOG.info("Passed round " + i);
-				} else {
-					fail("Failed in round #" + i);
-				}
-			}
-
-			expectMsgClass(TIMEOUT, JobManagerMessages.JobResultSuccess.class);
-
-		}};
-	}
-
-
-	public static void verifyStreaming() {
-
-		new JavaTestKit(system) {{
-
-			ActorGateway selfGateway = new AkkaActorGateway(getRef(), jobManagerGateway.leaderSessionID());
-
-			// register for accumulator changes
-			jobManagerGateway.tell(new TestingJobManagerMessages.NotifyWhenAccumulatorChange(jobID), selfGateway);
-			expectMsgEquals(TIMEOUT, true);
-
-			// submit job
-			jobManagerGateway.tell(new JobManagerMessages.SubmitJob(jobGraph, false), selfGateway);
-			expectMsgClass(TIMEOUT, Status.Success.class);
-
-			TestingJobManagerMessages.UpdatedAccumulators msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
-			Map<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> flinkAccumulators = msg.flinkAccumulators();
-			Map<String, Accumulator<?, ?>> userAccumulators = msg.userAccumulators();
-
-			LOG.info("{}", flinkAccumulators);
-			LOG.info("{}", userAccumulators);
-
-			// find the first task id
-			ExecutionAttemptID sourceTaskID = null;
-			for (Map.Entry<ExecutionAttemptID, Map<AccumulatorRegistry.Metric, Accumulator<?, ?>>> entry : flinkAccumulators.entrySet()) {
-				if (((LongCounter) entry.getValue().get(AccumulatorRegistry.Metric.NUM_RECORDS_OUT)).getLocalValue() == NUM_ITERATIONS) {
-					sourceTaskID = entry.getKey();
-					break;
-				}
-			}
-
-			ExecutionAttemptID mapTaskID = null;
-			// find the second task id
-			for (ExecutionAttemptID key : flinkAccumulators.keySet()) {
-				if (key != sourceTaskID) {
-					mapTaskID = key;
-					break;
-				}
-			}
-
-			int expectedAccVal = 0;
-
-			if (checkUserAccumulators(expectedAccVal, userAccumulators) && checkFlinkAccumulators(sourceTaskID, 0, NUM_ITERATIONS, 0, NUM_ITERATIONS * 2, flinkAccumulators)) {
-				LOG.info("Passed initial check.");
-			} else {
-				fail("Failed initial check.");
-			}
-
-			for (int i = 1; i <= NUM_ITERATIONS; i++) {
-				expectedAccVal += i;
-
-				// receive message
-				msg = (TestingJobManagerMessages.UpdatedAccumulators) receiveOne(TIMEOUT);
-				flinkAccumulators = msg.flinkAccumulators();
-				userAccumulators = msg.userAccumulators();
-
-				LOG.info("{}", flinkAccumulators);
-				LOG.info("{}", userAccumulators);
-
-				if (checkUserAccumulators(expectedAccVal, userAccumulators) && checkFlinkAccumulators(mapTaskID, i, 0, i * 2, 0, flinkAccumulators)) {
-					LOG.info("Passed round " + i);
+				if (checkUserAccumulators(expectedAccVal, userAccumulators) &&
+						checkFlinkAccumulators(sinkTaskID, i, 0, i * 4, 0, flinkAccumulators)) {
+					LOG.info("Passed round #" + i);
 				} else {
 					fail("Failed in round #" + i);
 				}
@@ -375,12 +309,12 @@ public class AccumulatorLiveITCase {
 				 * The following two cases are for the DataSource and Map task
 				 */
 				case NUM_RECORDS_OUT:
-					if(((LongCounter) entry.getValue()).getLocalValue() != expectedRecordsOut) {
+					if(((LongCounter) entry.getValue()).getLocalValue() < expectedRecordsOut) {
 						return false;
 					}
 					break;
 				case NUM_BYTES_OUT:
-					if (((LongCounter) entry.getValue()).getLocalValue() != expectedBytesOut) {
+					if (((LongCounter) entry.getValue()).getLocalValue() < expectedBytesOut) {
 						return false;
 					}
 					break;
@@ -388,12 +322,12 @@ public class AccumulatorLiveITCase {
 				 * The following two cases are for the DataSink task
 				 */
 				case NUM_RECORDS_IN:
-					if (((LongCounter) entry.getValue()).getLocalValue() != expectedRecordsIn) {
+					if (((LongCounter) entry.getValue()).getLocalValue() < expectedRecordsIn) {
 						return false;
 					}
 					break;
 				case NUM_BYTES_IN:
-					if (((LongCounter) entry.getValue()).getLocalValue() != expectedBytesIn) {
+					if (((LongCounter) entry.getValue()).getLocalValue() < expectedBytesIn) {
 						return false;
 					}
 					break;
@@ -406,11 +340,13 @@ public class AccumulatorLiveITCase {
 
 
 	/**
-	 * UDF that waits for at least the heartbeat interval's duration.
+	 * UDF that notifies when it changes the accumulator values
 	 */
-	private static class WaitingUDF extends RichFlatMapFunction<String, Integer> {
+	private static class NotifyingMapper extends RichFlatMapFunction<String, Integer> {
 
 		private IntCounter counter = new IntCounter();
+
+		private static boolean finished = false;
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -427,9 +363,16 @@ public class AccumulatorLiveITCase {
 			notifyTaskManagerOfAccumulatorUpdate();
 		}
 
+		@Override
+		public void close() throws Exception {
+			finished = true;
+		}
 	}
 
-	private static class WaitingOutputFormat implements OutputFormat<Integer> {
+	/**
+	 * Outputs format which notifies of accumulator changes and waits for the previous mapper.
+	 */
+	private static class NotifyingOutputFormat implements OutputFormat<Integer> {
 
 		@Override
 		public void configure(Configuration parameters) {
@@ -437,6 +380,11 @@ public class AccumulatorLiveITCase {
 
 		@Override
 		public void open(int taskNumber, int numTasks) throws IOException {
+			while (!NotifyingMapper.finished) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {}
+			}
 			notifyTaskManagerOfAccumulatorUpdate();
 		}
 
