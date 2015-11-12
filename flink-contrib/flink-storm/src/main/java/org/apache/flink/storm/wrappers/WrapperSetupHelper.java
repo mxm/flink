@@ -28,10 +28,8 @@ import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
-
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-
 import clojure.lang.Atom;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.ArrayList;
 import java.util.Collection;

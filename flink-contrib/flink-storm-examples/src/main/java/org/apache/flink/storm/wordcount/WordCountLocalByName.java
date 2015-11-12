@@ -19,11 +19,11 @@ package org.apache.flink.storm.wordcount;
 
 import backtype.storm.LocalCluster;
 import backtype.storm.generated.StormTopology;
+import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.utils.Utils;
-
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
-import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopologyBuilder;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
@@ -58,17 +58,13 @@ public class WordCountLocalByName {
 		}
 
 		// build Topology the Storm way
-		final FlinkTopologyBuilder builder = WordCountTopology.buildTopology(false);
+		final TopologyBuilder builder = WordCountTopology.buildTopology(false);
 
-		// execute program locally
-		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
-		cluster.submitTopology(topologyId, null, builder.translateTopology());
+		final StreamExecutionEnvironment env = new FlinkTopologyBuilder(builder).translateTopology();
+
+		env.execute(topologyId);
 
 		Utils.sleep(10 * 1000);
 
-		// TODO kill does no do anything so far
-		cluster.killTopology(topologyId);
-		cluster.shutdown();
 	}
-
 }

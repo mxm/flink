@@ -17,9 +17,9 @@
 
 package org.apache.flink.storm.wordcount.operators;
 
-import java.io.Serializable;
-
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
+
+import java.io.Serializable;
 
 public class WordCountDataPojos {
 	public static Sentence[] SENTENCES;

@@ -62,18 +62,25 @@ public class FlinkTopologyBuilder {
 	private final HashMap<String, HashMap<String, Fields>> outputStreams = new HashMap<String, HashMap<String, Fields>>();
 	/** All spouts&bolts declarers by their ID */
 	private final HashMap<String, FlinkOutputFieldsDeclarer> declarers = new HashMap<String, FlinkOutputFieldsDeclarer>();
+
+	private final TopologyBuilder builder;
+
 	// needs to be a class member for internal testing purpose
 	private StormTopology stormTopology;
+
+	public FlinkTopologyBuilder(TopologyBuilder builder) {
+		this.builder = builder;
+	}
 
 	/**
 	 * Creates a Flink program that uses the specified spouts and bolts.
 	 */
-	public StreamExecutionEnvironment translateTopology(TopologyBuilder topology) {
-		return translateTopology(topology, Collections.emptyMap());
+	public StreamExecutionEnvironment translateTopology() {
+		return translateTopology(Collections.emptyMap());
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T> Map<String, T> getPrivateField(TopologyBuilder builder, String field) {
+	private <T> Map<String, T> getPrivateField(String field) {
 		try {
 			Field f = builder.getClass().getDeclaredField(field);
 			f.setAccessible(true);
@@ -87,7 +94,7 @@ public class FlinkTopologyBuilder {
 	 * Creates a Flink program that uses the specified spouts and bolts.
 	 * @param configMap The Storm config to make available during runtime
 	 */
-	public StreamExecutionEnvironment translateTopology(TopologyBuilder builder, Map configMap) {
+	public StreamExecutionEnvironment translateTopology(Map configMap) {
 		this.stormTopology = builder.createTopology();
 
 		// Creates local or remote environment implictly - the Flink style
@@ -101,7 +108,7 @@ public class FlinkTopologyBuilder {
 
 		final HashMap<String, HashMap<String, DataStream<Tuple>>> availableInputs = new HashMap<String, HashMap<String, DataStream<Tuple>>>();
 
-		final Map<String, IRichSpout> spouts = getPrivateField(builder, "_spouts");
+		final Map<String, IRichSpout> spouts = getPrivateField("_spouts");
 
 		for (final Entry<String, IRichSpout> spout : spouts.entrySet()) {
 			final String spoutId = spout.getKey();
@@ -157,7 +164,7 @@ public class FlinkTopologyBuilder {
 			}
 		}
 
-		final Map<String, IRichBolt> unprocessedBolts = getPrivateField(builder, "_bolts");
+		final Map<String, IRichBolt> unprocessedBolts = getPrivateField("_bolts");
 
 		final HashMap<String, Set<Entry<GlobalStreamId, Grouping>>> unprocessdInputsPerBolt =
 				new HashMap<String, Set<Entry<GlobalStreamId, Grouping>>>();

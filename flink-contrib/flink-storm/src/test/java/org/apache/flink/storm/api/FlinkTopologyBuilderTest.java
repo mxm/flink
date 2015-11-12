@@ -17,17 +17,13 @@
 package org.apache.flink.storm.api;
 
 
-import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.tuple.Fields;
 import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.storm.util.TestDummySpout;
 import org.apache.flink.storm.util.TestSink;
-
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import backtype.storm.tuple.Fields;
 
 public class FlinkTopologyBuilderTest {
 
@@ -37,7 +33,7 @@ public class FlinkTopologyBuilderTest {
 		builder.setSpout("spout", new TestSpout());
 		builder.setBolt("bolt", new TestBolt()).shuffleGrouping("unknown");
 
-		new FlinkTopologyBuilder().translateTopology(builder);
+		new FlinkTopologyBuilder(builder).translateTopology();
 	}
 
 	@Test(expected = RuntimeException.class)
@@ -46,7 +42,8 @@ public class FlinkTopologyBuilderTest {
 		builder.setSpout("spout", new TestSpout());
 		builder.setBolt("bolt1", new TestBolt()).shuffleGrouping("spout");
 		builder.setBolt("bolt2", new TestBolt()).shuffleGrouping("unknown");
-		new FlinkTopologyBuilder().translateTopology(builder);
+
+		new FlinkTopologyBuilder(builder).translateTopology();
 	}
 
 	@Test(expected = RuntimeException.class)
@@ -54,7 +51,8 @@ public class FlinkTopologyBuilderTest {
 		TopologyBuilder builder = new TopologyBuilder();
 		builder.setSpout("spout", new TestSpout());
 		builder.setBolt("bolt", new TestBolt()).shuffleGrouping("spout");
-		new FlinkTopologyBuilder().translateTopology(builder);
+
+		new FlinkTopologyBuilder(builder).translateTopology();
 	}
 
 	@Test
@@ -66,7 +64,7 @@ public class FlinkTopologyBuilderTest {
 		builder.setBolt("sink", new TestSink()).fieldsGrouping("spout",
 				TestDummySpout.spoutStreamId, new Fields("id"));
 
-		new FlinkTopologyBuilder().translateTopology(builder);
+		new FlinkTopologyBuilder(builder).translateTopology();
 	}
 
 	@Test
@@ -79,7 +77,7 @@ public class FlinkTopologyBuilderTest {
 		builder.setBolt("sink", new TestSink()).fieldsGrouping("bolt",
 				TestDummyBolt.groupingStreamId, new Fields("id"));
 
-		new FlinkTopologyBuilder().translateTopology(builder);
+		new FlinkTopologyBuilder(builder).translateTopology();
 	}
 
 }

@@ -17,8 +17,6 @@
  */
 package org.apache.flink.storm.split.operators;
 
-import java.util.Map;
-
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -26,6 +24,8 @@ import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
+
+import java.util.Map;
 
 public class VerifyAndEnrichBolt extends BaseRichBolt {
 	private static final long serialVersionUID = -7277395570966328721L;

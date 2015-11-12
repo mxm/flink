@@ -16,12 +16,6 @@
  */
 package org.apache.flink.storm.wrappers;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.generated.ComponentCommon;
@@ -33,7 +27,7 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
-
+import com.google.common.collect.Sets;
 import org.apache.flink.storm.api.FlinkTopologyBuilder;
 import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.storm.util.TestDummyBolt;
@@ -48,7 +42,11 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import com.google.common.collect.Sets;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -210,8 +208,8 @@ public class WrapperSetupHelperTest extends AbstractTest {
 				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
-		final FlinkTopologyBuilder flinkBuilder = new FlinkTopologyBuilder();
-		flinkBuilder.translateTopology(stormBuilder);
+		final FlinkTopologyBuilder flinkBuilder = new FlinkTopologyBuilder(builder);
+		flinkBuilder.translateTopology();
 		StormTopology stormTopology = flinkBuilder.getStormTopology();
 
 		Set<Integer> taskIds = new HashSet<Integer>();

@@ -18,7 +18,6 @@
 package org.apache.flink.storm.wrappers;
 
 import backtype.storm.spout.ISpoutOutputCollector;
-
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;

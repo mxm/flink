@@ -19,7 +19,6 @@ package org.apache.flink.storm.wordcount;
 
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.utils.Utils;
-
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;

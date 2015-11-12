@@ -17,17 +17,13 @@
 
 package org.apache.flink.storm.wordcount;
 
-import backtype.storm.Config;
-import backtype.storm.generated.AlreadyAliveException;
-import backtype.storm.generated.InvalidTopologyException;
-import backtype.storm.generated.NotAliveException;
 import backtype.storm.generated.StormTopology;
+import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.utils.NimbusClient;
 import backtype.storm.utils.Utils;
-
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
-import org.apache.flink.storm.api.FlinkClient;
 import org.apache.flink.storm.api.FlinkTopologyBuilder;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
@@ -55,29 +51,20 @@ public class WordCountRemoteByClient {
 	// PROGRAM
 	// *************************************************************************
 
-	public static void main(final String[] args) throws AlreadyAliveException, InvalidTopologyException,
-	NotAliveException {
+	public static void main(final String[] args) throws Exception {
 
 		if (!WordCountTopology.parseParameters(args)) {
 			return;
 		}
 
 		// build Topology the Storm way
-		final FlinkTopologyBuilder builder = WordCountTopology.buildTopology();
+		final TopologyBuilder builder = WordCountTopology.buildTopology();
 
-		// execute program on Flink cluster
-		final Config conf = new Config();
-		// can be changed to remote address
-		conf.put(Config.NIMBUS_HOST, "localhost");
-		// use default flink jobmanger.rpc.port
-		conf.put(Config.NIMBUS_THRIFT_PORT, 6123);
+		final StreamExecutionEnvironment env = new FlinkTopologyBuilder(builder).translateTopology();
 
-		final FlinkClient cluster = FlinkClient.getConfiguredClient(conf);
-		cluster.submitTopology(topologyId, uploadedJarLocation, builder.translateTopology());
+		env.execute(topologyId);
 
 		Utils.sleep(5 * 1000);
-
-		cluster.killTopology(topologyId);
 	}
 
 }

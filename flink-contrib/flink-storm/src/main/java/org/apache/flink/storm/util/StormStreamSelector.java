@@ -17,12 +17,12 @@
  */
 package org.apache.flink.storm.util;
 
+import org.apache.flink.storm.api.FlinkTopologyBuilder;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-
-import org.apache.flink.storm.api.FlinkTopologyBuilder;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 
 /**
  * Used by {@link FlinkTopologyBuilder} to split multiple declared output streams within Flink.

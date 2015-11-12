@@ -18,13 +18,12 @@
 package org.apache.flink.storm.wordcount;
 
 import backtype.storm.generated.StormTopology;
+import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
-import org.apache.flink.storm.api.FlinkTopologyBuilder;
-import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.BoltFileSink;
 import org.apache.flink.storm.util.BoltPrintSink;
+import org.apache.flink.storm.util.OutputFormatter;
 import org.apache.flink.storm.util.TupleOutputFormatter;
 import org.apache.flink.storm.wordcount.operators.BoltCounter;
 import org.apache.flink.storm.wordcount.operators.BoltCounterByName;
@@ -55,13 +54,13 @@ public class WordCountTopology {
 	public final static String sinkId = "sink";
 	private final static OutputFormatter formatter = new TupleOutputFormatter();
 
-	public static FlinkTopologyBuilder buildTopology() {
+	public static TopologyBuilder buildTopology() {
 		return buildTopology(true);
 	}
 
-	public static FlinkTopologyBuilder buildTopology(boolean indexOrName) {
+	public static TopologyBuilder buildTopology(boolean indexOrName) {
 
-		final FlinkTopologyBuilder builder = new FlinkTopologyBuilder();
+		final TopologyBuilder builder = new TopologyBuilder();
 
 		// get input data
 		if (fileInputOutput) {
@@ -75,16 +74,16 @@ public class WordCountTopology {
 
 		if (indexOrName) {
 			// split up the lines in pairs (2-tuples) containing: (word,1)
-			builder.setBolt(tokenierzerId, new BoltTokenizer(), 4).shuffleGrouping(spoutId);
+			builder.setBolt(tokenierzerId, new BoltTokenizer(), 1).shuffleGrouping(spoutId);
 			// group by the tuple field "0" and sum up tuple field "1"
-			builder.setBolt(counterId, new BoltCounter(), 4).fieldsGrouping(tokenierzerId,
+			builder.setBolt(counterId, new BoltCounter(), 1).fieldsGrouping(tokenierzerId,
 					new Fields(BoltTokenizer.ATTRIBUTE_WORD));
 		} else {
 			// split up the lines in pairs (2-tuples) containing: (word,1)
-			builder.setBolt(tokenierzerId, new BoltTokenizerByName(), 4).shuffleGrouping(
+			builder.setBolt(tokenierzerId, new BoltTokenizerByName(), 1).shuffleGrouping(
 					spoutId);
 			// group by the tuple field "0" and sum up tuple field "1"
-			builder.setBolt(counterId, new BoltCounterByName(), 4).fieldsGrouping(
+			builder.setBolt(counterId, new BoltCounterByName(), 1).fieldsGrouping(
 					tokenierzerId, new Fields(BoltTokenizerByName.ATTRIBUTE_WORD));
 		}
 
@@ -95,7 +94,7 @@ public class WordCountTopology {
 			final String outputFile = tokens[tokens.length - 1];
 			builder.setBolt(sinkId, new BoltFileSink(outputFile, formatter)).shuffleGrouping(counterId);
 		} else {
-			builder.setBolt(sinkId, new BoltPrintSink(formatter), 4).shuffleGrouping(counterId);
+			builder.setBolt(sinkId, new BoltPrintSink(formatter), 1).shuffleGrouping(counterId);
 		}
 
 		return builder;

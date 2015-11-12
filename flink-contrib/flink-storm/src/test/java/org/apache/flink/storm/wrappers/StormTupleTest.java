@@ -17,16 +17,14 @@
 
 package org.apache.flink.storm.wrappers;
 
+import backtype.storm.tuple.Fields;
+import backtype.storm.tuple.Values;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.storm.util.AbstractTest;
-import org.apache.flink.storm.wrappers.StormTuple;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Values;
 
 import java.util.ArrayList;
 import java.util.List;
