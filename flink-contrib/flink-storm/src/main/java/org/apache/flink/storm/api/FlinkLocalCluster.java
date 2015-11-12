@@ -61,13 +61,13 @@ public class FlinkLocalCluster {
 	}
 
 	@SuppressWarnings("rawtypes")
-	public void submitTopology(final String topologyName, final Map conf, final FlinkTopology topology)
+	public void submitTopology(final String topologyName, final Map conf, final StormExecutionEnvironment topology)
 			throws Exception {
 		this.submitTopologyWithOpts(topologyName, conf, topology, null);
 	}
 
 	@SuppressWarnings("rawtypes")
-	public void submitTopologyWithOpts(final String topologyName, final Map conf, final FlinkTopology topology, final SubmitOptions submitOpts) throws Exception {
+	public void submitTopologyWithOpts(final String topologyName, final Map conf, final StormExecutionEnvironment topology, final SubmitOptions submitOpts) throws Exception {
 		LOG.info("Running Storm topology on FlinkLocalCluster");
 
 		if(conf != null) {

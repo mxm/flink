@@ -154,7 +154,7 @@ public class FlinkClient {
 	 * Parameter {@code uploadedJarLocation} is actually used to point to the local jar, because Flink does not support
 	 * uploading a jar file before hand. Jar files are always uploaded directly when a program is submitted.
 	 */
-	public void submitTopology(final String name, final String uploadedJarLocation, final FlinkTopology topology)
+	public void submitTopology(final String name, final String uploadedJarLocation, final StormExecutionEnvironment topology)
 			throws AlreadyAliveException, InvalidTopologyException {
 		this.submitTopologyWithOpts(name, uploadedJarLocation, topology);
 	}
@@ -163,7 +163,7 @@ public class FlinkClient {
 	 * Parameter {@code uploadedJarLocation} is actually used to point to the local jar, because Flink does not support
 	 * uploading a jar file before hand. Jar files are always uploaded directly when a program is submitted.
 	 */
-	public void submitTopologyWithOpts(final String name, final String uploadedJarLocation, final FlinkTopology
+	public void submitTopologyWithOpts(final String name, final String uploadedJarLocation, final StormExecutionEnvironment
 			topology)
 					throws AlreadyAliveException, InvalidTopologyException {
 

@@ -44,6 +44,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -78,10 +79,12 @@ public class FlinkTopologyBuilder {
 	/**
 	 * Creates a Flink program that uses the specified spouts and bolts.
 	 */
-	public FlinkTopology createTopology() {
+	public StreamExecutionEnvironment createTopology() {
 		this.stormTopology = this.stormBuilder.createTopology();
 
-		final FlinkTopology env = new FlinkTopology();
+		// Createa local or remote environment implictly - the Flink style
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// Storm defaults to parallelism 1
 		env.setParallelism(1);
 
 		final HashMap<String, HashMap<String, DataStream<Tuple>>> availableInputs = new HashMap<String, HashMap<String, DataStream<Tuple>>>();
@@ -138,7 +141,6 @@ public class FlinkTopologyBuilder {
 			} else {
 				common.set_parallelism_hint(1);
 			}
-			env.increaseNumberOfTasks(dop);
 		}
 
 		final HashMap<String, IRichBolt> unprocessedBolts = new HashMap<String, IRichBolt>();
@@ -277,7 +279,6 @@ public class FlinkTopologyBuilder {
 							} else {
 								common.set_parallelism_hint(1);
 							}
-							env.increaseNumberOfTasks(dop);
 
 							inputStreamsIterator.remove();
 						} else {

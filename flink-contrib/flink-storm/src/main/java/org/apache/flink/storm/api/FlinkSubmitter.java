@@ -59,7 +59,7 @@ public class FlinkSubmitter {
 	 * @throws InvalidTopologyException
 	 * 		if an invalid topology was submitted
 	 */
-	public static void submitTopology(final String name, final Map<?, ?> stormConf, final FlinkTopology topology,
+	public static void submitTopology(final String name, final Map<?, ?> stormConf, final StormExecutionEnvironment topology,
 			final SubmitOptions opts)
 					throws AlreadyAliveException, InvalidTopologyException {
 		submitTopology(name, stormConf, topology);
@@ -81,7 +81,7 @@ public class FlinkSubmitter {
 	 * 		if an invalid topology was submitted
 	 */
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	public static void submitTopology(final String name, final Map stormConf, final FlinkTopology topology)
+	public static void submitTopology(final String name, final Map stormConf, final StormExecutionEnvironment topology)
 			throws AlreadyAliveException, InvalidTopologyException {
 		if (!Utils.isValidConf(stormConf)) {
 			throw new IllegalArgumentException("Storm conf is not valid. Must be json-serializable");
@@ -135,7 +135,7 @@ public class FlinkSubmitter {
 	}
 
 	/**
-	 * Same as {@link #submitTopology(String, Map, FlinkTopology, SubmitOptions)}. Progress bars are not supported by
+	 * Same as {@link #submitTopology(String, Map, StormExecutionEnvironment, SubmitOptions)}. Progress bars are not supported by
 	 * Flink.
 	 *
 	 * @param name
@@ -150,7 +150,7 @@ public class FlinkSubmitter {
 	 * 		if an invalid topology was submitted
 	 */
 	public static void submitTopologyWithProgressBar(final String name, final Map<?, ?> stormConf,
-			final FlinkTopology topology)
+			final StormExecutionEnvironment topology)
 					throws AlreadyAliveException, InvalidTopologyException {
 		submitTopology(name, stormConf, topology);
 	}
