@@ -38,6 +38,8 @@ public class FileSpout extends AbstractLineSpout {
 	protected String path = null;
 	protected BufferedReader reader;
 
+	protected boolean finished;
+
 	public FileSpout() {}
 
 	public FileSpout(final String path) {
@@ -79,6 +81,8 @@ public class FileSpout extends AbstractLineSpout {
 			line = this.reader.readLine();
 			if (line != null) {
 				this.collector.emit(new Values(line));
+			} else {
+				finished = true;
 			}
 		} catch (final IOException e) {
 			throw new RuntimeException(e);

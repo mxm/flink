@@ -30,26 +30,10 @@ import java.util.Map;
 public class FiniteFileSpout extends FileSpout implements FiniteSpout {
 	private static final long serialVersionUID = -1472978008607215864L;
 
-	private String line;
-	private boolean newLineRead;
-
 	public FiniteFileSpout() {}
 
 	public FiniteFileSpout(String path) {
 		super(path);
-	}
-
-	@SuppressWarnings("rawtypes")
-	@Override
-	public void open(final Map conf, final TopologyContext context, final SpoutOutputCollector collector) {
-		super.open(conf, context, collector);
-		newLineRead = false;
-	}
-
-	@Override
-	public void nextTuple() {
-		this.collector.emit(new Values(line));
-		newLineRead = false;
 	}
 
 	/**
@@ -57,19 +41,6 @@ public class FiniteFileSpout extends FileSpout implements FiniteSpout {
 	 */
 	@Override
 	public boolean reachedEnd() {
-		try {
-			readLine();
-		} catch (IOException e) {
-			throw new RuntimeException("Exception occured while reading file " + path);
-		}
-		return line == null;
+		return finished;
 	}
-
-	private void readLine() throws IOException {
-		if (!newLineRead) {
-			line = reader.readLine();
-			newLineRead = true;
-		}
-	}
-
 }
