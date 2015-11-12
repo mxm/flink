@@ -39,7 +39,7 @@ public class SplitStreamSpoutLocal {
 
 		// execute program locally
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
-		cluster.submitTopology(topologyId, null, builder.createTopology());
+		cluster.submitTopology(topologyId, null, builder.translateTopology());
 
 		Utils.sleep(5 * 1000);
 

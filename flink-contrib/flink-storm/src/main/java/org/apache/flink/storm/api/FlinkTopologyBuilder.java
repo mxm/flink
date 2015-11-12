@@ -22,21 +22,17 @@ import backtype.storm.generated.ComponentCommon;
 import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.generated.Grouping;
 import backtype.storm.generated.StormTopology;
-import backtype.storm.topology.BasicBoltExecutor;
-import backtype.storm.topology.BoltDeclarer;
-import backtype.storm.topology.IBasicBolt;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.IRichStateSpout;
-import backtype.storm.topology.SpoutDeclarer;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.storm.util.SplitStreamMapper;
 import org.apache.flink.storm.util.SplitStreamType;
+import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.storm.util.StormStreamSelector;
 import org.apache.flink.storm.wrappers.BoltWrapper;
 import org.apache.flink.storm.wrappers.SpoutWrapper;
@@ -46,28 +42,22 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
 /**
- * {@link FlinkTopologyBuilder} mimics a {@link TopologyBuilder}, but builds a Flink program instead of a Storm
- * topology. Most methods (except {@link #createTopology()} are copied from the original {@link TopologyBuilder}
- * implementation to ensure equal behavior.<br>
- * <br>
+ * {@link FlinkTopologyBuilder} translates a {@link TopologyBuilder} to a Flink program.
  * <strong>CAUTION: {@link IRichStateSpout StateSpout}s are currently not supported.</strong>
  */
 public class FlinkTopologyBuilder {
 
-	/** A Storm {@link TopologyBuilder} to build a real Storm topology */
-	private final TopologyBuilder stormBuilder = new TopologyBuilder();
-	/** All user spouts by their ID */
-	private final HashMap<String, IRichSpout> spouts = new HashMap<String, IRichSpout>();
-	/** All user bolts by their ID */
-	private final HashMap<String, IRichBolt> bolts = new HashMap<String, IRichBolt>();
 	/** All declared streams and output schemas by operator ID */
 	private final HashMap<String, HashMap<String, Fields>> outputStreams = new HashMap<String, HashMap<String, Fields>>();
 	/** All spouts&bolts declarers by their ID */
@@ -75,21 +65,45 @@ public class FlinkTopologyBuilder {
 	// needs to be a class member for internal testing purpose
 	private StormTopology stormTopology;
 
-
 	/**
 	 * Creates a Flink program that uses the specified spouts and bolts.
 	 */
-	public StreamExecutionEnvironment createTopology() {
-		this.stormTopology = this.stormBuilder.createTopology();
+	public StreamExecutionEnvironment translateTopology(TopologyBuilder topology) {
+		return translateTopology(topology, Collections.emptyMap());
+	}
 
-		// Createa local or remote environment implictly - the Flink style
+	@SuppressWarnings("unchecked")
+	private <T> Map<String, T> getPrivateField(TopologyBuilder builder, String field) {
+		try {
+			Field f = builder.getClass().getDeclaredField(field);
+			f.setAccessible(true);
+			return (Map<String, T>) f.get(builder);
+		} catch (NoSuchFieldException | IllegalAccessException e) {
+			throw new RuntimeException("Couldn't get spouts from TopologyBuilder", e);
+		}
+	}
+
+	/**
+	 * Creates a Flink program that uses the specified spouts and bolts.
+	 * @param configMap The Storm config to make available during runtime
+	 */
+	public StreamExecutionEnvironment translateTopology(TopologyBuilder builder, Map configMap) {
+		this.stormTopology = builder.createTopology();
+
+		// Creates local or remote environment implictly - the Flink style
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		// Storm defaults to parallelism 1
 		env.setParallelism(1);
+		// Pass Storm config
+		env.getConfig().setGlobalJobParameters(new StormConfig(configMap));
+
+		/* Translation of topology */
 
 		final HashMap<String, HashMap<String, DataStream<Tuple>>> availableInputs = new HashMap<String, HashMap<String, DataStream<Tuple>>>();
 
-		for (final Entry<String, IRichSpout> spout : this.spouts.entrySet()) {
+		final Map<String, IRichSpout> spouts = getPrivateField(builder, "_spouts");
+
+		for (final Entry<String, IRichSpout> spout : spouts.entrySet()) {
 			final String spoutId = spout.getKey();
 			final IRichSpout userSpout = spout.getValue();
 
@@ -143,8 +157,7 @@ public class FlinkTopologyBuilder {
 			}
 		}
 
-		final HashMap<String, IRichBolt> unprocessedBolts = new HashMap<String, IRichBolt>();
-		unprocessedBolts.putAll(this.bolts);
+		final Map<String, IRichBolt> unprocessedBolts = getPrivateField(builder, "_bolts");
 
 		final HashMap<String, Set<Entry<GlobalStreamId, Grouping>>> unprocessdInputsPerBolt =
 				new HashMap<String, Set<Entry<GlobalStreamId, Grouping>>>();
@@ -297,120 +310,8 @@ public class FlinkTopologyBuilder {
 		return env;
 	}
 
-	/**
-	 * Define a new bolt in this topology with parallelism of just one thread.
-	 *
-	 * @param id
-	 * 		the id of this component. This id is referenced by other components that want to consume this bolt's
-	 * 		outputs.
-	 * @param bolt
-	 * 		the bolt
-	 * @return use the returned object to declare the inputs to this component
-	 */
-	public BoltDeclarer setBolt(final String id, final IRichBolt bolt) {
-		return this.setBolt(id, bolt, null);
-	}
-
-	/**
-	 * Define a new bolt in this topology with the specified amount of parallelism.
-	 *
-	 * @param id
-	 * 		the id of this component. This id is referenced by other components that want to consume this bolt's
-	 * 		outputs.
-	 * @param bolt
-	 * 		the bolt
-	 * @param parallelism_hint
-	 * 		the number of tasks that should be assigned to execute this bolt. Each task will run on a thread in a
-	 * 		process somewhere around the cluster.
-	 * @return use the returned object to declare the inputs to this component
-	 */
-	public BoltDeclarer setBolt(final String id, final IRichBolt bolt, final Number parallelism_hint) {
-		final BoltDeclarer declarer = this.stormBuilder.setBolt(id, bolt, parallelism_hint);
-		this.bolts.put(id, bolt);
-		return declarer;
-	}
-
-	/**
-	 * Define a new bolt in this topology. This defines a basic bolt, which is a simpler to use but more restricted
-	 * kind
-	 * of bolt. Basic bolts are intended for non-aggregation processing and automate the anchoring/acking process to
-	 * achieve proper reliability in the topology.
-	 *
-	 * @param id
-	 * 		the id of this component. This id is referenced by other components that want to consume this bolt's
-	 * 		outputs.
-	 * @param bolt
-	 * 		the basic bolt
-	 * @return use the returned object to declare the inputs to this component
-	 */
-	public BoltDeclarer setBolt(final String id, final IBasicBolt bolt) {
-		return this.setBolt(id, bolt, null);
-	}
-
-	/**
-	 * Define a new bolt in this topology. This defines a basic bolt, which is a simpler to use but more restricted
-	 * kind
-	 * of bolt. Basic bolts are intended for non-aggregation processing and automate the anchoring/acking process to
-	 * achieve proper reliability in the topology.
-	 *
-	 * @param id
-	 * 		the id of this component. This id is referenced by other components that want to consume this bolt's
-	 * 		outputs.
-	 * @param bolt
-	 * 		the basic bolt
-	 * @param parallelism_hint
-	 * 		the number of tasks that should be assigned to execute this bolt. Each task will run on a thread in a
-	 * 		process somewhere around the cluster.
-	 * @return use the returned object to declare the inputs to this component
-	 */
-	public BoltDeclarer setBolt(final String id, final IBasicBolt bolt, final Number parallelism_hint) {
-		return this.setBolt(id, new BasicBoltExecutor(bolt), parallelism_hint);
-	}
-
-	/**
-	 * Define a new spout in this topology.
-	 *
-	 * @param id
-	 * 		the id of this component. This id is referenced by other components that want to consume this spout's
-	 * 		outputs.
-	 * @param spout
-	 * 		the spout
-	 */
-	public SpoutDeclarer setSpout(final String id, final IRichSpout spout) {
-		return this.setSpout(id, spout, null);
-	}
-
-	/**
-	 * Define a new spout in this topology with the specified parallelism. If the spout declares itself as
-	 * non-distributed, the parallelism_hint will be ignored and only one task will be allocated to this component.
-	 *
-	 * @param id
-	 * 		the id of this component. This id is referenced by other components that want to consume this spout's
-	 * 		outputs.
-	 * @param parallelism_hint
-	 * 		the number of tasks that should be assigned to execute this spout. Each task will run on a thread in a
-	 * 		process somewhere around the cluster.
-	 * @param spout
-	 * 		the spout
-	 */
-	public SpoutDeclarer setSpout(final String id, final IRichSpout spout, final Number parallelism_hint) {
-		final SpoutDeclarer declarer = this.stormBuilder.setSpout(id, spout, parallelism_hint);
-		this.spouts.put(id, spout);
-		return declarer;
-	}
-
-	// TODO add StateSpout support (Storm 0.9.4 does not yet support StateSpouts itself)
-	/* not implemented by Storm 0.9.4
-	 * public void setStateSpout(final String id, final IRichStateSpout stateSpout) {
-	 * this.stormBuilder.setStateSpout(id, stateSpout);
-	 * }
-	 * public void setStateSpout(final String id, final IRichStateSpout stateSpout, final Number parallelism_hint) {
-	 * this.stormBuilder.setStateSpout(id, stateSpout, parallelism_hint);
-	 * }
-	 */
-
 	// for internal testing purpose only
-	StormTopology getStormTopology() {
+	public StormTopology getStormTopology() {
 		return this.stormTopology;
 	}
 }

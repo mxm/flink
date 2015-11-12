@@ -17,10 +17,13 @@
 package org.apache.flink.storm.api;
 
 
+import backtype.storm.generated.StormTopology;
+import backtype.storm.topology.TopologyBuilder;
 import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.storm.util.TestDummySpout;
 import org.apache.flink.storm.util.TestSink;
 
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -30,52 +33,53 @@ public class FlinkTopologyBuilderTest {
 
 	@Test(expected = RuntimeException.class)
 	public void testUnknowSpout() {
-		FlinkTopologyBuilder builder = new FlinkTopologyBuilder();
+		TopologyBuilder builder = new TopologyBuilder();
 		builder.setSpout("spout", new TestSpout());
 		builder.setBolt("bolt", new TestBolt()).shuffleGrouping("unknown");
-		builder.createTopology();
+
+		new FlinkTopologyBuilder().translateTopology(builder);
 	}
 
 	@Test(expected = RuntimeException.class)
 	public void testUnknowBolt() {
-		FlinkTopologyBuilder builder = new FlinkTopologyBuilder();
+		TopologyBuilder builder = new TopologyBuilder();
 		builder.setSpout("spout", new TestSpout());
 		builder.setBolt("bolt1", new TestBolt()).shuffleGrouping("spout");
 		builder.setBolt("bolt2", new TestBolt()).shuffleGrouping("unknown");
-		builder.createTopology();
+		new FlinkTopologyBuilder().translateTopology(builder);
 	}
 
 	@Test(expected = RuntimeException.class)
 	public void testUndeclaredStream() {
-		FlinkTopologyBuilder builder = new FlinkTopologyBuilder();
+		TopologyBuilder builder = new TopologyBuilder();
 		builder.setSpout("spout", new TestSpout());
 		builder.setBolt("bolt", new TestBolt()).shuffleGrouping("spout");
-		builder.createTopology();
+		new FlinkTopologyBuilder().translateTopology(builder);
 	}
 
 	@Test
 	@Ignore
 	public void testFieldsGroupingOnMultipleSpoutOutputStreams() {
-		FlinkTopologyBuilder flinkBuilder = new FlinkTopologyBuilder();
+		TopologyBuilder builder = new TopologyBuilder();
 
-		flinkBuilder.setSpout("spout", new TestDummySpout());
-		flinkBuilder.setBolt("sink", new TestSink()).fieldsGrouping("spout",
+		builder.setSpout("spout", new TestDummySpout());
+		builder.setBolt("sink", new TestSink()).fieldsGrouping("spout",
 				TestDummySpout.spoutStreamId, new Fields("id"));
 
-		flinkBuilder.createTopology();
+		new FlinkTopologyBuilder().translateTopology(builder);
 	}
 
 	@Test
 	@Ignore
 	public void testFieldsGroupingOnMultipleBoltOutputStreams() {
-		FlinkTopologyBuilder flinkBuilder = new FlinkTopologyBuilder();
+		TopologyBuilder builder = new TopologyBuilder();
 
-		flinkBuilder.setSpout("spout", new TestDummySpout());
-		flinkBuilder.setBolt("bolt", new TestDummyBolt()).shuffleGrouping("spout");
-		flinkBuilder.setBolt("sink", new TestSink()).fieldsGrouping("bolt",
+		builder.setSpout("spout", new TestDummySpout());
+		builder.setBolt("bolt", new TestDummyBolt()).shuffleGrouping("spout");
+		builder.setBolt("sink", new TestSink()).fieldsGrouping("bolt",
 				TestDummyBolt.groupingStreamId, new Fields("id"));
 
-		flinkBuilder.createTopology();
+		new FlinkTopologyBuilder().translateTopology(builder);
 	}
 
 }

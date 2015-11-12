@@ -71,7 +71,7 @@ public class WordCountRemoteBySubmitter {
 		// The user jar file must be specified via JVM argument if executed via Java.
 		// => -Dstorm.jar=target/WordCount-StormTopology.jar
 		// If bin/flink is used, the jar file is detected automatically.
-		FlinkSubmitter.submitTopology(topologyId, conf, builder.createTopology());
+		FlinkSubmitter.submitTopology(topologyId, conf, builder.translateTopology());
 
 		Thread.sleep(5 * 1000);
 

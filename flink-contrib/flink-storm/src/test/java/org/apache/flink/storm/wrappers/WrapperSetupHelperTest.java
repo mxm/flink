@@ -34,7 +34,7 @@ import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 
-import org.apache.flink.storm.api.TestTopologyBuilder;
+import org.apache.flink.storm.api.FlinkTopologyBuilder;
 import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.storm.util.TestDummyBolt;
 import org.apache.flink.storm.util.TestDummySpout;
@@ -198,19 +198,20 @@ public class WrapperSetupHelperTest extends AbstractTest {
 			}
 		}
 
-		TestTopologyBuilder flinkBuilder = new TestTopologyBuilder();
+		TopologyBuilder stormBuilder = new TopologyBuilder();
 
-		flinkBuilder.setSpout("spout1", (IRichSpout) operators.get("spout1"), dops.get("spout1"));
-		flinkBuilder.setSpout("spout2", (IRichSpout) operators.get("spout2"), dops.get("spout2"));
-		flinkBuilder.setBolt("bolt1", (IRichBolt) operators.get("bolt1"), dops.get("bolt1")).shuffleGrouping("spout1");
-		flinkBuilder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
-		flinkBuilder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
+		stormBuilder.setSpout("spout1", (IRichSpout) operators.get("spout1"), dops.get("spout1"));
+		stormBuilder.setSpout("spout2", (IRichSpout) operators.get("spout2"), dops.get("spout2"));
+		stormBuilder.setBolt("bolt1", (IRichBolt) operators.get("bolt1"), dops.get("bolt1")).shuffleGrouping("spout1");
+		stormBuilder.setBolt("bolt2", (IRichBolt) operators.get("bolt2"), dops.get("bolt2")).allGrouping("spout2");
+		stormBuilder.setBolt("sink", (IRichBolt) operators.get("sink"), dops.get("sink"))
 				.shuffleGrouping("bolt1", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt1", TestDummyBolt.shuffleStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
-		flinkBuilder.createTopology();
+		final FlinkTopologyBuilder flinkBuilder = new FlinkTopologyBuilder();
+		flinkBuilder.translateTopology(stormBuilder);
 		StormTopology stormTopology = flinkBuilder.getStormTopology();
 
 		Set<Integer> taskIds = new HashSet<Integer>();

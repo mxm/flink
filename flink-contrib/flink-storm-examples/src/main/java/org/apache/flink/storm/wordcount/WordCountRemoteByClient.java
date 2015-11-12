@@ -73,7 +73,7 @@ public class WordCountRemoteByClient {
 		conf.put(Config.NIMBUS_THRIFT_PORT, 6123);
 
 		final FlinkClient cluster = FlinkClient.getConfiguredClient(conf);
-		cluster.submitTopology(topologyId, uploadedJarLocation, builder.createTopology());
+		cluster.submitTopology(topologyId, uploadedJarLocation, builder.translateTopology());
 
 		Utils.sleep(5 * 1000);
 

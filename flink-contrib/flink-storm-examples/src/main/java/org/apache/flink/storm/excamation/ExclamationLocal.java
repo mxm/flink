@@ -64,7 +64,7 @@ public class ExclamationLocal {
 		Config conf = new Config();
 		conf.put(ExclamationBolt.EXCLAMATION_COUNT, ExclamationTopology.getExclamation());
 		final FlinkLocalCluster cluster = FlinkLocalCluster.getLocalCluster();
-		cluster.submitTopology(topologyId, conf, builder.createTopology());
+		cluster.submitTopology(topologyId, conf, builder.translateTopology());
 
 		Utils.sleep(10 * 1000);
 	}
