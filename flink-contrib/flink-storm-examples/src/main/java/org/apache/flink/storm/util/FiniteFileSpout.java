@@ -16,13 +16,6 @@
  */
 package org.apache.flink.storm.util;
 
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.tuple.Values;
-
-import java.io.IOException;
-import java.util.Map;
-
 /**
  * Implements a Spout that reads data from a given local file. The spout stops automatically
  * when it reached the end of the file.

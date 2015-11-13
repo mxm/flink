@@ -19,7 +19,6 @@ package org.apache.flink.storm.wordcount.operators;
 
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
-import org.apache.flink.storm.util.FileSpout;
 import org.apache.flink.storm.util.FiniteFileSpout;
 
 /**

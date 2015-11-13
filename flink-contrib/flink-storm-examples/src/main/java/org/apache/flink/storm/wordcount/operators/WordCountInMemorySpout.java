@@ -21,7 +21,6 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.util.FiniteInMemorySpout;
-import org.apache.flink.storm.util.InMemorySpout;
 
 /**
  * Implements a Spout that reads data from {@link WordCountData#WORDS}.

@@ -40,8 +40,6 @@ public class SplitStreamBoltLocal {
 		final StreamExecutionEnvironment env = new FlinkTopologyBuilder(builder).translateTopology();
 
 		env.execute(topologyId);
-
-		Utils.sleep(5 * 1000);
 	}
 
 }

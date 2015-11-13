@@ -20,7 +20,6 @@ package org.apache.flink.storm.wordcount;
 import backtype.storm.LocalCluster;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.utils.Utils;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.api.FlinkTopologyBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
