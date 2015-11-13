@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
  * fashion. The program is constructed as a regular {@link StormTopology} and submitted to Flink for execution in the
- * same way as to a Storm {@link LocalCluster}. In contrast to {@link WordCountLocal} all bolts access the field of
+ * same way as to a Storm {@link LocalCluster}. In contrast to {@link WordCount} all bolts access the field of
  * input tuples by name instead of index.
  * <p>
  * This example shows how to run program directly within Java, thus it cannot be used to submit a {@link StormTopology}

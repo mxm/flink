@@ -17,10 +17,10 @@
 
 package org.apache.flink.storm.wordcount;
 
-import backtype.storm.Config;
-import backtype.storm.StormSubmitter;
+import backtype.storm.LocalCluster;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.utils.Utils;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.storm.api.FlinkTopologyBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -28,21 +28,22 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text files in a streaming
  * fashion. The program is constructed as a regular {@link StormTopology} and submitted to Flink for execution in the
- * same way as to a Storm cluster similar to {@link StormSubmitter}. The Flink cluster can be local or remote.
+ * same way as to a Storm {@link LocalCluster}.
  * <p>
- * This example shows how to submit the program via Java as well as Flink's command line client (ie, bin/flink).
+ * This example shows how to run program directly within Java, thus it cannot be used to submit a {@link StormTopology}
+ * via Flink command line clients (ie, bin/flink).
  * <p>
  * The input is a plain text file with lines separated by newline characters.
  * <p>
- * Usage: <code>WordCountRemoteBySubmitter &lt;text path&gt; &lt;result path&gt;</code><br>
+ * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData}.
  * <p>
  * This example shows how to:
  * <ul>
- * <li>submit a regular Storm program to a local or remote Flink cluster.</li>
+ * <li>run a regular Storm program locally on Flink</li>
  * </ul>
  */
-public class WordCountRemoteBySubmitter {
+public class WordCount {
 	public final static String topologyId = "Storm WordCount";
 
 	// *************************************************************************
@@ -58,23 +59,9 @@ public class WordCountRemoteBySubmitter {
 		// build Topology the Storm way
 		final TopologyBuilder builder = WordCountTopology.buildTopology();
 
-		// execute program on Flink cluster
-		final Config conf = new Config();
-		// We can set Jobmanager host/port values manually or leave them blank
-		// if not set and
-		// - executed within Java, default values "localhost" and "6123" are set by FlinkSubmitter
-		// - executed via bin/flink values from flink-conf.yaml are set by FlinkSubmitter.
-		// conf.put(Config.NIMBUS_HOST, "localhost");
-		// conf.put(Config.NIMBUS_THRIFT_PORT, new Integer(6123));
-
-		// The user jar file must be specified via JVM argument if executed via Java.
-		// => -Dstorm.jar=target/WordCount-StormTopology.jar
-		// If bin/flink is used, the jar file is detected automatically.
 		final StreamExecutionEnvironment env = new FlinkTopologyBuilder(builder).translateTopology();
 
 		env.execute(topologyId);
-
-		Thread.sleep(5 * 1000);
 	}
 
 }
