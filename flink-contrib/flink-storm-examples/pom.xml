@@ -61,6 +61,14 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.storm</groupId>
+			<artifactId>storm-starter</artifactId>
+			<version>0.9.4</version>
+		</dependency>
+
+
 	</dependencies>
 
 	<build>
