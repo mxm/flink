@@ -41,7 +41,9 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.InstantiationUtil;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.HashMap;
@@ -66,10 +68,17 @@ public class FlinkTopologyBuilder {
 	private final TopologyBuilder builder;
 
 	// needs to be a class member for internal testing purpose
-	private StormTopology stormTopology;
+	private final StormTopology stormTopology;
+
+	private final Map<String, IRichSpout> spouts;
+	private final Map<String, IRichBolt> bolts;
 
 	public FlinkTopologyBuilder(TopologyBuilder builder) {
 		this.builder = builder;
+		this.stormTopology = builder.createTopology();
+		// extract the spouts and bolts
+		this.spouts = getPrivateField("_spouts");
+		this.bolts = getPrivateField("_bolts");
 	}
 
 	/**
@@ -84,9 +93,20 @@ public class FlinkTopologyBuilder {
 		try {
 			Field f = builder.getClass().getDeclaredField(field);
 			f.setAccessible(true);
-			return (Map<String, T>) f.get(builder);
+			return copyObject((Map<String, T>) f.get(builder));
 		} catch (NoSuchFieldException | IllegalAccessException e) {
-			throw new RuntimeException("Couldn't get spouts from TopologyBuilder", e);
+			throw new RuntimeException("Couldn't get " + field + " from TopologyBuilder", e);
+		}
+	}
+
+	private <T> T copyObject(T object) {
+		try {
+			return InstantiationUtil.deserializeObject(
+					InstantiationUtil.serializeObject(object),
+					getClass().getClassLoader()
+			);
+		} catch (IOException | ClassNotFoundException e) {
+			throw new RuntimeException("Failed to copy object.");
 		}
 	}
 
@@ -95,7 +115,6 @@ public class FlinkTopologyBuilder {
 	 * @param configMap The Storm config to make available during runtime
 	 */
 	public StreamExecutionEnvironment translateTopology(Map configMap) {
-		this.stormTopology = builder.createTopology();
 
 		// Creates local or remote environment implictly - the Flink style
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -107,8 +126,6 @@ public class FlinkTopologyBuilder {
 		/* Translation of topology */
 
 		final HashMap<String, HashMap<String, DataStream<Tuple>>> availableInputs = new HashMap<String, HashMap<String, DataStream<Tuple>>>();
-
-		final Map<String, IRichSpout> spouts = getPrivateField("_spouts");
 
 		for (final Entry<String, IRichSpout> spout : spouts.entrySet()) {
 			final String spoutId = spout.getKey();
@@ -164,8 +181,6 @@ public class FlinkTopologyBuilder {
 			}
 		}
 
-		final Map<String, IRichBolt> unprocessedBolts = getPrivateField("_bolts");
-
 		final HashMap<String, Set<Entry<GlobalStreamId, Grouping>>> unprocessdInputsPerBolt =
 				new HashMap<String, Set<Entry<GlobalStreamId, Grouping>>>();
 
@@ -174,20 +189,20 @@ public class FlinkTopologyBuilder {
 		 * ->thus, we might need to repeat multiple times
 		 */
 		boolean makeProgress = true;
-		while (unprocessedBolts.size() > 0) {
+		while (bolts.size() > 0) {
 			if (!makeProgress) {
 				throw new RuntimeException(
 						"Unable to build Topology. Could not connect the following bolts: "
-								+ unprocessedBolts.keySet());
+								+ bolts.keySet());
 			}
 			makeProgress = false;
 
-			final Iterator<Entry<String, IRichBolt>> boltsIterator = unprocessedBolts.entrySet().iterator();
+			final Iterator<Entry<String, IRichBolt>> boltsIterator = bolts.entrySet().iterator();
 			while (boltsIterator.hasNext()) {
 
 				final Entry<String, IRichBolt> bolt = boltsIterator.next();
 				final String boltId = bolt.getKey();
-				final IRichBolt userBolt = bolt.getValue();
+				final IRichBolt userBolt = copyObject(bolt.getValue());
 
 				final ComponentCommon common = stormTopology.get_bolts().get(boltId).get_common();
 
@@ -292,9 +307,8 @@ public class FlinkTopologyBuilder {
 								outputStream = multiStream;
 							}
 
-							int dop = 1;
 							if (common.is_set_parallelism_hint()) {
-								dop = common.get_parallelism_hint();
+								int dop = common.get_parallelism_hint();
 								outputStream.setParallelism(dop);
 							} else {
 								common.set_parallelism_hint(1);

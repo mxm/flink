@@ -192,7 +192,6 @@ class WrapperSetupHelper {
 					taskId = rc;
 				}
 			}
-			assert (taskId != null);
 		}
 
 		if (!stormConfig.containsKey(Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS)) {

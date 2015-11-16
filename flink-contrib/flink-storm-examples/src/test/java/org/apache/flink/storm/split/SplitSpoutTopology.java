@@ -18,6 +18,7 @@
 package org.apache.flink.storm.split;
 
 import backtype.storm.topology.TopologyBuilder;
+import org.apache.flink.storm.split.operators.RandomFiniteSpout;
 import org.apache.flink.storm.split.operators.RandomSpout;
 import org.apache.flink.storm.split.operators.VerifyAndEnrichBolt;
 import org.apache.flink.storm.util.BoltFileSink;
@@ -35,7 +36,7 @@ public class SplitSpoutTopology {
 	public static TopologyBuilder buildTopology() {
 		final TopologyBuilder builder = new TopologyBuilder();
 
-		builder.setSpout(spoutId, new RandomSpout(true, seed));
+		builder.setSpout(spoutId, new RandomFiniteSpout(true, seed, 10000));
 		builder.setBolt(evenVerifierId, new VerifyAndEnrichBolt(true)).shuffleGrouping(spoutId,
 				RandomSpout.EVEN_STREAM);
 		builder.setBolt(oddVerifierId, new VerifyAndEnrichBolt(false)).shuffleGrouping(spoutId,
