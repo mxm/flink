@@ -152,9 +152,9 @@ public class BoltWrapperTest extends AbstractTest {
 
 		wrapper.processElement(record);
 		if (numberOfAttributes == -1) {
-			verify(bolt).execute(eq(new StormTuple<String>(rawTuple, null)));
+			verify(bolt).execute(eq(new StormTuple<String>(rawTuple, null, "testStream", -1 , "componentID")));
 		} else {
-			verify(bolt).execute(eq(new StormTuple<Tuple>(flinkTuple, null)));
+			verify(bolt).execute(eq(new StormTuple<Tuple>(flinkTuple, null, "testStream", -1 , "componentID")));
 		}
 	}
 

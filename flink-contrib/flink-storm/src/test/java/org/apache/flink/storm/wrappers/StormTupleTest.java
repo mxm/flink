@@ -593,7 +593,7 @@ public class StormTupleTest extends AbstractTest {
 	private <T> StormTuple testGetByField(int arity, int index, T value)
 			throws Exception {
 
-		assert (index < arity);
+		Assert.assertTrue(index < arity);
 
 		Tuple tuple = Tuple.getTupleClass(arity).newInstance();
 		tuple.setField(value, index);
@@ -611,29 +611,29 @@ public class StormTupleTest extends AbstractTest {
 		return new StormTuple(tuple, schema);
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void testGetSourceGlobalStreamid() {
-		new StormTuple<Object>(null, null).getSourceGlobalStreamid();
+		Assert.assertNotNull(new StormTuple<Object>(null, null).getSourceGlobalStreamid());
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void testGetSourceComponent() {
-		new StormTuple<Object>(null, null).getSourceComponent();
+		Assert.assertNotNull(new StormTuple<Object>(null, null).getSourceComponent());
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void testGetSourceTask() {
-		new StormTuple<Object>(null, null).getSourceTask();
+		Assert.assertNotNull(new StormTuple<Object>(null, null).getSourceTask());
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void testGetSourceStreamId() {
-		new StormTuple<Object>(null, null).getSourceStreamId();
+		Assert.assertNotNull(new StormTuple<Object>(null, null).getSourceStreamId());
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
+	@Test
 	public void testGetMessageId() {
-		new StormTuple<Object>(null, null).getMessageId();
+		Assert.assertNotNull(new StormTuple<Object>(null, null).getMessageId());
 	}
 
 	public static class TestPojoMember<T> {

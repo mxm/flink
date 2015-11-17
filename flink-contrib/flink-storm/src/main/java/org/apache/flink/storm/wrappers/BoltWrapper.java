@@ -59,6 +59,8 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	/** The original Storm topology. */
 	protected StormTopology stormTopology;
 
+	private transient TopologyContext topologyContext;
+
 	/**
 	 *  We have to use this because Operators must output
 	 *  {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}.
@@ -225,9 +227,8 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 			}
 		}
 
-		final TopologyContext topologyContext = WrapperSetupHelper.createTopologyContext(
+		topologyContext = WrapperSetupHelper.createTopologyContext(
 				getRuntimeContext(), this.bolt, this.stormTopology, stormConfig);
-
 		this.bolt.prepare(stormConfig, topologyContext, stormCollector);
 	}
 
@@ -240,7 +241,8 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	public void processElement(final StreamRecord<IN> element) throws Exception {
 		this.flinkCollector.setTimestamp(element.getTimestamp());
 		IN value = element.getValue();
-		this.bolt.execute(new StormTuple<IN>(value, inputSchema));
+		String streamID = getRuntimeContext().getTaskName();
+		this.bolt.execute(new StormTuple<IN>(value, inputSchema, streamID, topologyContext.getThisTaskId(), topologyContext.getThisComponentId()));
 	}
 
 	@Override

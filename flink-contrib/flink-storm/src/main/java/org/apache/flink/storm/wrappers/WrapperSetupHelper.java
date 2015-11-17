@@ -29,6 +29,7 @@ import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
 import clojure.lang.Atom;
+import com.google.common.base.Preconditions;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.ArrayList;
@@ -112,10 +113,14 @@ class WrapperSetupHelper {
 			final StreamingRuntimeContext context, final IComponent spoutOrBolt,
 			StormTopology stormTopology, Map stormConfig) {
 		String operatorName = context.getTaskName();
+
 		if (operatorName.startsWith("Source: ")) {
 			// prefix "Source: " is inserted by Flink sources by default -- need to get rid of it here
 			operatorName = operatorName.substring(8);
 		}
+		// remove also everything
+		operatorName = operatorName.replaceFirst(" -> \\(Map, Map\\)", "");
+
 		final int dop = context.getNumberOfParallelSubtasks();
 
 		final Map<Integer, String> taskToComponents = new HashMap<Integer, String>();
@@ -148,7 +153,7 @@ class WrapperSetupHelper {
 			}
 			stormTopology = new StormTopology(spouts, bolts, new HashMap<String, StateSpoutSpec>());
 
-			taskId = context.getIndexOfThisSubtask();
+			taskId = context.getIndexOfThisSubtask() + 1;
 
 			List<Integer> sortedTasks = new ArrayList<Integer>(dop);
 			for (int i = 1; i <= dop; ++i) {
@@ -185,13 +190,15 @@ class WrapperSetupHelper {
 				}
 			}
 			for (Entry<String, StateSpoutSpec> stateSpout : stateSpouts.entrySet()) {
-				Integer rc = taskId = processSingleOperator(stateSpout.getKey(), stateSpout
+				Integer rc = processSingleOperator(stateSpout.getKey(), stateSpout
 						.getValue().get_common(), operatorName, context.getIndexOfThisSubtask(),
 						dop, taskToComponents, componentToSortedTasks, componentToStreamToFields);
 				if (rc != null) {
 					taskId = rc;
 				}
 			}
+
+			Preconditions.checkNotNull("Task ID may not be null!", taskId);
 		}
 
 		if (!stormConfig.containsKey(Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS)) {
@@ -247,9 +254,6 @@ class WrapperSetupHelper {
 			++tid;
 		}
 		componentToSortedTasks.put(componentId, sortedTasks);
-
-		if (componentId.equals(operatorName)) {
-		}
 
 		Map<String, Fields> outputStreams = new HashMap<String, Fields>();
 		for(Entry<String, StreamInfo> outStream : common.get_streams().entrySet()) {

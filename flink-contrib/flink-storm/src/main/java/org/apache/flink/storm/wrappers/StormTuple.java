@@ -29,6 +29,7 @@ import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.MessageId;
 import backtype.storm.tuple.Values;
+import com.google.common.base.Preconditions;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -44,6 +45,21 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 	/** The schema (ie, ordered field names) of the tuple */
 	private final Fields schema;
 
+	private final int taskId;
+	private final String streamId;
+	private final MessageId id;
+	private final String componentId;
+
+
+	/**
+	 * Constructor which sets defaults for streamID, taskId, and componentID
+	 * @param flinkTuple the Flink tuple
+	 * @param schema The schema of the storm fields
+	 */
+	StormTuple(final IN flinkTuple, final Fields schema) {
+		this(flinkTuple, schema, "testStream", -1, "componentID");
+	}
+
 	/**
 	 * Create a new Storm tuple from the given Flink tuple. The provided {@code nameIndexMap} is ignored for raw input
 	 * types.
@@ -53,7 +69,7 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 	 * @param schema
 	 * 		The schema (ie, ordered field names) of the tuple.
 	 */
-	StormTuple(final IN flinkTuple, final Fields schema) {
+	StormTuple(final IN flinkTuple, final Fields schema, String streamId, int taskId, String componentId) {
 		if (flinkTuple instanceof org.apache.flink.api.java.tuple.Tuple) {
 			this.schema = schema;
 			final org.apache.flink.api.java.tuple.Tuple t = (org.apache.flink.api.java.tuple.Tuple) flinkTuple;
@@ -67,6 +83,11 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 			this.schema = null;
 			this.stormTuple = new Values(flinkTuple);
 		}
+
+		this.taskId = Preconditions.checkNotNull(taskId);
+		this.streamId = Preconditions.checkNotNull(streamId);
+		this.id = Preconditions.checkNotNull(MessageId.makeUnanchored());
+		this.componentId = Preconditions.checkNotNull(componentId);
 	}
 
 	@Override
@@ -266,32 +287,27 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 
 	@Override
 	public GlobalStreamId getSourceGlobalStreamid() {
-		// not sure if Flink can support this
-		throw new UnsupportedOperationException();
+		return new GlobalStreamId(getSourceComponent(), streamId);
 	}
 
 	@Override
 	public String getSourceComponent() {
-		// not sure if Flink can support this
-		throw new UnsupportedOperationException();
+		return componentId;
 	}
 
 	@Override
 	public int getSourceTask() {
-		// not sure if Flink can support this
-		throw new UnsupportedOperationException();
+		return taskId;
 	}
 
 	@Override
 	public String getSourceStreamId() {
-		// not sure if Flink can support this
-		throw new UnsupportedOperationException();
+		return streamId;
 	}
 
 	@Override
 	public MessageId getMessageId() {
-		// not sure if Flink can support this
-		throw new UnsupportedOperationException();
+		return id;
 	}
 
 	@Override
