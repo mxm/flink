@@ -340,4 +340,8 @@ class StormTuple<IN> implements backtype.storm.tuple.Tuple {
 		return true;
 	}
 
+	@Override
+	public String toString() {
+		return "StormTuple{ "+ stormTuple.toString() +" }";
+	}
 }

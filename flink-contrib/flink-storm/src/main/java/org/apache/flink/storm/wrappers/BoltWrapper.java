@@ -211,10 +211,8 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 		this.flinkCollector = new TimestampedCollector<OUT>(output);
 		OutputCollector stormCollector = null;
 
-		if (this.numberOfAttributes.size() > 0) {
-			stormCollector = new OutputCollector(new BoltCollector<OUT>(
-					this.numberOfAttributes, flinkCollector));
-		}
+		stormCollector = new OutputCollector(new BoltCollector<OUT>(
+				this.numberOfAttributes, flinkCollector));
 
 		GlobalJobParameters config = getExecutionConfig().getGlobalJobParameters();
 		StormConfig stormConfig = new StormConfig();
