@@ -145,6 +145,9 @@ class YarnJobManager(
   var allocatedContainersList = List[Container]()
   var runningContainersList = List[Container]()
 
+  val maxResourceManagerAllocateRetries = 5
+  var resourceManagerAllocateRetries = 0
+
   override def handleMessage: Receive = {
     handleYarnMessage orElse super.handleMessage
   }
@@ -256,123 +259,148 @@ class YarnJobManager(
       rmClientOption match {
         case Some(rmClient) =>
           log.debug("Send heartbeat to YARN")
-          val response = rmClient.allocate(runningContainers.toFloat / numTaskManagers)
-
-          // ---------------------------- handle YARN responses -------------
-
-          val newlyAllocatedContainers = response.getAllocatedContainers.asScala
-
-          newlyAllocatedContainers.foreach {
-            container => log.info(s"Got new container for allocation: ${container.getId}")
-          }
-
-          allocatedContainersList ++= newlyAllocatedContainers
-          numPendingRequests = math.max(0, numPendingRequests - newlyAllocatedContainers.length)
-
-          val completedContainerStatuses = response.getCompletedContainersStatuses.asScala
-          val idStatusMap = completedContainerStatuses
-            .map(status => (status.getContainerId, status)).toMap
-
-          completedContainerStatuses.foreach {
-            status => log.info(s"Container ${status.getContainerId} is completed " +
-              s"with diagnostics: ${status.getDiagnostics}")
-          }
-
-          // get failed containers (returned containers are also completed, so we have to
-          // distinguish if it was running before).
-          val (completedContainers, remainingRunningContainers) = runningContainersList
-            .partition(idStatusMap contains _.getId)
-
-          completedContainers.foreach {
-            container =>
-              val status = idStatusMap(container.getId)
-              failedContainers += 1
-              runningContainers -= 1
-              log.info(s"Container ${status.getContainerId} was a running container. " +
-                s"Total failed containers $failedContainers.")
-              val detail = status.getExitStatus match {
-                case -103 => "Vmem limit exceeded";
-                case -104 => "Pmem limit exceeded";
-                case _ => ""
-              }
-              messageListener foreach {
-                _ ! decorateMessage(
-                  YarnMessage(s"Diagnostics for containerID=${status.getContainerId} in " +
-                    s"state=${status.getState}.\n${status.getDiagnostics} $detail")
-                )
-              }
-          }
-
-          runningContainersList = remainingRunningContainers
-
-          // return containers if the RM wants them and we haven't allocated them yet.
-          val preemptionMessage = response.getPreemptionMessage
-          if(preemptionMessage != null) {
-            log.info(s"Received preemtion message from YARN $preemptionMessage.")
-            val contract = preemptionMessage.getContract
-            if(contract != null) {
-              tryToReturnContainers(contract.getContainers.asScala.toSet)
+          val responseOption =
+            try {
+              val option = Some(rmClient.allocate(runningContainers.toFloat / numTaskManagers))
+              resourceManagerAllocateRetries = 0
+              option
+            } catch {
+              case e: Exception =>
+                resourceManagerAllocateRetries += 1
+                if (resourceManagerAllocateRetries <= maxResourceManagerAllocateRetries) {
+                  log.warn("Failed to send heartbeat to YARN resource manager. Retrying.", e)
+                  None
+                } else {
+                  throw e
+                }
             }
-            val strictContract = preemptionMessage.getStrictContract
-            if(strictContract != null) {
-              tryToReturnContainers(strictContract.getContainers.asScala.toSet)
-            }
-          }
 
-          // ---------------------------- decide if we need to do anything ---------
+          responseOption match {
+            case None =>
+            case Some(response) =>
+              // ---------------------------- handle YARN responses -------------
 
-          // check if we want to start some of our allocated containers.
-          if(runningContainers < numTaskManagers) {
-            val missingContainers = numTaskManagers - runningContainers
-            log.info(s"The user requested $numTaskManagers containers, $runningContainers " +
-              s"running. $missingContainers containers missing")
+              val newlyAllocatedContainers = response.getAllocatedContainers.asScala
 
-            val numStartedContainers = startTMsInAllocatedContainers(missingContainers)
+              newlyAllocatedContainers.foreach {
+                container => log.info(s"Got new container for allocation: ${container.getId}")
+              }
 
-            // if there are still containers missing, request them from YARN
-            val toAllocateFromYarn = Math.max(
-              missingContainers - numStartedContainers - numPendingRequests,
-              0)
+              allocatedContainersList ++= newlyAllocatedContainers
+              numPendingRequests = math.max(0, numPendingRequests - newlyAllocatedContainers.length)
 
-            if (toAllocateFromYarn > 0) {
-              val reallocate = flinkConfiguration
-                .getBoolean(ConfigConstants.YARN_REALLOCATE_FAILED_CONTAINERS, true)
-              log.info(s"There are $missingContainers containers missing." +
-                s" $numPendingRequests are already requested. " +
-                s"Requesting $toAllocateFromYarn additional container(s) from YARN. " +
-                s"Reallocation of failed containers is enabled=$reallocate " +
-                s"('${ConfigConstants.YARN_REALLOCATE_FAILED_CONTAINERS}')")
-              // there are still containers missing. Request them from YARN
-              if (reallocate) {
-                for(i <- 1 to toAllocateFromYarn) {
-                  val containerRequest = getContainerRequest(memoryPerTaskManager)
-                  rmClient.addContainerRequest(containerRequest)
-                  numPendingRequests += 1
-                  log.info("Requested additional container from YARN. Pending requests " +
-                    s"$numPendingRequests.")
+              val completedContainerStatuses = response.getCompletedContainersStatuses.asScala
+              val idStatusMap = completedContainerStatuses
+                .map(status => (status.getContainerId, status)).toMap
+
+              completedContainerStatuses.foreach {
+                status => log.info(s"Container ${status.getContainerId} is completed " +
+                  s"with diagnostics: ${status.getDiagnostics}")
+              }
+
+              // get failed containers (returned containers are also completed, so we have to
+              // distinguish if it was running before).
+              val (completedContainers, remainingRunningContainers) = runningContainersList
+                .partition(idStatusMap contains _.getId)
+
+              completedContainers.foreach {
+                container =>
+                  val status = idStatusMap(container.getId)
+                  failedContainers += 1
+                  runningContainers -= 1
+                  log.info(s"Container ${status.getContainerId} was a running container. " +
+                    s"Total failed containers $failedContainers.")
+                  val detail = status.getExitStatus match {
+                    case -103 => "Vmem limit exceeded";
+                    case -104 => "Pmem limit exceeded";
+                    case _ => ""
+                  }
+                  messageListener foreach {
+                    _ ! decorateMessage(
+                      YarnMessage(s"Diagnostics for containerID=${status.getContainerId} in " +
+                        s"state=${status.getState}.\n${status.getDiagnostics} $detail")
+                    )
+                  }
+              }
+
+              runningContainersList = remainingRunningContainers
+
+              // return containers if the RM wants them and we haven't allocated them yet.
+              val preemptionMessage = response.getPreemptionMessage
+              if (preemptionMessage != null) {
+                log.info(s"Received preemtion message from YARN $preemptionMessage.")
+                val contract = preemptionMessage.getContract
+                if (contract != null) {
+                  tryToReturnContainers(contract.getContainers.asScala.toSet)
+                }
+                val strictContract = preemptionMessage.getStrictContract
+                if (strictContract != null) {
+                  tryToReturnContainers(strictContract.getContainers.asScala.toSet)
                 }
               }
-            }
-          }
 
-          if(runningContainers >= numTaskManagers && allocatedContainersList.nonEmpty) {
-            log.info(s"Flink has ${allocatedContainersList.size} allocated containers which " +
-              s"are not needed right now. Returning them")
-            for(container <- allocatedContainersList) {
-              rmClient.releaseAssignedContainer(container.getId)
-            }
-            allocatedContainersList = List()
-          }
+              // ---------------------------- decide if we need to do anything ---------
 
-          // maxFailedContainers == -1 is infinite number of retries.
-          if(maxFailedContainers != -1 && failedContainers >= maxFailedContainers) {
-            val msg = s"Stopping YARN session because the number of failed " +
-              s"containers ($failedContainers) exceeded the maximum failed container " +
-              s"count ($maxFailedContainers). This number is controlled by " +
-              s"the '${ConfigConstants.YARN_MAX_FAILED_CONTAINERS}' configuration " +
-              s"setting. By default its the number of requested containers"
-            log.error(msg)
-            self ! decorateMessage(StopYarnSession(FinalApplicationStatus.FAILED, msg))
+              // check if we want to start some of our allocated containers.
+              if (runningContainers < numTaskManagers) {
+                val missingContainers = numTaskManagers - runningContainers
+                log.info(s"The user requested $numTaskManagers containers, $runningContainers " +
+                  s"running. $missingContainers containers missing")
+
+                val numStartedContainers = startTMsInAllocatedContainers(missingContainers)
+
+                // if there are still containers missing, request them from YARN
+                val toAllocateFromYarn = Math.max(
+                  missingContainers - numStartedContainers - numPendingRequests,
+                  0)
+
+                if (toAllocateFromYarn > 0) {
+                  val reallocate = flinkConfiguration
+                    .getBoolean(ConfigConstants.YARN_REALLOCATE_FAILED_CONTAINERS, true)
+                  log.info(s"There are $missingContainers containers missing." +
+                    s" $numPendingRequests are already requested. " +
+                    s"Requesting $toAllocateFromYarn additional container(s) from YARN. " +
+                    s"Reallocation of failed containers is enabled=$reallocate " +
+                    s"('${ConfigConstants.YARN_REALLOCATE_FAILED_CONTAINERS}')")
+                  // there are still containers missing. Request them from YARN
+                  if (reallocate) {
+                    for (i <- 1 to toAllocateFromYarn) {
+                      val containerRequest = getContainerRequest(memoryPerTaskManager)
+                      rmClient.addContainerRequest(containerRequest)
+                      numPendingRequests += 1
+                      log.info("Requested additional container from YARN. Pending requests " +
+                        s"$numPendingRequests.")
+                    }
+                  }
+                }
+              }
+
+              if (runningContainers >= numTaskManagers && allocatedContainersList.nonEmpty) {
+                log.info(s"Flink has ${allocatedContainersList.size} allocated containers which " +
+                  s"are not needed right now. Returning them")
+                for (container <- allocatedContainersList) {
+                  rmClient.releaseAssignedContainer(container.getId)
+                }
+                allocatedContainersList = List()
+              }
+
+              // maxFailedContainers == -1 is infinite number of retries.
+              if (maxFailedContainers != -1 && failedContainers >= maxFailedContainers) {
+                val msg = s"Stopping YARN session because the number of failed " +
+                  s"containers ($failedContainers) exceeded the maximum failed container " +
+                  s"count ($maxFailedContainers). This number is controlled by " +
+                  s"the '${ConfigConstants.YARN_MAX_FAILED_CONTAINERS}' configuration " +
+                  s"setting. By default its the number of requested containers"
+                log.error(msg)
+                self ! decorateMessage(StopYarnSession(FinalApplicationStatus.FAILED, msg))
+              }
+
+
+              log.debug(s"Processed Heartbeat with RMClient. " +
+                s"Running containers $runningContainers, " +
+                s"failed containers $failedContainers, " +
+                s"allocated containers ${allocatedContainersList.size}.")
+
           }
 
           // schedule next heartbeat:
@@ -389,6 +417,7 @@ class YarnJobManager(
               self,
               decorateMessage(HeartbeatWithYarn))
           }
+
         case None =>
           log.error("The AMRMClient was not set.")
           self ! decorateMessage(
@@ -397,9 +426,8 @@ class YarnJobManager(
               "Fatal error in AM: AMRMClient was not set")
           )
       }
-      log.debug(s"Processed Heartbeat with RMClient. Running containers $runningContainers, " +
-        s"failed containers $failedContainers, " +
-        s"allocated containers ${allocatedContainersList.size}.")
+
+
   }
 
   /** Starts min(numTMsToStart, allocatedContainersList.size) TaskManager in the available
