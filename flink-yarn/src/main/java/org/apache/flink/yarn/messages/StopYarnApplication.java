@@ -16,18 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages;
+package org.apache.flink.yarn.messages;
 
-/**
- * Interface for message decorators
- */
-public interface MessageDecorator extends java.io.Serializable {
+import org.apache.flink.runtime.clusterframework.messages.StopApplication;
+import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 
-	/**
-	 * Decorates a message
-	 *
-	 * @param message Message to decorate
-	 * @return Decorated message
-	 */
-	Object decorate(Object message);
+public class StopYarnApplication extends StopApplication {
+
+	private static final long serialVersionUID = 4796033740540546815L;
+	
+	private final FinalApplicationStatus status;
+
+	public StopYarnApplication(FinalApplicationStatus status, String message) {
+		super(message);
+		this.status = status;
+	}
+	
+	public FinalApplicationStatus status() {
+		return status;
+	}
+
+	@Override
+	public String toString() {
+		return "StopYarnApplication { status=" + status +
+			", message='" + message() + "' }";
+	}
 }

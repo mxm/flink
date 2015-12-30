@@ -16,18 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages;
+package org.apache.flink.runtime.clusterframework.messages;
+
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
- * Interface for message decorators
+ * Generic message to signal the cluster framework to shut the cluster down.
  */
-public interface MessageDecorator extends java.io.Serializable {
+public class StopApplication implements RequiresLeaderSessionID, java.io.Serializable {
 
-	/**
-	 * Decorates a message
-	 *
-	 * @param message Message to decorate
-	 * @return Decorated message
-	 */
-	Object decorate(Object message);
+	private static final long serialVersionUID = -8957259342982181684L;
+	
+	private final String message;
+
+
+	public StopApplication(String message) {
+		this.message = message;
+	}
+	
+	
+	public String message() {
+		return message;
+	}
+
+	@Override
+	public String toString() {
+		return "StopApplication { message='" + message + "' }";
+	}
 }

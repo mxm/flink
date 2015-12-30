@@ -16,18 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages;
+package org.apache.flink.yarn;
 
-/**
- * Interface for message decorators
- */
-public interface MessageDecorator extends java.io.Serializable {
+import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 
-	/**
-	 * Decorates a message
-	 *
-	 * @param message Message to decorate
-	 * @return Decorated message
-	 */
-	Object decorate(Object message);
+public class ContainerLaunchContextFactory {
+	
+	public ContainerLaunchContext createLaunchContext(String containerId) {
+		
+	}
 }

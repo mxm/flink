@@ -126,7 +126,6 @@ class YarnJobManager(
   private def env = System.getenv()
 
   // indicates if this AM has been started in a detached mode.
-  val detached = java.lang.Boolean.valueOf(env.get(FlinkYarnClientBase.ENV_DETACHED))
   var stopWhenJobFinished: JobID = null
 
   var rmClientOption: Option[AMRMClientAsync[ContainerRequest]] = None
@@ -204,8 +203,7 @@ class YarnJobManager(
     case UnregisterClient =>
       messageListener = None
 
-    case msg: StopAMAfterJob =>
-      val jobId = msg.jobId
+    case msg @ StopAMAfterJob(jobId) =>
       log.info(s"ApplicatonMaster will shut down YARN session when job $jobId has finished.")
       stopWhenJobFinished = jobId
       // trigger regular job status messages (if this is a per-job yarn cluster)
@@ -515,8 +513,7 @@ class YarnJobManager(
 
   private def getContainerRequest(memoryPerTaskManager: Int): ContainerRequest = {
     // Priority for worker containers - priorities are intra-application
-    val priority = Records.newRecord(classOf[Priority])
-    priority.setPriority(0)
+    val priority = Priority.newInstance(0)
 
     val taskManagerSlots = env.get(FlinkYarnClientBase.ENV_SLOTS).toInt
     val vcores: Int = flinkConfiguration

@@ -16,18 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages;
+package org.apache.flink.runtime.clusterframework;
 
-/**
- * Interface for message decorators
- */
-public interface MessageDecorator extends java.io.Serializable {
-
-	/**
-	 * Decorates a message
-	 *
-	 * @param message Message to decorate
-	 * @return Decorated message
-	 */
-	Object decorate(Object message);
+public class TaskManagerConfig {
+	
+	private final long taskManagerMemory;
 }

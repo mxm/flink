@@ -16,31 +16,46 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn;
+package org.apache.flink.runtime.clusterframework.messages;
 
-import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.jobmanager.MemoryArchivist;
-import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
+import java.util.Date;
+
+import static java.util.Objects.requireNonNull;
 
 /**
- * Yarn application master which starts the {@link TestingYarnJobManager} and the
- * {@link TestingMemoryArchivist}.
+ * A simple informational message sent by the resource master to the client.
  */
-public class TestingApplicationMaster extends YarnApplicationMasterRunner {
+public class InfoMessage implements java.io.Serializable {
+
+	private static final long serialVersionUID = 5534993035539629765L;
+	
+	private final String message;
+	
+	private final Date date;
+
+	
+	public InfoMessage(String message) {
+		this.message = message;
+		this.date = new Date();
+	}
+	
+	public InfoMessage(String message, Date date) {
+		this.message = requireNonNull(message);
+		this.date = requireNonNull(date);
+	}
 	
 	
-	@Override
-	public Class<? extends JobManager> getJobManagerClass() {
-		return TestingYarnJobManager.class;
+	public String message() {
+		return message;
+	}
+	
+	public Date date() {
+		return date;
 	}
 
+
 	@Override
-	public Class<? extends MemoryArchivist> getArchivistClass() {
-		return TestingMemoryArchivist.class;
-	}
-	
-	public static void main(String[] args) {
-		TestingApplicationMaster applicationMaster = new TestingApplicationMaster();
-		applicationMaster.run(args);
+	public String toString() {
+		return "InfoMessage { message='" + message + "', date=" + date + " }";
 	}
 }

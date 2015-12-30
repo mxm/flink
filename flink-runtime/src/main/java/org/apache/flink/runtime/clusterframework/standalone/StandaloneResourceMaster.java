@@ -16,24 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.execution;
+package org.apache.flink.runtime.clusterframework.standalone;
 
-public interface ExecutionObserver {
+import org.apache.flink.runtime.clusterframework.AbstractFrameworkMaster;
 
-	/**
-	 * Called when the execution state of the associated task has changed.
-	 * 
-	 * @param newExecutionState
-	 *        the execution state the task has just switched to
-	 * @param optionalMessage
-	 *        an optional message providing further information on the state change
-	 */
-	void executionStateChanged(ExecutionState newExecutionState, String optionalMessage);
-
-	/**
-	 * Returns whether the task has been canceled.
-	 * 
-	 * @return <code>true</code> if the task has been canceled, <code>false</code> otherwise
-	 */
-	boolean isCanceled();
+public class StandaloneResourceMaster extends AbstractFrameworkMaster {
+	
+	
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.client;
 
+import java.util.HashMap;
 import akka.actor.ActorSystem;
 
 import org.apache.commons.cli.CommandLine;
