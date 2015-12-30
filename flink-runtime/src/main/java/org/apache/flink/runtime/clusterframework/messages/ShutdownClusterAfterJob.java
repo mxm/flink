@@ -16,18 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages;
+package org.apache.flink.runtime.clusterframework.messages;
+
+import org.apache.flink.api.common.JobID;
 
 /**
- * Interface for message decorators
+ * Message sent to the cluster framework master to signal it that the cluster
+ * should be shut down upon completion of a certain job.
  */
-public interface MessageDecorator extends java.io.Serializable {
+public class ShutdownClusterAfterJob implements java.io.Serializable {
 
-	/**
-	 * Decorates a message
-	 *
-	 * @param message Message to decorate
-	 * @return Decorated message
-	 */
-	Object decorate(Object message);
+	private static final long serialVersionUID = -2723662264779569704L;
+	
+	private final JobID jobId;
+
+	
+	public ShutdownClusterAfterJob(JobID jobId) {
+		this.jobId = jobId;
+	}
+
+	public JobID jobId() {
+		return jobId;
+	}
+
+	@Override
+	public String toString() {
+		return "ShutdownClusterAfterJob { jobId=" + jobId + " } "; 
+	}
 }

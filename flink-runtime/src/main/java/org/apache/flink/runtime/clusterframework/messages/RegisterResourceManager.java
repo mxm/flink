@@ -16,24 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.execution;
+package org.apache.flink.runtime.clusterframework.messages;
 
-public interface ExecutionObserver {
+import akka.actor.ActorRef;
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
-	/**
-	 * Called when the execution state of the associated task has changed.
-	 * 
-	 * @param newExecutionState
-	 *        the execution state the task has just switched to
-	 * @param optionalMessage
-	 *        an optional message providing further information on the state change
-	 */
-	void executionStateChanged(ExecutionState newExecutionState, String optionalMessage);
+/**
+ * This message signals that the resource manager wants to register at the JobManager leader. 
+ */
+public class RegisterResourceManager implements RequiresLeaderSessionID, java.io.Serializable {
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Returns whether the task has been canceled.
-	 * 
-	 * @return <code>true</code> if the task has been canceled, <code>false</code> otherwise
-	 */
-	boolean isCanceled();
+	private final ActorRef resourceManager;
+	
+	public RegisterResourceManager(ActorRef resourceManager) {
+		this.resourceManager = resourceManager;
+	}
+	
+	public ActorRef resourceManager() {
+		return resourceManager;
+	}
+
+	@Override
+	public String toString() {
+		return "RegisterResourceManager " + resourceManager.path();
+	}
 }

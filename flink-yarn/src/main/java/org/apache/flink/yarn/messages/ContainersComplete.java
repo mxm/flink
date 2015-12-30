@@ -16,31 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn;
+package org.apache.flink.yarn.messages;
 
-import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.jobmanager.MemoryArchivist;
-import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+
+import org.apache.hadoop.yarn.api.records.ContainerStatus;
+
+import java.util.List;
 
 /**
- * Yarn application master which starts the {@link TestingYarnJobManager} and the
- * {@link TestingMemoryArchivist}.
+ * Message sent by the callback handler to the {@link org.apache.flink.yarn.YarnFrameworkMaster}
+ * to notify it that a set of new containers is complete.
+ * 
+ * NOTE: This message is not serializable, because the ContainerStatus object is not serializable.
  */
-public class TestingApplicationMaster extends YarnApplicationMasterRunner {
+public class ContainersComplete implements RequiresLeaderSessionID {
 	
+	private final List<ContainerStatus> containers;
 	
-	@Override
-	public Class<? extends JobManager> getJobManagerClass() {
-		return TestingYarnJobManager.class;
+	public ContainersComplete(List<ContainerStatus> containers) {
+		this.containers = containers;
+	}
+	
+	public List<ContainerStatus> containers() {
+		return containers;
 	}
 
 	@Override
-	public Class<? extends MemoryArchivist> getArchivistClass() {
-		return TestingMemoryArchivist.class;
-	}
-	
-	public static void main(String[] args) {
-		TestingApplicationMaster applicationMaster = new TestingApplicationMaster();
-		applicationMaster.run(args);
+	public String toString() {
+		return "ContainersComplete: " + containers;
 	}
 }

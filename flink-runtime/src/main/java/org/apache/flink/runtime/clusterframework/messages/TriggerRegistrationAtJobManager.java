@@ -16,18 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages;
+package org.apache.flink.runtime.clusterframework.messages;
+
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+
+import java.io.Serializable;
 
 /**
- * Interface for message decorators
+ * Causes the resource manager to try and apply at the leader JobManager.
  */
-public interface MessageDecorator extends java.io.Serializable {
+public class TriggerRegistrationAtJobManager implements RequiresLeaderSessionID, Serializable {
+	private static final long serialVersionUID = 1L;
+	
+	private final String jobManagerAddress;
+	
+	
+	public TriggerRegistrationAtJobManager(String jobManagerAddress) {
+		this.jobManagerAddress = jobManagerAddress;
+	}
+	
+	public String jobManagerAddress() {
+		return jobManagerAddress;
+	}
 
-	/**
-	 * Decorates a message
-	 *
-	 * @param message Message to decorate
-	 * @return Decorated message
-	 */
-	Object decorate(Object message);
+	@Override
+	public String toString() {
+		return "TriggerRegistrationAtJobManager " + jobManagerAddress;
+	}
 }

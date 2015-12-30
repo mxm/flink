@@ -16,18 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages;
+package org.apache.flink.yarn.messages;
+
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+import org.apache.hadoop.yarn.api.records.Container;
+
+import java.util.List;
 
 /**
- * Interface for message decorators
+ * Message sent by the callback handler to the {@link org.apache.flink.yarn.YarnFrameworkMaster}
+ * to notify it that a set of new containers is available.
+ * 
+ * NOTE: This message is not serializable, because the Container object is not serializable.
  */
-public interface MessageDecorator extends java.io.Serializable {
+public class ContainersAllocated implements RequiresLeaderSessionID {
+	
+	private final List<Container> containers;
+	
+	public ContainersAllocated(List<Container> containers) {
+		this.containers = containers;
+	}
+	
+	public List<Container> containers() {
+		return containers;
+	}
 
-	/**
-	 * Decorates a message
-	 *
-	 * @param message Message to decorate
-	 * @return Decorated message
-	 */
-	Object decorate(Object message);
+	@Override
+	public String toString() {
+		return "ContainersAllocated: " + containers;
+	}
 }

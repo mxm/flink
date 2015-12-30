@@ -156,7 +156,7 @@ abstract class ApplicationMasterBase {
         startActorSystem(portsIterator),
         {!portsIterator.hasNext})
 
-      val (actorSystem, jmActor, archiveActor, webMonitor) = result match {
+      val (actorSystem, jmActor, _, webMonitor) = result match {
         case Success(r) => r
         case Failure(failure) => throw new RuntimeException("Unable to start actor system", failure)
       }
@@ -244,8 +244,8 @@ abstract class ApplicationMasterBase {
 
     import scala.collection.JavaConverters._
 
-    for (property <- dynamicProperties.asScala){
-      output.println(s"${property._1}: ${property._2}")
+    for(property <- dynamicProperties.entrySet().asScala){
+      output.println(s"${property.getKey}: ${property.getValue}")
     }
 
     output.close()
@@ -262,20 +262,10 @@ abstract class ApplicationMasterBase {
     // add dynamic properties to JobManager configuration.
     val dynamicProperties = CliFrontend.getDynamicProperties(dynamicPropertiesEncodedString)
     import scala.collection.JavaConverters._
-    for (property <- dynamicProperties.asScala){
-      configuration.setString(property._1, property._2)
+    for(property <- dynamicProperties.entrySet().asScala){
+      configuration.setString(property.getKey, property.getValue)
     }
 
     configuration
-  }
-}
-
-object ApplicationMasterBase {
-  def hasStreamingMode(env: java.util.Map[String, String]): Boolean = {
-    val sModeString = env.get(FlinkYarnClientBase.ENV_STREAMING_MODE)
-    if(sModeString != null) {
-      return sModeString.toBoolean
-    }
-    false
   }
 }

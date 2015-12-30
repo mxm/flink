@@ -16,18 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages;
-
 /**
- * Interface for message decorators
+ * This package contains the actor messages that are sent between the
+ * cluster resource framework and the JobManager, as well as the generic
+ * messages sent between the cluster resource framework and the client.
  */
-public interface MessageDecorator extends java.io.Serializable {
-
-	/**
-	 * Decorates a message
-	 *
-	 * @param message Message to decorate
-	 * @return Decorated message
-	 */
-	Object decorate(Object message);
-}
+package org.apache.flink.runtime.clusterframework.messages;

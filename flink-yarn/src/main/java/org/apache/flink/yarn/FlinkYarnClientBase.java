@@ -98,7 +98,6 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	public static final String ENV_CLIENT_USERNAME = "_CLIENT_USERNAME";
 	public static final String ENV_SLOTS = "_SLOTS";
 	public static final String ENV_DETACHED = "_DETACHED";
-	public static final String ENV_STREAMING_MODE = "_STREAMING_MODE";
 	public static final String ENV_DYNAMIC_PROPERTIES = "_DYNAMIC_PROPERTIES";
 
 

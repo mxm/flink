@@ -16,18 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages;
+package org.apache.flink.runtime.clusterframework.standalone;
 
 /**
- * Interface for message decorators
+ * The startup mode for the standalone setup,
  */
-public interface MessageDecorator extends java.io.Serializable {
+public enum StandaloneMode {
 
 	/**
-	 * Decorates a message
-	 *
-	 * @param message Message to decorate
-	 * @return Decorated message
+	 * Local mode starts an embedded TaskManager, such trhat 
 	 */
-	Object decorate(Object message);
+	LOCAL,
+
+	/**
+	 * Starts the JobManager in the regular mode where it waits for external TaskManagers
+	 * to connect.
+	 */
+	CLUSTER
 }

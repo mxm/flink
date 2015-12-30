@@ -16,18 +16,39 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages;
+package org.apache.flink.runtime.clusterframework;
 
 /**
- * Interface for message decorators
+ * The status of an application.
  */
-public interface MessageDecorator extends java.io.Serializable {
+public enum ApplicationStatus {
+
+	/** Application finished successfully */
+	SUCCEEDED(0),
+
+	/** Application encountered an unrecoverable failure or error */
+	FAILED(1443),
+	
+	/** Application was canceled or killed on request */
+	CANCELED(1444),
+
+	/** Application status is not known */
+	UNKNOWN(1445);
+	
+	// ------------------------------------------------------------------------
+
+	/** The associated process exit code */
+	private final int processExitCode;
+	
+	private ApplicationStatus(int exitCode) {
+		this.processExitCode = exitCode;
+	}
 
 	/**
-	 * Decorates a message
-	 *
-	 * @param message Message to decorate
-	 * @return Decorated message
+	 * Gets the process exit code associated with this status
+	 * @return The associated process exit code.
 	 */
-	Object decorate(Object message);
+	public int processExitCode() {
+		return processExitCode;
+	}
 }

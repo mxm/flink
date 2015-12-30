@@ -16,18 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages;
-
 /**
- * Interface for message decorators
+ * This package contains the cluster resource management functionality. It contains
+ * abstract classes for the master and worker resource manager actors, as well as for
+ * starting JobManager and TaskManager processes.
+ * 
+ * <p>The classes in this package are extended by the YARN and Mesos implementations
+ * to realize cluster bootstrapping and resource management with those frameworks.
  */
-public interface MessageDecorator extends java.io.Serializable {
-
-	/**
-	 * Decorates a message
-	 *
-	 * @param message Message to decorate
-	 * @return Decorated message
-	 */
-	Object decorate(Object message);
-}
+package org.apache.flink.runtime.clusterframework;

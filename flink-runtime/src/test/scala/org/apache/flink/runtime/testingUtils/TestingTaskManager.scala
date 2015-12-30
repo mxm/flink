@@ -28,14 +28,7 @@ import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerConfigurati
 import scala.language.postfixOps
 
 /** Subclass of the [[TaskManager]] to support testing messages
-  *
-  * @param config
-  * @param connectionInfo
-  * @param memoryManager
-  * @param ioManager
-  * @param network
-  * @param numberOfSlots
-  */
+ */
 class TestingTaskManager(
     config: TaskManagerConfiguration,
     connectionInfo: InstanceConnectionInfo,
