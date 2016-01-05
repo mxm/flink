@@ -16,43 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.clusterframework.messages;
+package org.apache.flink.yarn;
 
-import java.util.Date;
+import org.apache.hadoop.yarn.api.records.Container;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * A simple informational message sent by the resource master to the client.
+ * This class describes a container in which a TaskManager is being launched (or
+ * has been launched) but where the TaskManager has not properly registered, yet.
  */
-public class InfoMessage implements java.io.Serializable {
+public class YarnContainerInLaunch {
+	
+	private final Container container;
+	
+	private final long timestamp;
+	
+	public YarnContainerInLaunch(Container container, long timestamp) {
+		this.container = requireNonNull(container);
+		this.timestamp = timestamp;
+	}
+	
+	// ------------------------------------------------------------------------
 
-	private static final long serialVersionUID = 5534993035539629765L;
-	
-	private final String message;
-	
-	private final Date date;
-	
-	public InfoMessage(String message) {
-		this.message = message;
-		this.date = new Date();
+	public Container container() {
+		return container;
 	}
-	
-	public InfoMessage(String message, Date date) {
-		this.message = requireNonNull(message);
-		this.date = requireNonNull(date);
+
+	public long timestamp() {
+		return timestamp;
 	}
-	
-	public String message() {
-		return message;
-	}
-	
-	public Date date() {
-		return date;
-	}
-	
+
+	// ------------------------------------------------------------------------
+
 	@Override
 	public String toString() {
-		return "InfoMessage { message='" + message + "', date=" + date + " }";
+		return "ContainerInLaunch @ " + timestamp + ": " + container;
 	}
 }

@@ -18,41 +18,29 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import java.util.Date;
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
-import static java.util.Objects.requireNonNull;
+import java.io.Serializable;
 
 /**
- * A simple informational message sent by the resource master to the client.
+ * Causes the resource manager to try and apply at the leader JobManager.
  */
-public class InfoMessage implements java.io.Serializable {
+public class TriggerRegistrationAtJobManager implements RequiresLeaderSessionID, Serializable {
+	private static final long serialVersionUID = 1L;
+	
+	private final String jobManagerAddress;
+	
+	
+	public TriggerRegistrationAtJobManager(String jobManagerAddress) {
+		this.jobManagerAddress = jobManagerAddress;
+	}
+	
+	public String jobManagerAddress() {
+		return jobManagerAddress;
+	}
 
-	private static final long serialVersionUID = 5534993035539629765L;
-	
-	private final String message;
-	
-	private final Date date;
-	
-	public InfoMessage(String message) {
-		this.message = message;
-		this.date = new Date();
-	}
-	
-	public InfoMessage(String message, Date date) {
-		this.message = requireNonNull(message);
-		this.date = requireNonNull(date);
-	}
-	
-	public String message() {
-		return message;
-	}
-	
-	public Date date() {
-		return date;
-	}
-	
 	@Override
 	public String toString() {
-		return "InfoMessage { message='" + message + "', date=" + date + " }";
+		return "TriggerRegistrationAtJobManager " + jobManagerAddress;
 	}
 }

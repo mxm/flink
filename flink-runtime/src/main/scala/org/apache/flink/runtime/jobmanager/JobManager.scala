@@ -2286,10 +2286,6 @@ object JobManager {
     (jobManager, archive)
   }
 
-  def startActor(props: Props, actorSystem: ActorSystem): ActorRef = {
-    actorSystem.actorOf(props, JOB_MANAGER_NAME)
-  }
-
   // --------------------------------------------------------------------------
   //  Resolving the JobManager endpoint
   // --------------------------------------------------------------------------

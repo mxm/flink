@@ -31,6 +31,7 @@ import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.NetUtils;
 
 import org.slf4j.Logger;
+
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
@@ -179,12 +180,19 @@ public class BootstrapTools {
 			return null;
 		}
 	}
-
 	
+	/**
+	 * @param baseConfig
+	 * @param jobManagerHostname
+	 * @param jobManagerPort
+	 * @param numSlots
+	 * @param registrationTimeout
+	 * @return
+	 */
 	public static Configuration generateTaskManagerConfiguration(
 				Configuration baseConfig,
 				String jobManagerHostname,
-				int  jobManagerPort,
+				int jobManagerPort,
 				int numSlots,
 				FiniteDuration registrationTimeout) {
 		
@@ -219,32 +227,96 @@ public class BootstrapTools {
 		}
 	}
 
+	/**
+	 * 
+	 * @param config
+	 * @param deprecated
+	 * @param designated
+	 */
+	public static void substituteDeprecatedConfigKey(Configuration config, String deprecated, String designated) {
+		// set the designated key only if it is not set already
+		if (!config.containsKey(designated)) {
+			final String valueForDeprecated = config.getString(deprecated, null);
+			if (valueForDeprecated != null) {
+				config.setString(designated, valueForDeprecated);
+			}
+		}
+	}
 
 	/**
-	 * Calculates the amount memory going to the JVM heap + off-heap pool, for a given target process
-	 * memory size.
 	 * 
-	 * @param memoryBytes The target process memory size.
-	 * @param conf The Flink configuration.
+	 * @param config
+	 * @param deprecatedPrefix
+	 * @param designatedPrefix
+	 */
+	public static void substituteDeprecatedConfigPrefix(Configuration config,
+												 String deprecatedPrefix, String designatedPrefix)
+	{
+		// set the designated key only if it is not set already
+		final int prefixLen = deprecatedPrefix.length();
+
+		Configuration replacement = new Configuration();
+
+		for (String key : config.keySet()) {
+			if (key.startsWith(deprecatedPrefix)) {
+				String newKey = designatedPrefix + key.substring(prefixLen);
+				if (!config.containsKey(newKey)) {
+					replacement.setString(newKey, config.getString(key, null));
+				}
+			}
+		}
+
+		config.addAll(replacement);
+	}
+
+	/**
+	 * 
+	 * @param flinkConfig
+	 * @param tmParams
+	 * @param configDirectory
+	 * @param logDirectory
+	 * @param hasLogback
+	 * @param hasLog4j
+	 * @param mainClass
 	 * @return
 	 */
-	public static long calculateHeapSize(long memoryBytes, Configuration conf) {
-		float memoryCutoffRatio = conf.getFloat(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, ConfigConstants.DEFAULT_YARN_HEAP_CUTOFF_RATIO);
-		int minCutoff = conf.getInteger(ConfigConstants.YARN_HEAP_CUTOFF_MIN, ConfigConstants.DEFAULT_YARN_MIN_HEAP_CUTOFF);
+	public static String getTaskManagerShellCommand(
+		Configuration flinkConfig,
+		ContaineredTaskManagerParameters tmParams,
+		String configDirectory,
+		String logDirectory,
+		boolean hasLogback,
+		boolean hasLog4j,
+		Class<?> mainClass)
+	{
+		StringBuilder tmCommand = new StringBuilder("$JAVA_HOME/bin/java");
+		tmCommand.append(" -Xms").append(tmParams.taskManagerHeapSizeMB()).append("m");
+		tmCommand.append(" -Xmx").append(tmParams.taskManagerHeapSizeMB()).append("m");
+		tmCommand.append(" -XX:MaxDirectMemorySize=").append(tmParams.taskManagerDirectMemoryLimitMB()).append("m");
 
-		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
-			throw new IllegalArgumentException("The configuration value '" + ConfigConstants.YARN_HEAP_CUTOFF_RATIO + "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
-		}
-		if (minCutoff > memory) {
-			throw new IllegalArgumentException("The configuration value '" + ConfigConstants.YARN_HEAP_CUTOFF_MIN + "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
+		String  javaOpts = flinkConfig.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
+		tmCommand.append(' ').append(javaOpts);
+		
+		if (hasLogback || hasLog4j) {
+			tmCommand.append(" -Dlog.file=").append(logDirectory).append("/taskmanager.log");
+			if (hasLogback) {
+				tmCommand.append(" -Dlogback.configurationFile=file:")
+						.append(configDirectory).append("/logback.xml");
+			}
+			if (hasLog4j) {
+				tmCommand.append(" -Dlog4j.configuration=file:")
+						.append(configDirectory).append("/log4j.properties");
+			}
 		}
 
-		int heapLimit = (int)((float)memory * memoryCutoffRatio);
-		if (heapLimit < minCutoff) {
-			heapLimit = minCutoff;
-		}
-		return memory - heapLimit;
+		tmCommand.append(' ').append(mainClass.getName());
+		tmCommand.append(" --configDir ").append(configDirectory);
+		tmCommand.append(" 1> ").append(logDirectory).append("/taskmanager.out");
+		tmCommand.append(" 2> ").append(logDirectory).append("/taskmanager.err");
+		
+		return tmCommand.toString();
 	}
+	
 	
 	// ------------------------------------------------------------------------
 	

@@ -453,8 +453,9 @@ class YarnJobManager(
       Utils.registerLocalResource(fs, remoteJarPath, flinkJar)
 
       // register conf with local fs
-      Utils.setupLocalResource(conf, fs, appId, new Path(s"file://$currDir/flink-conf-modified" +
+      Utils.setupLocalResource(fs, appId, new Path(s"file://$currDir/flink-conf-modified" +
         s".yaml"), flinkConf, new Path(clientHomeDir))
+      
       log.info(s"Prepared local resource for modified yaml: $flinkConf")
 
       val hasLogback = new File(s"$currDir/logback.xml").exists()

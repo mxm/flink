@@ -18,41 +18,48 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import java.util.Date;
+import org.apache.flink.runtime.util.SerializedThrowable;
+
+import java.io.Serializable;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * A simple informational message sent by the resource master to the client.
+ * Message sent to the Flink's resource manager in case of a fatal error that
+ * cannot be recovered in the running process.
+ * 
+ * When master high-availability is enabled, this message should fail the resource
+ * manager (for example process kill) such that it gets recovered (restarted or
+ * another process takes over).
  */
-public class InfoMessage implements java.io.Serializable {
+public class FatalErrorOccurred implements Serializable {
 
-	private static final long serialVersionUID = 5534993035539629765L;
+	private static final long serialVersionUID = -2246792138413563536L;
 	
 	private final String message;
 	
-	private final Date date;
+	private final SerializedThrowable error;
 	
-	public InfoMessage(String message) {
-		this.message = message;
-		this.date = new Date();
-	}
-	
-	public InfoMessage(String message, Date date) {
+	public FatalErrorOccurred(String message, Throwable error) {
 		this.message = requireNonNull(message);
-		this.date = requireNonNull(date);
+		this.error = new SerializedThrowable(requireNonNull(error));
 	}
+	
+	// ------------------------------------------------------------------------
 	
 	public String message() {
 		return message;
 	}
 	
-	public Date date() {
-		return date;
+	public Throwable error() {
+		return error.deserializeError(getClass().getClassLoader());
 	}
+
+	// ------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {
-		return "InfoMessage { message='" + message + "', date=" + date + " }";
+		return "FatalErrorOccurred { message: '" + message + "', error: '"
+			+ error.getMessage() + "' }";
 	}
 }

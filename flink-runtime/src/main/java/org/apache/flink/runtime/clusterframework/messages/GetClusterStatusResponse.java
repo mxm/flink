@@ -18,44 +18,37 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import static java.util.Objects.requireNonNull;
+import java.io.Serializable;
 
-/**
- * Message sent to the Flink's framework master so signal that something fatal has failed.
- * This message will cause the framework master to do some cleanup and fail. If the
- * framework supports and form of high availability, the master should be restarted in some
- * way.
- *
- * NOTE: This message is not serializable, because the exception may not be serializable.
- */
-public class FailFrameworkMaster {
+public class GetClusterStatusResponse implements Serializable {
+	private static final long serialVersionUID = 1L;
 	
-	private final String message;
+	private final int numRegisteredTaskManagers;
 	
-	private final Throwable error;
+	private final int totalNumberOfSlots;
 
-	
-	public FailFrameworkMaster(String message) {
-		this(message, null);
-	}
-	
-	public FailFrameworkMaster(String message, Throwable error) {
-		this.message = requireNonNull(message);
-		this.error = error;
+	public GetClusterStatusResponse(int numRegisteredTaskManagers, int totalNumberOfSlots) {
+		this.numRegisteredTaskManagers = numRegisteredTaskManagers;
+		this.totalNumberOfSlots = totalNumberOfSlots;
 	}
 
-	
-	public String message() {
-		return message;
+	// ------------------------------------------------------------------------
+
+	public int numRegisteredTaskManagers() {
+		return numRegisteredTaskManagers;
 	}
-	
-	public Throwable error() {
-		return error;
+
+	public int totalNumberOfSlots() {
+		return totalNumberOfSlots;
 	}
+
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
-		return "FailFrameworkMaster { message: '" + message + "', error: '"
-			+ error.getMessage() + "' }";
+		return "GetClusterStatusResponse {" +
+			"numRegisteredTaskManagers=" + numRegisteredTaskManagers +
+			", totalNumberOfSlots=" + totalNumberOfSlots +
+			'}';
 	}
 }

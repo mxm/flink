@@ -18,40 +18,42 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+
 /**
- * This message signals the resource master to check how many TaskManagers are 
- * desired, how many are available, and to trigger adjustments if needed.
+ * This message signals to the resource master to register the sender as an
+ * info message listener. 
  */
-public class CheckAndAllocateContainers implements java.io.Serializable {
+public class RegisterInfoMessageListener implements RequiresLeaderSessionID, java.io.Serializable {
 
 	private static final long serialVersionUID = 7808628311617273755L;
 
 	/** The singleton instance */
-	private static final CheckAndAllocateContainers INSTANCE = new CheckAndAllocateContainers();
+	private static final RegisterInfoMessageListener INSTANCE = new RegisterInfoMessageListener();
 
 	/**
 	 * Gets the singleton instance.
 	 * @return The singleton instance.
 	 */
-	public static CheckAndAllocateContainers get() {
+	public static RegisterInfoMessageListener get() {
 		return INSTANCE;
 	}
 	
 	// ------------------------------------------------------------------------
 	
 	/** Private constructor to prevent instantiation */
-	private CheckAndAllocateContainers() {}
+	private RegisterInfoMessageListener() {}
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj != null && obj.getClass() == CheckAndAllocateContainers.class;
+		return obj != null && obj.getClass() == RegisterInfoMessageListener.class;
 	}
 
 	@Override
 	public int hashCode() {
-		return 1725602876;
+		return 2018741654;
 	}
 
 	@Override

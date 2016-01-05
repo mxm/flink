@@ -16,9 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.clusterframework;
+package org.apache.flink.runtime.clusterframework.messages;
 
-public class TaskManagerConfig {
+import akka.actor.ActorRef;
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+
+/**
+ * This message signals that the resource manager wants to register at the JobManager leader. 
+ */
+public class RegisterResourceManager implements RequiresLeaderSessionID, java.io.Serializable {
+	private static final long serialVersionUID = 1L;
+
+	private final ActorRef resourceManager;
 	
-	private final long taskManagerMemory;
+	public RegisterResourceManager(ActorRef resourceManager) {
+		this.resourceManager = resourceManager;
+	}
+	
+	public ActorRef resourceManager() {
+		return resourceManager;
+	}
+
+	@Override
+	public String toString() {
+		return "RegisterResourceManager " + resourceManager.path();
+	}
 }

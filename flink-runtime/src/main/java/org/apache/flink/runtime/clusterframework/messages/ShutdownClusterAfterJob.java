@@ -19,13 +19,12 @@
 package org.apache.flink.runtime.clusterframework.messages;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
  * Message sent to the cluster framework master to signal it that the cluster
  * should be shut down upon completion of a certain job.
  */
-public class ShutdownClusterAfterJob implements RequiresLeaderSessionID, java.io.Serializable {
+public class ShutdownClusterAfterJob implements java.io.Serializable {
 
 	private static final long serialVersionUID = -2723662264779569704L;
 	

@@ -18,9 +18,11 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.runtime.clusterframework.messages.FailFrameworkMaster;
+import org.apache.flink.runtime.clusterframework.messages.FatalErrorOccurred;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.yarn.messages.ContainersAllocated;
+import org.apache.flink.yarn.messages.ContainersComplete;
+
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.NodeReport;
@@ -47,21 +49,23 @@ public class YarnResourceManagerCallbackHandler implements AMRMClientAsync.Callb
 	}
 
 	/**
-	 * 
-	 * @param progress
+	 * Sets the current progress.
+	 * @param progress The current progress fraction.
 	 */
 	public void setCurrentProgress(float progress) {
-		if (progress < 0f || progress > 1f) {
-			throw new IllegalArgumentException("Progress must be between [0.0, 1.0]");
-		}
+		progress = Math.max(progress, 0.0f);
+		progress = Math.min(progress, 1.0f);
 		this.currentProgress = progress;
 	}
-	
-	
+
+	@Override
+	public float getProgress() {
+		return currentProgress;
+	}
 
 	@Override
 	public void onContainersCompleted(List<ContainerStatus> list) {
-		
+		yarnFrameworkMaster.tell(new ContainersComplete(list));
 	}
 
 	@Override
@@ -80,12 +84,7 @@ public class YarnResourceManagerCallbackHandler implements AMRMClientAsync.Callb
 	}
 
 	@Override
-	public float getProgress() {
-		return currentProgress;
-	}
-
-	@Override
 	public void onError(Throwable error) {
-		yarnFrameworkMaster.tell(new FailFrameworkMaster("Connection to YARN Resource Manager failed", error));
+		yarnFrameworkMaster.tell(new FatalErrorOccurred("Connection to YARN Resource Manager failed", error));
 	}
 }

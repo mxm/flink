@@ -16,33 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn.messages;
-
-import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
-import org.apache.hadoop.yarn.api.records.Container;
-
-import java.util.List;
+package org.apache.flink.runtime.clusterframework.standalone;
 
 /**
- * Message sent by the callback handler to the {@link org.apache.flink.yarn.YarnFrameworkMaster}
- * to notify it that a set of new containers is available.
- * 
- * NOTE: This message is not serializable, because the Container object is not serializable.
+ * The startup mode for the standalone setup,
  */
-public class ContainersAllocated implements RequiresLeaderSessionID {
-	
-	private final List<Container> containers;
-	
-	public ContainersAllocated(List<Container> containers) {
-		this.containers = containers;
-	}
-	
-	public List<Container> containers() {
-		return containers;
-	}
+public enum StandaloneMode {
 
-	@Override
-	public String toString() {
-		return "ContainersAllocated: " + containers;
-	}
+	/**
+	 * Local mode starts an embedded TaskManager, such trhat 
+	 */
+	LOCAL,
+
+	/**
+	 * Starts the JobManager in the regular mode where it waits for external TaskManagers
+	 * to connect.
+	 */
+	CLUSTER
 }

@@ -16,42 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.clusterframework.messages;
+package org.apache.flink.runtime.clusterframework.standalone;
 
 /**
- * This message signals the resource master to check how many TaskManagers are 
- * desired, how many are available, and to trigger adjustments if needed.
+ * This message signals the resource master to perform a check for dead TaskManagers.
  */
-public class CheckAndAllocateContainers implements java.io.Serializable {
+public class PerformCleanupMessage implements java.io.Serializable {
 
 	private static final long serialVersionUID = 7808628311617273755L;
 
 	/** The singleton instance */
-	private static final CheckAndAllocateContainers INSTANCE = new CheckAndAllocateContainers();
+	private static final PerformCleanupMessage INSTANCE = new PerformCleanupMessage();
 
 	/**
 	 * Gets the singleton instance.
 	 * @return The singleton instance.
 	 */
-	public static CheckAndAllocateContainers get() {
+	public static PerformCleanupMessage get() {
 		return INSTANCE;
 	}
 	
 	// ------------------------------------------------------------------------
 	
 	/** Private constructor to prevent instantiation */
-	private CheckAndAllocateContainers() {}
+	private PerformCleanupMessage() {}
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj != null && obj.getClass() == CheckAndAllocateContainers.class;
+		return obj != null && obj.getClass() == PerformCleanupMessage.class;
 	}
 
 	@Override
 	public int hashCode() {
-		return 1725602876;
+		return 42;
 	}
 
 	@Override

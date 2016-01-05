@@ -16,10 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.clusterframework;
+package org.apache.flink.runtime.clusterframework.messages;
 
+import java.io.Serializable;
 
-public class RegisteredWorkerNode {
+/**
+ * Message sent by the Flink resource manager to the TaskManagers to tell them
+ * to shut down after an application is complete.
+ */
+public class ShutdownTaskManager implements Serializable {
+	private static final long serialVersionUID = 1L;
 	
+	private final String message;
 	
+	public ShutdownTaskManager(String message) {
+		this.message = message;
+	}
+	
+	public String message() {
+		return message;
+	}
+
+	@Override
+	public String toString() {
+		return "ShutdownTaskManager (" + message + ')';
+	}
 }

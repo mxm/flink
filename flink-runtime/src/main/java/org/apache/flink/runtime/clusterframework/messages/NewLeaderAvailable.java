@@ -18,41 +18,39 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import java.util.Date;
-
-import static java.util.Objects.requireNonNull;
+import java.util.UUID;
 
 /**
- * A simple informational message sent by the resource master to the client.
+ * Message sent to the Flink resource manager to indicate that a new leader is available.
  */
-public class InfoMessage implements java.io.Serializable {
+public class NewLeaderAvailable implements java.io.Serializable {
+	private static final long serialVersionUID = 1L;
+	
+	/** The leader Akka URL */
+	private final String leaderAddress;
+	
+	/** The session ID for the leadership status */
+	private final UUID leaderSessionId;
+	
+	public NewLeaderAvailable(String leaderAddress, UUID leaderSessionId) {
+		this.leaderAddress = leaderAddress;
+		this.leaderSessionId = leaderSessionId;
+	}
+	
+	// ------------------------------------------------------------------------
 
-	private static final long serialVersionUID = 5534993035539629765L;
-	
-	private final String message;
-	
-	private final Date date;
-	
-	public InfoMessage(String message) {
-		this.message = message;
-		this.date = new Date();
+	public String leaderAddress() {
+		return leaderAddress;
 	}
 	
-	public InfoMessage(String message, Date date) {
-		this.message = requireNonNull(message);
-		this.date = requireNonNull(date);
+	public UUID leaderSessionId() {
+		return leaderSessionId;
 	}
-	
-	public String message() {
-		return message;
-	}
-	
-	public Date date() {
-		return date;
-	}
-	
+
+	// ------------------------------------------------------------------------
+
 	@Override
 	public String toString() {
-		return "InfoMessage { message='" + message + "', date=" + date + " }";
+		return "NewLeaderAvailable (" + leaderAddress + " / " + leaderSessionId + ')';
 	}
 }

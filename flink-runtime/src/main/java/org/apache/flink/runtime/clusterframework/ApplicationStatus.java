@@ -16,13 +16,39 @@
  * limitations under the License.
  */
 
-package org.apache.flink.yarn;
+package org.apache.flink.runtime.clusterframework;
 
-import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+/**
+ * The status of an application.
+ */
+public enum ApplicationStatus {
 
-public class ContainerLaunchContextFactory {
+	/** Application finished successfully */
+	SUCCEEDED(0),
+
+	/** Application encountered an unrecoverable failure or error */
+	FAILED(1443),
 	
-	public ContainerLaunchContext createLaunchContext(String containerId) {
-		
+	/** Application was canceled or killed on request */
+	CANCELED(1444),
+
+	/** Application status is not known */
+	UNKNOWN(1445);
+	
+	// ------------------------------------------------------------------------
+
+	/** The associated process exit code */
+	private final int processExitCode;
+	
+	private ApplicationStatus(int exitCode) {
+		this.processExitCode = exitCode;
+	}
+
+	/**
+	 * Gets the process exit code associated with this status
+	 * @return The associated process exit code.
+	 */
+	public int processExitCode() {
+		return processExitCode;
 	}
 }

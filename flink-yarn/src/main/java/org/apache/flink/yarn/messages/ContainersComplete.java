@@ -18,27 +18,32 @@
 
 package org.apache.flink.yarn.messages;
 
-import org.apache.flink.runtime.clusterframework.messages.StopApplication;
-import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
-public class StopYarnApplication extends StopApplication {
+import org.apache.hadoop.yarn.api.records.ContainerStatus;
 
-	private static final long serialVersionUID = 4796033740540546815L;
+import java.util.List;
+
+/**
+ * Message sent by the callback handler to the {@link org.apache.flink.yarn.YarnFrameworkMaster}
+ * to notify it that a set of new containers is complete.
+ * 
+ * NOTE: This message is not serializable, because the ContainerStatus object is not serializable.
+ */
+public class ContainersComplete implements RequiresLeaderSessionID {
 	
-	private final FinalApplicationStatus status;
-
-	public StopYarnApplication(FinalApplicationStatus status, String message) {
-		super(message);
-		this.status = status;
+	private final List<ContainerStatus> containers;
+	
+	public ContainersComplete(List<ContainerStatus> containers) {
+		this.containers = containers;
 	}
 	
-	public FinalApplicationStatus status() {
-		return status;
+	public List<ContainerStatus> containers() {
+		return containers;
 	}
 
 	@Override
 	public String toString() {
-		return "StopYarnApplication { status=" + status +
-			", message='" + message() + "' }";
+		return "ContainersComplete: " + containers;
 	}
 }

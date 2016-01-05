@@ -16,42 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.clusterframework.messages;
+package org.apache.flink.runtime.clusterframework.standalone;
+
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
- * This message signals the resource master to check how many TaskManagers are 
- * desired, how many are available, and to trigger adjustments if needed.
+ * This message is teh successful response to a heartbeat. 
  */
-public class CheckAndAllocateContainers implements java.io.Serializable {
+public class HeartbeatAcknowledgement implements RequiresLeaderSessionID, java.io.Serializable {
 
 	private static final long serialVersionUID = 7808628311617273755L;
 
 	/** The singleton instance */
-	private static final CheckAndAllocateContainers INSTANCE = new CheckAndAllocateContainers();
+	private static final HeartbeatAcknowledgement INSTANCE = new HeartbeatAcknowledgement();
 
 	/**
 	 * Gets the singleton instance.
 	 * @return The singleton instance.
 	 */
-	public static CheckAndAllocateContainers get() {
+	public static HeartbeatAcknowledgement get() {
 		return INSTANCE;
 	}
 	
 	// ------------------------------------------------------------------------
 	
 	/** Private constructor to prevent instantiation */
-	private CheckAndAllocateContainers() {}
+	private HeartbeatAcknowledgement() {}
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj != null && obj.getClass() == CheckAndAllocateContainers.class;
+		return obj != null && obj.getClass() == HeartbeatAcknowledgement.class;
 	}
 
 	@Override
 	public int hashCode() {
-		return 1725602876;
+		return 7;
 	}
 
 	@Override

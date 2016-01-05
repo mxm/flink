@@ -18,42 +18,40 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import akka.actor.ActorRef;
-
-import java.util.UUID;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * Message sent by the JobManager to the cluster framework master to signal it to
- * begin its work.
+ * Generic message to signal the cluster framework to shut the cluster down.
  */
-public class StartClusterMaster implements java.io.Serializable {
+public class StopCluster implements java.io.Serializable {
 
-	private static final long serialVersionUID = 3570335964593710943L;
-	
-	private final ActorRef jobManager;
-	
-	private final UUID leaderSessionId;
+	private static final long serialVersionUID = -8957259342982181684L;
 
-	
-	public StartClusterMaster(ActorRef jobManager, UUID leaderSessionId) {
-		this.jobManager = requireNonNull(jobManager);
-		this.leaderSessionId = requireNonNull(leaderSessionId);
+	private final ApplicationStatus finalStatus;
+
+	private final String message;
+
+	public StopCluster(ApplicationStatus finalStatus, String message) {
+		this.finalStatus = requireNonNull(finalStatus);
+		this.message = message == null ? "" : message;
 	}
 
+	// ------------------------------------------------------------------------
 
-	public ActorRef jobManager() {
-		return jobManager;
+	public ApplicationStatus finalStatus() {
+		return finalStatus;
 	}
 
-	public UUID leaderSessionId() {
-		return leaderSessionId;
+	public String message() {
+		return message;
 	}
+
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
-		return "StartClusterMaster { jobManager='" + jobManager + 
-			"',  leaderSessionId='" + leaderSessionId + "' }";
+		return "StopApplication { message='" + message + "' }";
 	}
 }

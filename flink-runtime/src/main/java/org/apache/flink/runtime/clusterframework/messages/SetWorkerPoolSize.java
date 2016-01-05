@@ -21,26 +21,43 @@ package org.apache.flink.runtime.clusterframework.messages;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
- * Generic message to signal the cluster framework to shut the cluster down.
+ * Message sent to the resource master actor to adjust the designated number of
+ * workers it maintains.
  */
-public class StopApplication implements RequiresLeaderSessionID, java.io.Serializable {
+public class SetWorkerPoolSize implements RequiresLeaderSessionID, java.io.Serializable{
 
-	private static final long serialVersionUID = -8957259342982181684L;
+	private static final long serialVersionUID = -335911350781207609L;
 	
-	private final String message;
+	private final int numberOfWorkers;
 
+	public SetWorkerPoolSize(int numberOfWorkers) {
+		if (numberOfWorkers < 0) {
+			throw new IllegalArgumentException();
+		}
+		this.numberOfWorkers = numberOfWorkers;
+	}
 
-	public StopApplication(String message) {
-		this.message = message;
+	// ------------------------------------------------------------------------
+	
+	public int numberOfWorkers() {
+		return numberOfWorkers;
 	}
 	
+	// ------------------------------------------------------------------------
 	
-	public String message() {
-		return message;
+	@Override
+	public int hashCode() {
+		return 31 + numberOfWorkers;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return obj != null && obj.getClass() == SetWorkerPoolSize.class && 
+					this.numberOfWorkers == ((SetWorkerPoolSize) obj).numberOfWorkers;
 	}
 
 	@Override
 	public String toString() {
-		return "StopApplication { message='" + message + "' }";
+		return "SetWorkerPoolSize (" + numberOfWorkers + ')';
 	}
 }

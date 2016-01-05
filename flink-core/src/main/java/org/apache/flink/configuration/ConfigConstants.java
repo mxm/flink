@@ -214,7 +214,7 @@ public final class ConfigConstants {
 	 */
 	public static final String TASK_MANAGER_MAX_REGISTRATION_DURATION = "taskmanager.maxRegistrationDuration";
 
-	// --------------------------- Runtime Algorithms -------------------------------
+	// ------------------------ Runtime Algorithms ----------------------------
 	
 	/**
 	 * Parameter for the maximum fan for out-of-core algorithms.
@@ -240,6 +240,51 @@ public final class ConfigConstants {
 	 */
 	public static final String FS_STREAM_OPENING_TIMEOUT_KEY = "taskmanager.runtime.fs_timeout";
 
+	
+	// -------- Common Resource Framework Configuration (YARN & Mesos) --------
+
+	/**
+	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
+	 * for other JVM memory usage.
+	 */
+	public static final String CONTAINERED_HEAP_CUTOFF_RATIO = "containered.heap-cutoff-ratio";
+
+	/**
+	 * Minimum amount of heap memory to remove in containers, as a safety margin.
+	 */
+	public static final String CONTAINERED_HEAP_CUTOFF_MIN = "containered.heap-cutoff-min";
+
+	/**
+	 * Prefix for passing custom environment variables to Flink's master process.
+	 * For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
+	 * yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+	 * in the flink-conf.yaml.
+	 */
+	public static final String CONTAINERED_MASTER_ENV_PREFIX = "containered.application-master.env.";
+
+	/**
+	 * Similar to the {@see CONTAINERED_MASTER_ENV_PREFIX}, this configuration prefix allows
+	 * setting custom environment variables for the workers (TaskManagers)
+	 */
+	public static final String CONTAINERED_TASK_MANAGER_ENV_PREFIX = "containered.taskmanager.env.";
+
+	// --------------------------Standalone Setup -----------------------------
+
+	/**
+	 * Heartbeat interval for TaskManagers in standalone setups. 
+	 */
+	public static final String STANDALONE_HEARTBEAT_INTERVAL_KEY = "standalone.heartbeat-interval";
+
+	/**
+	 * Maximal heartbeat pause before a TaskManager is marked as dead by the JobManager.
+	 */
+	public static final String STANDALONE_HEARTBEAT_MAX_PAUSE_KEY = "standalone.max-heartbeat-pause";
+
+	/**
+	 * Interval in which registered TaskManagers are checked for expired heartbeats.
+	 */
+	public static final String STANDALONE_CLEANUP_INTERVAL_KEY = "standalone.failure-cleanup-interval";
+	
 	// ------------------------ YARN Configuration ------------------------
 
 	/**
@@ -250,16 +295,19 @@ public final class ConfigConstants {
 	/**
 	 * Percentage of heap space to remove from containers started by YARN.
 	 */
+	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_RATIO = "yarn.heap-cutoff-ratio";
 
 	/**
 	 * Minimum amount of memory to remove from the heap space as a safety margin.
 	 */
+	@Deprecated
 	public static final String YARN_HEAP_CUTOFF_MIN = "yarn.heap-cutoff-min";
 
 	/**
 	 * Reallocate failed YARN containers.
 	 */
+	@Deprecated
 	public static final String YARN_REALLOCATE_FAILED_CONTAINERS = "yarn.reallocate-failed";
 
 	/**
@@ -300,14 +348,16 @@ public final class ConfigConstants {
 	 * 	yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"
 	 * in the flink-conf.yaml.
 	 */
+	@Deprecated
 	public static final String YARN_APPLICATION_MASTER_ENV_PREFIX = "yarn.application-master.env.";
 
 	/**
 	 * Similar to the {@see YARN_APPLICATION_MASTER_ENV_PREFIX}, this configuration prefix allows
 	 * setting custom environment variables.
 	 */
+	@Deprecated
 	public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
-
+	
 	 /**
 	 * The config parameter defining the Akka actor system port for the ApplicationMaster and
 	 * JobManager
@@ -682,26 +732,38 @@ public final class ConfigConstants {
 	 */
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
 
-	// ------------------------ YARN Configuration ------------------------
+
+	// ------ Common Resource Framework Configuration (YARN & Mesos) ------
 
 	/**
-	 * Minimum amount of Heap memory to subtract from the requested TaskManager size.
-	 * We came up with these values experimentally.
-	 * Flink fails when the cutoff is set only to 500 mb.
+	 * Minimum amount of memory to subtract from the process memory to get the TaskManager
+	 * heap size. We came up with these values experimentally.
 	 */
-	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = 600;
+	public static final int DEFAULT_CONTAINERED_MIN_HEAP_CUTOFF = 600;
 
 	/**
-	 * Relative amount of memory to subtract from the requested memory.
+	 * Relative amount of memory to subtract from Java process memory to get the TaskManager
+	 * heap size
 	 */
-	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
+	public static final float DEFAULT_CONTAINERED_HEAP_CUTOFF_RATIO = 0.25f;
 
 	/**
 	 * Default port for the application master is 0, which means
 	 * the operating system assigns an ephemeral port
 	 */
-	public static final String DEFAULT_YARN_APPLICATION_MASTER_PORT = "0";
+	public static final String DEFAULT_CONTAINERED_JOB_MANAGER_PORT = "0";
+
+	// --------------------------Standalone Setup -----------------------------
 	
+	/**
+	 * Default heartbeat interval for TaskManagers in standalone setups. 
+	 */
+	public static final long DEFAULT_STANDALONE_HEARTBEAT_INTERVAL = 5000;
+
+	/**
+	 * Default maximal heartbeat pause before a TaskManager is marked as dead by the JobManager.
+	 */
+	public static final long DEFAULT_STANDALONE_HEARTBEAT_MAX_PAUSE = 60000;
 	
 	// ------------------------ File System Behavior ------------------------
 
