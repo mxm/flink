@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework.messages;
 
 import akka.actor.ActorRef;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -36,7 +37,7 @@ import static java.util.Objects.requireNonNull;
 public class TaskManagerAvailable implements RequiresLeaderSessionID, Serializable {
 	private static final long serialVersionUID = 1L;
 	
-	private final String resourceId;
+	private final ResourceID resourceId;
 	
 	private final InstanceID registrationId;
 	
@@ -49,10 +50,10 @@ public class TaskManagerAvailable implements RequiresLeaderSessionID, Serializab
 	private final int numSlots;
 
 	public TaskManagerAvailable(
-					String resourceId, InstanceID registrationId,
-					ActorRef taskManagerActor,
-					InstanceConnectionInfo connectionInfo, HardwareDescription taskManagerResources,
-					int numSlots)
+		ResourceID resourceId, InstanceID registrationId,
+		ActorRef taskManagerActor,
+		InstanceConnectionInfo connectionInfo, HardwareDescription taskManagerResources,
+		int numSlots)
 	{
 		this.resourceId = requireNonNull(resourceId);
 		this.registrationId = requireNonNull(registrationId);
@@ -64,7 +65,7 @@ public class TaskManagerAvailable implements RequiresLeaderSessionID, Serializab
 	
 	// ------------------------------------------------------------------------
 
-	public String resourceId() {
+	public ResourceID resourceId() {
 		return resourceId;
 	}
 

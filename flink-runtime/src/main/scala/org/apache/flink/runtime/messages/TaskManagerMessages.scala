@@ -44,6 +44,7 @@ object TaskManagerMessages {
 
     /**
      * Accessor for the case object instance, to simplify Java interoperability.
+     *
      * @return The SendHeartbeat case object instance.
      */
     def get() : SendHeartbeat.type = SendHeartbeat
@@ -74,6 +75,7 @@ object TaskManagerMessages {
 
     /**
      * Accessor for the case object instance, to simplify Java interoperability.
+     *
      * @return The SendStackTrace case object instance.
      */
     def get() : SendStackTrace.type = SendStackTrace
@@ -95,16 +97,16 @@ object TaskManagerMessages {
 
   /**
    * Requests a notification from the task manager as soon as the task manager has been
-   * registered at any job manager. Once the task manager is registered at any job manager a
-   * [[RegisteredAtJobManager]] message will be sent to the sender.
+   * registered at a resource manager. Once the task manager is registered at a resource manager a
+   * [[RegisteredAtResourceManager]] message will be sent to the sender.
    */
-  case object NotifyWhenRegisteredAtAnyJobManager
+  case object NotifyWhenRegisteredAtResourceManager
 
   /**
    * Acknowledges that the task manager has been successfully registered at any job manager. This
-   * message is a response to [[NotifyWhenRegisteredAtAnyJobManager]].
+   * message is a response to [[NotifyWhenRegisteredAtResourceManager]].
    */
-  case object RegisteredAtJobManager
+  case object RegisteredAtResourceManager
 
   /** Tells the address of the new leading [[org.apache.flink.runtime.jobmanager.JobManager]]
     * and the new leader session ID.
@@ -121,16 +123,18 @@ object TaskManagerMessages {
 
   /**
    * Accessor for the case object instance, to simplify Java interoperability.
+   *
    * @return The NotifyWhenRegisteredAtJobManager case object instance.
    */
   def getNotifyWhenRegisteredAtJobManagerMessage:
-            NotifyWhenRegisteredAtAnyJobManager.type = NotifyWhenRegisteredAtAnyJobManager
+  NotifyWhenRegisteredAtResourceManager.type = NotifyWhenRegisteredAtResourceManager
 
   /**
    * Accessor for the case object instance, to simplify Java interoperability.
+   *
    * @return The RegisteredAtJobManager case object instance.
    */
   def getRegisteredAtJobManagerMessage:
-            RegisteredAtJobManager.type = RegisteredAtJobManager
+            RegisteredAtResourceManager.type = RegisteredAtResourceManager
 
 }

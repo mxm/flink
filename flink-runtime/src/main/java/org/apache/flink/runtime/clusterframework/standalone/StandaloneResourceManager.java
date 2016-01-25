@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskManagerInfo;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManage
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -40,7 +42,7 @@ import java.util.concurrent.TimeUnit;
  * A standalone implementation of the resource manager. Used when the system is started in
  * standalone mode (via scripts), rather than via a resource framework like YARN or Mesos.
  */
-public class StandaloneResourceMaster extends FlinkResourceManager<RegisteredStandaloneTaskManager> {
+public class StandaloneResourceManager extends FlinkResourceManager<RegisteredStandaloneTaskManager> {
 	
 	/** The maximum pause between two heartbeats after which a TaskManager is considered failed */ 
 	private final long maxHeartbeatPause;
@@ -50,14 +52,13 @@ public class StandaloneResourceMaster extends FlinkResourceManager<RegisteredSta
 	
 	/** The scheduler that triggers periodic cleanup of dead TaskManagers */
 	private Cancellable periodicCleanupScheduler;
-	
-	
-	public StandaloneResourceMaster(Configuration flinkConfig, LeaderRetrievalService leaderRetriever) {
+
+	public StandaloneResourceManager(Configuration flinkConfig, LeaderRetrievalService leaderRetriever) {
 		super(flinkConfig, leaderRetriever);
 
 		final long heartbeatInterval = config.getLong(
 			ConfigConstants.STANDALONE_HEARTBEAT_MAX_PAUSE_KEY,
-			ConfigConstants.DEFAULT_STANDALONE_HEARTBEAT_MAX_PAUSE);
+			ConfigConstants.DEFAULT_STANDALONE_HEARTBEAT_INTERVAL);
 
 		this.maxHeartbeatPause = config.getLong(
 			ConfigConstants.STANDALONE_HEARTBEAT_MAX_PAUSE_KEY,
@@ -116,7 +117,7 @@ public class StandaloneResourceMaster extends FlinkResourceManager<RegisteredSta
 
 	@Override
 	protected List<RegisteredStandaloneTaskManager> reacceptRegisteredTaskManagers(
-		List<TaskManagerInfo> toConsolidate)
+		Collection<TaskManagerInfo> toConsolidate)
 	{
 		List<RegisteredStandaloneTaskManager> accepted = new ArrayList<>(toConsolidate.size());
 		for (TaskManagerInfo tm : toConsolidate) {
@@ -150,7 +151,7 @@ public class StandaloneResourceMaster extends FlinkResourceManager<RegisteredSta
 	}
 
 	@Override
-	protected void releasePendingWorker(String id) {
+	protected void releasePendingWorker(ResourceID resourceID) {
 		// no pending workers
 	}
 
@@ -173,7 +174,7 @@ public class StandaloneResourceMaster extends FlinkResourceManager<RegisteredSta
 	@Override
 	protected void handleMessage(Object message) {
 		if (message instanceof HeartbeatMessage) {
-			receiveHeatbeat((HeartbeatMessage) message, sender());
+			receiveHeartbeat((HeartbeatMessage) message, sender());
 		}
 		else if (message instanceof PerformCleanupMessage) {
 			cleanupDeadWorkers();
@@ -183,7 +184,7 @@ public class StandaloneResourceMaster extends FlinkResourceManager<RegisteredSta
 		}
 	}
 	
-	private void receiveHeatbeat(HeartbeatMessage heartbeat, ActorRef sender) {
+	private void receiveHeartbeat(HeartbeatMessage heartbeat, ActorRef sender) {
 		RegisteredStandaloneTaskManager worker = getRegisteredTaskManager(heartbeat.workerId());
 		if (worker != null) {
 			if (worker.registeredTaskManagerId().equals(heartbeat.registrationId())) {
@@ -209,7 +210,6 @@ public class StandaloneResourceMaster extends FlinkResourceManager<RegisteredSta
 		// check all currently registered TaskManagers
 		for (RegisteredStandaloneTaskManager tm : allRegisteredTaskManagers()) {
 			if (tm.isConsideredFailed(now, maxHeartbeatPause)) {
-				// one was actually dead. lazy initialize the list (it is almost
 				failedWorkers.add(tm);
 			}
 		}
@@ -222,4 +222,5 @@ public class StandaloneResourceMaster extends FlinkResourceManager<RegisteredSta
 			}
 		}
 	}
+
 }

@@ -29,7 +29,7 @@ import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.jobgraph.{JobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{NoOpInvokable, BlockingNoOpInvokable, BlockingReceiver, Sender}
 import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.messages.TaskManagerMessages.{RegisteredAtJobManager, NotifyWhenRegisteredAtAnyJobManager}
+import org.apache.flink.runtime.messages.TaskManagerMessages.{RegisteredAtResourceManager, NotifyWhenRegisteredAtResourceManager}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages.DisableDisconnect
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
@@ -225,9 +225,9 @@ class TaskManagerFailsITCase(_system: ActorSystem)
 
           tm = cluster.getTaskManagers(0)
 
-          tm ! NotifyWhenRegisteredAtAnyJobManager
+          tm ! NotifyWhenRegisteredAtResourceManager
 
-          expectMsg(RegisteredAtJobManager)
+          expectMsg(RegisteredAtResourceManager)
 
           jmGateway.tell(SubmitJob(jobGraph2, ListeningBehaviour.EXECUTION_RESULT), self)
 

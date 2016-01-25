@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import akka.actor.ActorRef;
 import org.apache.flink.runtime.clusterframework.RegisteredTaskManager;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 
 import org.apache.hadoop.yarn.api.records.Container;
@@ -32,9 +33,9 @@ public class RegisteredYarnWorkerNode extends RegisteredTaskManager {
 	private final Container yarnContainer;
 
 	public RegisteredYarnWorkerNode(
-				String resourceId, InstanceID registrationId, 
-				ActorRef taskManagerActor, int numSlots,
-				Container yarnContainer)
+		ResourceID resourceId, InstanceID registrationId,
+		ActorRef taskManagerActor, int numSlots,
+		Container yarnContainer)
 	{
 		super(resourceId, registrationId, taskManagerActor, numSlots);
 		this.yarnContainer = requireNonNull(yarnContainer);

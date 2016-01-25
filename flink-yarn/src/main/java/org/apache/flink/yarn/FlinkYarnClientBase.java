@@ -553,8 +553,8 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
 		LocalResource flinkConf = Records.newRecord(LocalResource.class);
-		Path remotePathJar = Utils.setupLocalResource(conf, fs, appId.toString(), flinkJarPath, appMasterJar, fs.getHomeDirectory());
-		Path remotePathConf = Utils.setupLocalResource(conf, fs, appId.toString(), flinkConfigurationPath, flinkConf, fs.getHomeDirectory());
+		Path remotePathJar = Utils.setupLocalResource(fs, appId.toString(), flinkJarPath, appMasterJar, fs.getHomeDirectory());
+		Path remotePathConf = Utils.setupLocalResource(fs, appId.toString(), flinkConfigurationPath, flinkConf, fs.getHomeDirectory());
 		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>(2);
 		localResources.put("flink.jar", appMasterJar);
 		localResources.put("flink-conf.yaml", flinkConf);
@@ -568,7 +568,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 			File shipFile = shipFiles.get(i);
 			LocalResource shipResources = Records.newRecord(LocalResource.class);
 			Path shipLocalPath = new Path("file://" + shipFile.getAbsolutePath());
-			paths[2 + i] = Utils.setupLocalResource(conf, fs, appId.toString(),
+			paths[2 + i] = Utils.setupLocalResource(fs, appId.toString(),
 				shipLocalPath, shipResources, fs.getHomeDirectory());
 			localResources.put(shipFile.getName(), shipResources);
 

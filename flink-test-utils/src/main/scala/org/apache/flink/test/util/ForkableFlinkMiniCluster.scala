@@ -26,10 +26,11 @@ import akka.pattern.ask
 import org.apache.curator.test.TestingCluster
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenRegisteredAtResourceManager
 import org.apache.flink.runtime.testingUtils.{TestingJobManager, TestingMemoryArchivist, TestingTaskManager, TestingUtils}
 
 import scala.concurrent.{Await, Future}
@@ -83,6 +84,7 @@ class ForkableFlinkMiniCluster(
     val config = configuration.clone()
 
     val jobManagerName = getJobManagerName(index)
+    val resoureceManagerName = getResourceManagerName(index)
     val archiveName = getArchiveName(index)
 
     val jobManagerPort = config.getInteger(
@@ -126,6 +128,7 @@ class ForkableFlinkMiniCluster(
 
     TaskManager.startTaskManagerComponentsAndActor(
       config,
+      ResourceID.generate(),
       system,
       hostname,
       Some(TaskManager.TASK_MANAGER_NAME + index),
@@ -167,7 +170,7 @@ class ForkableFlinkMiniCluster(
 
           val lrs = createLeaderRetrievalService()
 
-          leaderRetrievalService = Some(lrs)
+          jobManagerLeaderRetrievalService = Some(lrs)
           lrs.start(this)
 
         case _ => throw new Exception("The JobManager of the ForkableFlinkMiniCluster have not " +
@@ -175,6 +178,9 @@ class ForkableFlinkMiniCluster(
       }
     }
   }
+
+  // TODO
+//  def restartResourceManager
 
   def restartTaskManager(index: Int): Unit = {
     (taskManagerActorSystems, taskManagerActors) match {
@@ -232,10 +238,10 @@ class ForkableFlinkMiniCluster(
     }
   }
 
-  def waitForTaskManagersToBeRegisteredAtJobManager(jobManager: ActorRef): Unit = {
+  def waitForTaskManagersToBeRegisteredAtResourceManager(jobManager: ActorRef): Unit = {
     val futures = taskManagerActors.map {
       _.map {
-        tm => (tm ? NotifyWhenRegisteredAtJobManager(jobManager))(timeout)
+        tm => (tm ? NotifyWhenRegisteredAtResourceManager(jobManager))(timeout)
       }
     }.getOrElse(Seq())
 

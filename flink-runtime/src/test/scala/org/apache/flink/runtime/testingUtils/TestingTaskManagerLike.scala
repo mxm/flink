@@ -46,7 +46,8 @@ trait TestingTaskManagerLike extends FlinkActor {
 
   val waitForRemoval = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
   val waitForJobManagerToBeTerminated = scala.collection.mutable.HashMap[String, Set[ActorRef]]()
-  val waitForRegisteredAtJobManager = scala.collection.mutable.HashMap[ActorRef, Set[ActorRef]]()
+  val waitForRegisteredAtResourceManager =
+    scala.collection.mutable.HashMap[ActorRef, Set[ActorRef]]()
   val waitForRunning = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
   val unregisteredTasks = scala.collection.mutable.HashSet[ExecutionAttemptID]()
 
@@ -210,15 +211,15 @@ trait TestingTaskManagerLike extends FlinkActor {
     case RequestLeaderSessionID =>
       sender() ! ResponseLeaderSessionID(leaderSessionID.orNull)
 
-    case NotifyWhenRegisteredAtJobManager(jobManager: ActorRef) =>
-      if(isConnected && jobManager == currentJobManager.get) {
+    case NotifyWhenRegisteredAtResourceManager(resourceManager: ActorRef) =>
+      if(isConnectedToResourceManager && resourceManager == currentResourceManager.get) {
         sender() ! true
       } else {
-        val list = waitForRegisteredAtJobManager.getOrElse(
-          jobManager,
+        val list = waitForRegisteredAtResourceManager.getOrElse(
+          resourceManager,
           Set[ActorRef]())
 
-        waitForRegisteredAtJobManager += jobManager -> (list + sender())
+        waitForRegisteredAtResourceManager += resourceManager -> (list + sender())
       }
 
     case msg @ (_: AcknowledgeRegistration | _: AlreadyRegistered) =>
@@ -226,7 +227,7 @@ trait TestingTaskManagerLike extends FlinkActor {
 
       val jm = sender()
 
-      waitForRegisteredAtJobManager.remove(jm).foreach {
+      waitForRegisteredAtResourceManager.remove(jm).foreach {
         listeners => listeners.foreach{
           listener =>
             listener ! true

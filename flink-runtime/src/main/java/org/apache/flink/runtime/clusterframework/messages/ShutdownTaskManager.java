@@ -18,13 +18,15 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+
 import java.io.Serializable;
 
 /**
  * Message sent by the Flink resource manager to the TaskManagers to tell them
  * to shut down after an application is complete.
  */
-public class ShutdownTaskManager implements Serializable {
+public class ShutdownTaskManager implements RequiresLeaderSessionID, Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	private final String message;

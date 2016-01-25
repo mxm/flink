@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.TaskManagerInfo;
 import org.apache.flink.runtime.clusterframework.messages.SetWorkerPoolSize;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -55,6 +56,7 @@ import org.slf4j.Logger;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -76,7 +78,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	
 	
 	/** The containers where a TaskManager is starting and we are waiting for it to register */ 
-	private final Map<String, YarnContainerInLaunch> containersInLaunch;
+	private final Map<ResourceID, YarnContainerInLaunch> containersInLaunch;
 
 	/** Containers we have released, where we are waiting for an acknowledgement that
 	 * they are released */
@@ -209,7 +211,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 		
 			final long now = System.currentTimeMillis();
 			for (Container c : containersFromPreviousAttempts) {
-				containersInLaunch.put(c.getId().toString(), new YarnContainerInLaunch(c, now));
+				containersInLaunch.put(new ResourceID(c.getId().toString()), new YarnContainerInLaunch(c, now));
 			}
 			
 			// adjust the progress indicator
@@ -289,7 +291,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	}
 
 	@Override
-	protected void releasePendingWorker(String id) {
+	protected void releasePendingWorker(ResourceID id) {
 		YarnContainerInLaunch container = containersInLaunch.remove(id);
 		if (container != null) {
 			releaseYarnContainer(container.container());
@@ -327,7 +329,8 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 		if (inLaunch != null) {
 			// the registering TaskManager is from a known container
 			return new RegisteredYarnWorkerNode(registerMessage.resourceId(), new InstanceID(),
-				registerMessage.taskManagerActor(), registerMessage.numberOfSlots(), inLaunch.container());
+				registerMessage.taskManagerActor(), registerMessage.numberOfSlots(),
+				inLaunch.container());
 		}
 		else {
 			LOG.error("Cannot register TaskManager {} / {} - unknown resource id.",
@@ -344,7 +347,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	}
 
 	@Override
-	protected List<RegisteredYarnWorkerNode> reacceptRegisteredTaskManagers(List<TaskManagerInfo> toConsolidate) {
+	protected List<RegisteredYarnWorkerNode> reacceptRegisteredTaskManagers(Collection<TaskManagerInfo> toConsolidate) {
 		// we check for each task manager if we recognize its container
 		List<RegisteredYarnWorkerNode> accepted = new ArrayList<>();
 		for (TaskManagerInfo tm : toConsolidate) {
@@ -392,7 +395,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 			// decide whether to return the container, or whether to start a TaskManager
 			if (numRegistered + containersInLaunch.size() < numRequired) {
 				// start a TaskManager
-				final String containerIdString = container.getId().toString();
+				final ResourceID containerIdString = new ResourceID(container.getId().toString());
 				final long now = System.currentTimeMillis();
 				containersInLaunch.put(containerIdString, new YarnContainerInLaunch(container, now));
 				

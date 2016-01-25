@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.clusterframework;
 
 import akka.actor.ActorRef;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 
 import static java.util.Objects.requireNonNull;
@@ -28,7 +29,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class RegisteredTaskManager {
 	
-	private final String resourceId;
+	private final ResourceID resourceId;
 
 	private final InstanceID registeredTaskManagerId;
 	
@@ -38,9 +39,9 @@ public class RegisteredTaskManager {
 
 	
 	public RegisteredTaskManager(
-				String resourceId, InstanceID registeredTaskManagerId,
-				ActorRef taskManagerActor,
-				int numSlots)
+			ResourceID resourceId, InstanceID registeredTaskManagerId,
+			ActorRef taskManagerActor,
+			int numSlots)
 	{
 		this.resourceId = requireNonNull(resourceId);
 		this.registeredTaskManagerId = requireNonNull(registeredTaskManagerId);
@@ -50,7 +51,7 @@ public class RegisteredTaskManager {
 	
 	// ------------------------------------------------------------------------
 
-	public String resourceId() {
+	public ResourceID resourceId() {
 		return resourceId;
 	}
 

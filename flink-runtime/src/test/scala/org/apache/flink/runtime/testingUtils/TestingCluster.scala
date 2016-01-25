@@ -24,9 +24,12 @@ import akka.pattern.ask
 import akka.actor.{ActorRef, Props, ActorSystem}
 import akka.testkit.CallingThreadDispatcher
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
+import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.apache.flink.util.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.TestingMessages.Alive
@@ -67,6 +70,24 @@ class TestingCluster(
 
     cfg.addAll(userConfig)
     cfg
+  }
+
+  override def startResourceManager(index: Int, system: ActorSystem): ActorRef = {
+    val config = configuration.clone()
+
+    val resourceManagerName = if(singleActorSystem) {
+      FlinkResourceManager.RESOURCE_MANAGER_NAME + "_" + (index + 1)
+    } else {
+      FlinkResourceManager.RESOURCE_MANAGER_NAME
+    }
+
+    val testResourceManagerProps = Props(
+      new TestingResourceManager(
+        config,
+        createLeaderRetrievalService()
+      ))
+
+    system.actorOf(testResourceManagerProps, resourceManagerName)
   }
 
   override def startJobManager(index: Int, actorSystem: ActorSystem): ActorRef = {
@@ -142,6 +163,7 @@ class TestingCluster(
 
     TaskManager.startTaskManagerComponentsAndActor(
       configuration,
+      ResourceID.generate(),
       system,
       hostname,
       Some(tmActorName),

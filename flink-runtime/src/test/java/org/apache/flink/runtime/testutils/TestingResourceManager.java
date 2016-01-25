@@ -16,10 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.scheduler;
+package org.apache.flink.runtime.testutils;
 
-import org.apache.flink.util.AbstractID;
+import akka.actor.ActorRef;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
-public class ResourceId extends AbstractID {
-	private static final long serialVersionUID = 1L;
+/**
+ * A testing resource manager which may alter the default standalone resource master's behavior.
+ */
+public class TestingResourceManager extends StandaloneResourceManager {
+
+	public TestingResourceManager(Configuration flinkConfig, LeaderRetrievalService leaderRetriever) {
+		super(flinkConfig, leaderRetriever);
+	}
+
+	@Override
+	protected void handleMessage(Object message) {
+		if (message instanceof TestingResourceManager) {
+			// TODO
+		} else {
+			super.handleMessage(message);
+		}
+	}
 }

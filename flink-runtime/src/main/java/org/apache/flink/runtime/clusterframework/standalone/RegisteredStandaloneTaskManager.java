@@ -21,6 +21,7 @@ package org.apache.flink.runtime.clusterframework.standalone;
 import akka.actor.ActorRef;
 
 import org.apache.flink.runtime.clusterframework.RegisteredTaskManager;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 
 /**
@@ -34,7 +35,7 @@ public class RegisteredStandaloneTaskManager extends RegisteredTaskManager {
 
 
 	public RegisteredStandaloneTaskManager(
-			String resourceId,
+			ResourceID resourceId,
 			InstanceID registeredTaskManagerId,
 			ActorRef taskManagerActor,
 			int numSlots)

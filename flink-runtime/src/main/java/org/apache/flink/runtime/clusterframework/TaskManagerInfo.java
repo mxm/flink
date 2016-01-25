@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework;
 
 import akka.actor.ActorRef;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 
 import java.io.Serializable;
@@ -33,17 +34,18 @@ public class TaskManagerInfo implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	private final String resourceId;
+	private final ResourceID resourceId;
 
 	private final InstanceID registeredTaskManagerId;
 	
 	private final ActorRef taskManagerActor;
-	
+
+	/* Total number of available slots */
 	private final int numSlots;
 
 	public TaskManagerInfo(
-					String resourceId, InstanceID registeredTaskManagerId, 
-					ActorRef taskManagerActor, int numSlots) {
+			ResourceID resourceId, InstanceID registeredTaskManagerId,
+			ActorRef taskManagerActor, int numSlots) {
 		this.resourceId = requireNonNull(resourceId);
 		this.registeredTaskManagerId = requireNonNull(registeredTaskManagerId);
 		this.taskManagerActor = requireNonNull(taskManagerActor);
@@ -52,7 +54,7 @@ public class TaskManagerInfo implements Serializable {
 	
 	// ------------------------------------------------------------------------
 
-	public String resourceId() {
+	public ResourceID resourceId() {
 		return resourceId;
 	}
 

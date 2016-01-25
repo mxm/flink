@@ -27,7 +27,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobManagerMessages.GrantLeadership
-import org.apache.flink.runtime.messages.Messages.Disconnect
+import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
@@ -179,6 +179,7 @@ trait TestingJobManagerLike extends FlinkActor {
       val waiting = waitForTaskManagerToBeTerminated.getOrElse(taskManager.path.name, Set())
       waitForTaskManagerToBeTerminated += taskManager.path.name -> (waiting + sender)
 
+      // TODO RM
     case msg@Terminated(taskManager) =>
       super.handleMessage(msg)
 

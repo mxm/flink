@@ -100,6 +100,12 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
 
 	/**
+	 * The config parameter defining the network port to connect to
+	 * for communication with the resource manager.
+	 */
+	public static final String RESOURCE_MANAGER_IPC_PORT_KEY = "resourcemanager.rpc.port";
+
+	/**
 	 * The config parameter defining the storage directory to be used by the blob server.
 	 */
 	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
@@ -633,6 +639,11 @@ public final class ConfigConstants {
 	public static final int DEFAULT_JOB_MANAGER_IPC_PORT = 6123;
 
 	/**
+	 * The default network port of the resource manager.
+	 */
+	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 6123;
+
+	/**
 	 * Default number of retries for failed BLOB fetches.
 	 */
 	public static final int DEFAULT_BLOB_FETCH_RETRIES = 5;
@@ -763,7 +774,7 @@ public final class ConfigConstants {
 	/**
 	 * Default maximal heartbeat pause before a TaskManager is marked as dead by the JobManager.
 	 */
-	public static final long DEFAULT_STANDALONE_HEARTBEAT_MAX_PAUSE = 60000;
+	public static final long DEFAULT_STANDALONE_HEARTBEAT_MAX_PAUSE = 15000;
 	
 	// ------------------------ File System Behavior ------------------------
 

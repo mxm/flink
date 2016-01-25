@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
@@ -30,18 +31,18 @@ import java.io.Serializable;
 public class ReleaseTaskManager implements RequiresLeaderSessionID, Serializable {
 	private static final long serialVersionUID = 1L;
 	
-	private final String resourceId;
+	private final ResourceID resourceId;
 	
 	private final InstanceID registrationId;
 
-	public ReleaseTaskManager(String resourceId, InstanceID registrationId) {
+	public ReleaseTaskManager(ResourceID resourceId, InstanceID registrationId) {
 		this.resourceId = resourceId;
 		this.registrationId = registrationId;
 	}
 	
 	// ------------------------------------------------------------------------
 	
-	public String resourceId() {
+	public ResourceID resourceId() {
 		return resourceId;
 	}
 

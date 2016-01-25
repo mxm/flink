@@ -24,8 +24,8 @@ import org.apache.flink.runtime.clusterframework.TaskManagerInfo;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
@@ -45,7 +45,7 @@ public class RegistrationAtJobManagerSuccessful implements RequiresLeaderSession
 	private final int blobServerPort;
 	
 	/** The list of registered TaskManagers that the JobManager currently knows */
-	private final List<TaskManagerInfo> currentlyRegisteredTaskManagers;
+	private final Collection<TaskManagerInfo> currentlyRegisteredTaskManagers;
 
 
 	/**
@@ -71,7 +71,7 @@ public class RegistrationAtJobManagerSuccessful implements RequiresLeaderSession
 	 */
 	public RegistrationAtJobManagerSuccessful(
 					ActorRef jobManager, int blobServerPort,
-					List<TaskManagerInfo> currentlyRegisteredTaskManagers)
+					Collection<TaskManagerInfo> currentlyRegisteredTaskManagers)
 	{
 		this.jobManager = requireNonNull(jobManager);
 		this.blobServerPort = blobServerPort;
@@ -88,7 +88,7 @@ public class RegistrationAtJobManagerSuccessful implements RequiresLeaderSession
 		return blobServerPort;
 	}
 	
-	public List<TaskManagerInfo> currentlyRegisteredTaskManagers() {
+	public Collection<TaskManagerInfo> currentlyRegisteredTaskManagers() {
 		return currentlyRegisteredTaskManagers;
 	}
 

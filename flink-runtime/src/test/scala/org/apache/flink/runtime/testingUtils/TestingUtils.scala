@@ -31,12 +31,14 @@ import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.jobgraph.JobGraph
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 import org.apache.flink.runtime.{LogMessages, LeaderSessionMessageFilter, FlinkActor}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
-import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtAnyJobManager
+import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtResourceManager
 import org.apache.flink.runtime.taskmanager.TaskManager
 
 import scala.concurrent.duration._
@@ -259,6 +261,7 @@ object TestingUtils {
 
     val taskManager = TaskManager.startTaskManagerComponentsAndActor(
       resultingConfiguration,
+      ResourceID.generate(),
       actorSystem,
       "localhost",
       None,
@@ -268,7 +271,7 @@ object TestingUtils {
     )
 
     if (waitForRegistration) {
-      val notificationResult = (taskManager ? NotifyWhenRegisteredAtAnyJobManager)(TESTING_DURATION)
+      val notificationResult = (taskManager ? NotifyWhenRegisteredAtResourceManager)(TESTING_DURATION)
 
       Await.ready(notificationResult, TESTING_DURATION)
     }

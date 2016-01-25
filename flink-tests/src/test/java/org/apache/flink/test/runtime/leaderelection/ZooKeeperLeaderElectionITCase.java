@@ -105,7 +105,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 			for (int i = 0; i < numJMs; i++) {
 				ActorGateway leadingJM = cluster.getLeaderGateway(timeout);
 
-				cluster.waitForTaskManagersToBeRegisteredAtJobManager(leadingJM.actor());
+				cluster.waitForTaskManagersToBeRegisteredAtResourceManager(leadingJM.actor());
 
 				Future<Object> registeredTMs = leadingJM.ask(
 						JobManagerMessages.getRequestNumberRegisteredTaskManager(),
@@ -196,7 +196,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 			for (int i = 0; i < numJMs; i++) {
 				ActorGateway jm = cluster.getLeaderGateway(deadline.timeLeft());
 
-				cluster.waitForTaskManagersToBeRegisteredAtJobManager(jm.actor());
+				cluster.waitForTaskManagersToBeRegisteredAtResourceManager(jm.actor());
 
 				// recover all jobs, sent manually
 				log.info("Sent recover all jobs manually to job manager {}.", jm.path());

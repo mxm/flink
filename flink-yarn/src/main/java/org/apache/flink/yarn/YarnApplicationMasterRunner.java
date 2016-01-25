@@ -29,6 +29,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -284,7 +285,8 @@ public class YarnApplicationMasterRunner {
 				config, actorSystem,
 				new scala.Some<>(JobManager.JOB_MANAGER_NAME()),
 				scala.Option.<String>empty(),
-				getJobManagerClass(), getArchivistClass())._1();
+				getJobManagerClass(),
+				getArchivistClass())._1();
 			
 			// 3: The resource framework master
 			LOG.debug("Starting YARN application master actor");
@@ -377,7 +379,7 @@ public class YarnApplicationMasterRunner {
 	}
 	
 	protected Class<? extends TaskManager> getTaskManagerClass() {
-		return TaskManager.class;
+		return YarnTaskManager.class;
 	}
 	
 	// ------------------------------------------------------------------------
