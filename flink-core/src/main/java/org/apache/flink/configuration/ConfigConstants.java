@@ -65,6 +65,12 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
 
 	/**
+	 * The config parameter defining the network port to connect to
+	 * for communication with the resource manager.
+	 */
+	public static final String RESOURCE_MANAGER_IPC_PORT_KEY = "resourcemanager.rpc.port";
+
+	/**
 	 * The config parameter defining the storage directory to be used by the blob server.
 	 */
 	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
@@ -234,21 +240,7 @@ public final class ConfigConstants {
 	public static final String CONTAINERED_TASK_MANAGER_ENV_PREFIX = "containered.taskmanager.env.";
 
 	// --------------------------Standalone Setup -----------------------------
-
-	/**
-	 * Heartbeat interval for TaskManagers in standalone setups. 
-	 */
-	public static final String STANDALONE_HEARTBEAT_INTERVAL_KEY = "standalone.heartbeat-interval";
-
-	/**
-	 * Maximal heartbeat pause before a TaskManager is marked as dead by the JobManager.
-	 */
-	public static final String STANDALONE_HEARTBEAT_MAX_PAUSE_KEY = "standalone.max-heartbeat-pause";
-
-	/**
-	 * Interval in which registered TaskManagers are checked for expired heartbeats.
-	 */
-	public static final String STANDALONE_CLEANUP_INTERVAL_KEY = "standalone.failure-cleanup-interval";
+	
 	
 	// ------------------------ YARN Configuration ------------------------
 
@@ -583,6 +575,11 @@ public final class ConfigConstants {
 	public static final int DEFAULT_JOB_MANAGER_IPC_PORT = 6123;
 
 	/**
+	 * The default network port of the resource manager.
+	 */
+	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 0;
+
+	/**
 	 * Default number of retries for failed BLOB fetches.
 	 */
 	public static final int DEFAULT_BLOB_FETCH_RETRIES = 5;
@@ -713,7 +710,7 @@ public final class ConfigConstants {
 	/**
 	 * Default maximal heartbeat pause before a TaskManager is marked as dead by the JobManager.
 	 */
-	public static final long DEFAULT_STANDALONE_HEARTBEAT_MAX_PAUSE = 60000;
+	public static final long DEFAULT_STANDALONE_HEARTBEAT_MAX_PAUSE = 15000;
 	
 	// ------------------------ File System Behavior ------------------------
 
@@ -814,6 +811,10 @@ public final class ConfigConstants {
 	public static final String LOCAL_NUMBER_JOB_MANAGER = "local.number-jobmanager";
 
 	public static final int DEFAULT_LOCAL_NUMBER_JOB_MANAGER = 1;
+
+	public static final String LOCAL_NUMBER_RESOURCE_MANAGER = "local.number-resourcemanager";
+
+	public static final int DEFAULT_LOCAL_NUMBER_RESOURCE_MANAGER = 1;
 
 	public static final String LOCAL_START_WEBSERVER = "local.start-webserver";
 

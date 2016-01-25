@@ -24,6 +24,7 @@ import java.util.Map;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
@@ -84,11 +85,15 @@ public class YarnTaskManagerRunner {
 		for (Token<? extends TokenIdentifier> toks : UserGroupInformation.getCurrentUser().getTokens()) {
 			ugi.addToken(toks);
 		}
+
+		// TODO RM get resource id
+		final ResourceID resourceId = ResourceID.generate();
+
 		ugi.doAs(new PrivilegedAction<Object>() {
 			@Override
 			public Object run() {
 				try {
-					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, taskManager);
+					TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, taskManager);
 				}
 				catch (Throwable t) {
 					LOG.error("Error while starting the TaskManager", t);

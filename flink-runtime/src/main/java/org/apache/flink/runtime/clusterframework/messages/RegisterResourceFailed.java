@@ -18,27 +18,51 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import java.io.Serializable;
+import akka.actor.ActorRef;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
- * Message sent by the Flink resource manager to the TaskManagers to tell them
- * to shut down after an application is complete.
+ * Answer to RegisterResource to indicate that the requested resource is unknown.
+ * Sent by the ResourceManager to the JobManager.
  */
-public class ShutdownTaskManager implements Serializable {
+public class RegisterResourceFailed implements RequiresLeaderSessionID, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
-	
+
+	/** Task Manager which tried to register */
+	private final ActorRef taskManager;
+
+	/** The id of the task manager resource */
+	private final ResourceID resourceID;
+
+	/** Error message */
 	private final String message;
-	
-	public ShutdownTaskManager(String message) {
+
+	public RegisterResourceFailed(ActorRef taskManager, ResourceID resourceId, String message) {
+		this.taskManager = taskManager;
+		this.resourceID = resourceId;
 		this.message = message;
 	}
-	
-	public String message() {
+
+
+	public String getMessage() {
 		return message;
+	}
+
+	public ActorRef getTaskManager() {
+		return taskManager;
+	}
+
+	public ResourceID getResourceID() {
+		return resourceID;
 	}
 
 	@Override
 	public String toString() {
-		return "ShutdownTaskManager (" + message + ')';
+		return "RegisterResourceFailed{" +
+			"taskManager=" + taskManager +
+			", resourceID=" + resourceID +
+			", message='" + message + '\'' +
+			'}';
 	}
 }

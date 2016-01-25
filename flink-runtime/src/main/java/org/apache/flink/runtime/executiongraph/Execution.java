@@ -388,7 +388,7 @@ public class Execution implements Serializable {
 						}
 					}
 					else {
-						if (!(success.equals(Messages.Acknowledge.get()))) {
+						if (!(success.equals(Messages.getAcknowledge()))) {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot +
 									": Response was not of type Acknowledge"));
 						}

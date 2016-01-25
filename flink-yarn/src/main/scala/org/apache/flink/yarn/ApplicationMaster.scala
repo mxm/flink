@@ -17,6 +17,7 @@
  */
 package org.apache.flink.yarn
 
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 
 
@@ -26,6 +27,8 @@ import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
 class ApplicationMaster extends ApplicationMasterBase {
   override def getJobManagerClass: Class[_ <: JobManager] = classOf[YarnJobManager]
   override def getArchivistClass: Class[_ <: MemoryArchivist] = classOf[MemoryArchivist]
+  override def getResourceManagerClass: Class[_ <: FlinkResourceManager[_]] =
+    classOf[YarnFrameworkMaster]
 }
 
 object ApplicationMaster {

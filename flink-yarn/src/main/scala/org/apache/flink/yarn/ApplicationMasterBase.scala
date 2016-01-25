@@ -26,8 +26,10 @@ import akka.actor.{ActorRef, ActorSystem}
 import org.apache.flink.client.CliFrontend
 import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.jobmanager.{JobManager, JobManagerMode, MemoryArchivist}
-import org.apache.flink.runtime.util.EnvironmentInformation
+import org.apache.flink.runtime.util.{LeaderRetrievalUtils, EnvironmentInformation}
 import org.apache.flink.runtime.webmonitor.WebMonitor
 import org.apache.flink.util.NetUtils
 import org.apache.flink.yarn.YarnMessages.StartYarnSession
@@ -57,6 +59,7 @@ abstract class ApplicationMasterBase {
 
   def getJobManagerClass: Class[_ <: JobManager]
   def getArchivistClass: Class[_ <: MemoryArchivist]
+  def getResourceManagerClass: Class[_ <: FlinkResourceManager[_]]
 
   def run(args: Array[String]): Unit = {
     val yarnClientUsername = System.getenv(FlinkYarnClientBase.ENV_CLIENT_USERNAME)
@@ -118,13 +121,13 @@ abstract class ApplicationMasterBase {
       // first, we check if the port is available by opening a socket
       // if the actor system fails to start on the port, we try further
       val amPortRange: String = config.getString(ConfigConstants.YARN_APPLICATION_MASTER_PORT,
-        ConfigConstants.DEFAULT_YARN_APPLICATION_MASTER_PORT)
+        ConfigConstants.DEFAULT_CONTAINERED_JOB_MANAGER_PORT)
       val portsIterator = NetUtils.getPortRangeFromString(amPortRange)
 
       // method to start the actor system.
       def startActorSystem(
           portsIterator: java.util.Iterator[Integer])
-        : (ActorSystem, ActorRef, ActorRef, Option[WebMonitor]) = {
+        : (ActorSystem, ActorRef, ActorRef, ActorRef, Option[WebMonitor]) = {
         val availableSocket = NetUtils.createSocketFromPorts(
           portsIterator,
           new NetUtils.SocketFactory {
@@ -141,14 +144,24 @@ abstract class ApplicationMasterBase {
           port // return for if
         }
 
-        JobManager.startActorSystemAndJobManagerActors(
-          config,
-          JobManagerMode.CLUSTER,
-          ownHostname,
-          tryPort,
-          getJobManagerClass,
-          getArchivistClass
+        val (actorSystem, jobManager, archive, webMonitor) =
+          JobManager.startActorSystemAndJobManagerActors(
+            config,
+            JobManagerMode.CLUSTER,
+            ownHostname,
+            tryPort,
+            getJobManagerClass,
+            getArchivistClass
         )
+
+        val lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config)
+        val resourceManager = FlinkResourceManager.startResourceManagerActors(
+          config,
+          actorSystem,
+          lrs,
+          classOf[StandaloneResourceManager])
+
+        (actorSystem, jobManager, archive, resourceManager, webMonitor)
       }
 
       // try starting the actor system
@@ -156,7 +169,7 @@ abstract class ApplicationMasterBase {
         startActorSystem(portsIterator),
         {!portsIterator.hasNext})
 
-      val (actorSystem, jmActor, _, webMonitor) = result match {
+      val (actorSystem, jmActor, _, _, webMonitor) = result match {
         case Success(r) => r
         case Failure(failure) => throw new RuntimeException("Unable to start actor system", failure)
       }

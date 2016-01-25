@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
@@ -33,6 +34,7 @@ import scala.concurrent.duration._
   */
 class YarnTaskManager(
     config: TaskManagerConfiguration,
+    resourceID: ResourceID,
     connectionInfo: InstanceConnectionInfo,
     memoryManager: MemoryManager,
     ioManager: IOManager,
@@ -41,6 +43,7 @@ class YarnTaskManager(
     leaderRetrievalService: LeaderRetrievalService)
   extends TaskManager(
     config,
+    resourceID,
     connectionInfo,
     memoryManager,
     ioManager,
@@ -64,4 +67,17 @@ class YarnTaskManager(
         context.system,
         FiniteDuration(10, SECONDS)).start()
   }
+}
+
+object YarnTaskManager {
+
+  /** Entry point (main method) to run the TaskManager on YARN.
+    * @param args The command line arguments.
+    */
+  def main(args: Array[String]): Unit = {
+    // TODO RM similiar as YarnTaskManagerRunner
+    // TODO RM pass yarn container id as resource id
+//    YarnTaskManagerRunner.main(..)
+  }
+
 }

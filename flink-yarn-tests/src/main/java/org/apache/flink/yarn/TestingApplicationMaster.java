@@ -18,6 +18,8 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
@@ -26,9 +28,8 @@ import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
  * Yarn application master which starts the {@link TestingYarnJobManager} and the
  * {@link TestingMemoryArchivist}.
  */
-public class TestingApplicationMaster extends YarnApplicationMasterRunner {
-	
-	
+public class TestingApplicationMaster extends ApplicationMasterBase {
+
 	@Override
 	public Class<? extends JobManager> getJobManagerClass() {
 		return TestingYarnJobManager.class;
@@ -38,7 +39,12 @@ public class TestingApplicationMaster extends YarnApplicationMasterRunner {
 	public Class<? extends MemoryArchivist> getArchivistClass() {
 		return TestingMemoryArchivist.class;
 	}
-	
+
+	@Override
+	public Class<? extends FlinkResourceManager<?>> getResourceManagerClass() {
+		return StandaloneResourceManager.class;
+	}
+
 	public static void main(String[] args) {
 		TestingApplicationMaster applicationMaster = new TestingApplicationMaster();
 		applicationMaster.run(args);

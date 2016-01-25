@@ -16,46 +16,57 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.clusterframework.messages;
+package org.apache.flink.runtime.clusterframework.types;
 
-import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+import org.apache.flink.util.AbstractID;
 
 import java.io.Serializable;
 
 /**
- * Message sent by the JobManager to the ResourceManager to tell it that a
- * specific TaskManager can be released.
+ * Class for Resource Ids assigned at the FlinkResourceManager.
  */
-public class ReleaseTaskManager implements RequiresLeaderSessionID, Serializable {
-	private static final long serialVersionUID = 1L;
-	
-	private final String resourceId;
-	
-	private final InstanceID registrationId;
+public class ResourceID implements Serializable {
 
-	public ReleaseTaskManager(String resourceId, InstanceID registrationId) {
+	private static final long serialVersionUID = 42L;
+
+	private final String resourceId;
+
+	public ResourceID(String resourceId) {
 		this.resourceId = resourceId;
-		this.registrationId = registrationId;
 	}
-	
-	// ------------------------------------------------------------------------
-	
-	public String resourceId() {
+
+	public String getResourceId() {
 		return resourceId;
 	}
 
-	public InstanceID registrationId() {
-		return registrationId;
+	/**
+	 * Generate a random resource id.
+	 * @return A random resource id.
+	 */
+	public static ResourceID generate() {
+		return new ResourceID(new AbstractID().toString());
 	}
 
-	// ------------------------------------------------------------------------
-	
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		} else if (o == null || getClass() != o.getClass()) {
+			return false;
+		} else {
+			return resourceId.equals(((ResourceID) o).resourceId);
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return resourceId.hashCode();
+	}
+
 	@Override
 	public String toString() {
-		return "ReleaseTaskManager {" +
+		return "ResourceID{" +
 			"resourceId='" + resourceId + '\'' +
-			", registrationId=" + registrationId +
 			'}';
 	}
 }

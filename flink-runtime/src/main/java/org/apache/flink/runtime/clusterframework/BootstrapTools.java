@@ -228,11 +228,11 @@ public class BootstrapTools {
 	}
 
 	/**
-	 * 
-	 * @param config
-	 * @param deprecated
-	 * @param designated
-	 */
+	* // TODO RM
+	* @param config
+	* @param deprecated
+	* @param designated
+	*/
 	public static void substituteDeprecatedConfigKey(Configuration config, String deprecated, String designated) {
 		// set the designated key only if it is not set already
 		if (!config.containsKey(designated)) {
@@ -244,13 +244,13 @@ public class BootstrapTools {
 	}
 
 	/**
-	 * 
-	 * @param config
-	 * @param deprecatedPrefix
-	 * @param designatedPrefix
-	 */
+	* // TODO RM
+	* @param config
+	* @param deprecatedPrefix
+	* @param designatedPrefix
+	*/
 	public static void substituteDeprecatedConfigPrefix(Configuration config,
-												 String deprecatedPrefix, String designatedPrefix)
+			String deprecatedPrefix, String designatedPrefix)
 	{
 		// set the designated key only if it is not set already
 		final int prefixLen = deprecatedPrefix.length();

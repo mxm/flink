@@ -22,12 +22,13 @@ import akka.actor.{Terminated, Cancellable, ActorRef}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.FlinkActor
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobManagerMessages.GrantLeadership
-import org.apache.flink.runtime.messages.Messages.Disconnect
+import org.apache.flink.runtime.messages.Messages.{Acknowledge, Disconnect}
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
@@ -67,6 +68,8 @@ trait TestingJobManagerLike extends FlinkActor {
     new Ordering[(Int, ActorRef)] {
       override def compare(x: (Int, ActorRef), y: (Int, ActorRef)): Int = y._1 - x._1
     })
+
+  val waitForResourceManagerConnected = scala.collection.mutable.Set[ActorRef]()
 
   var disconnectDisabled = false
 
@@ -179,6 +182,7 @@ trait TestingJobManagerLike extends FlinkActor {
       val waiting = waitForTaskManagerToBeTerminated.getOrElse(taskManager.path.name, Set())
       waitForTaskManagerToBeTerminated += taskManager.path.name -> (waiting + sender)
 
+      // TODO RM
     case msg@Terminated(taskManager) =>
       super.handleMessage(msg)
 
@@ -332,7 +336,7 @@ trait TestingJobManagerLike extends FlinkActor {
         waitForNumRegisteredTaskManagers += ((numRegisteredTaskManager, sender()))
       }
 
-    case msg:RegisterTaskManager =>
+    case msg: RegisterTaskManager =>
       super.handleMessage(msg)
 
       // dequeue all senders which wait for instanceManager.getNumberOfRegisteredTaskManagers or
@@ -343,6 +347,14 @@ trait TestingJobManagerLike extends FlinkActor {
         val receiver = waitForNumRegisteredTaskManagers.dequeue()._2
         receiver ! Acknowledge
       }
+
+    case msg: NotifyWhenResourceManagerConnected =>
+      waitForResourceManagerConnected += sender()
+
+    case msg: RegisterResourceManager =>
+      super.handleMessage(msg)
+      waitForResourceManagerConnected foreach (_ ! true)
+      waitForResourceManagerConnected.clear()
   }
 
   def checkIfAllVerticesRunning(jobID: JobID): Boolean = {

@@ -26,20 +26,25 @@ object Messages {
   /**
    * Message to signal the successful reception of another message
    */
-  case object Acknowledge {
-    def get(): Acknowledge.type = Acknowledge
-  }
+  case object Acknowledge
 
   /**
-   * Signals that the receiver (JobManager/TaskManager) shall disconnect the sender.
-   *
-   * The TaskManager may send this on shutdown to let the JobManager realize the TaskManager
-   * loss more quickly.
-   *
-   * The JobManager may send this message to its TaskManagers to let them clean up their
-   * tasks that depend on the JobManager and go into a clean state.
-   *
-   * @param reason The reason for disconnecting, to be displayed in log and error messages.
-   */
+    * Accessor for the case object instance, to simplify Java interoperability.
+    *
+    * @return The Acknowledge case object instance.
+    */
+  def getAcknowledge(): Acknowledge.type = Acknowledge
+
+  /**
+    * Signals that the receiver (JobManager/TaskManager) shall disconnect the sender.
+    *
+    * The TaskManager may send this on shutdown to let the JobManager realize the TaskManager
+    * loss more quickly.
+    *
+    * The JobManager may send this message to its TaskManagers to let them clean up their
+    * tasks that depend on the JobManager and go into a clean state.
+    *
+    * @param reason The reason for disconnecting, to be displayed in log and error messages.
+    */
   case class Disconnect(reason: String) extends RequiresLeaderSessionID
 }

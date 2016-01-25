@@ -147,7 +147,7 @@ public class YarnApplicationMasterRunner {
 			// run the actual work in a secured privileged action
 			return ugi.doAs(new PrivilegedAction<Integer>() {
 				@Override
-				 public Integer run() {
+				public Integer run() {
 					return runApplicationMaster();
 				}
 			});
@@ -284,7 +284,8 @@ public class YarnApplicationMasterRunner {
 				config, actorSystem,
 				new scala.Some<>(JobManager.JOB_MANAGER_NAME()),
 				scala.Option.<String>empty(),
-				getJobManagerClass(), getArchivistClass())._1();
+				getJobManagerClass(),
+				getArchivistClass())._1();
 			
 			// 3: The resource framework master
 			LOG.debug("Starting YARN application master actor");
@@ -377,7 +378,7 @@ public class YarnApplicationMasterRunner {
 	}
 	
 	protected Class<? extends TaskManager> getTaskManagerClass() {
-		return TaskManager.class;
+		return YarnTaskManager.class;
 	}
 	
 	// ------------------------------------------------------------------------

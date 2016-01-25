@@ -123,7 +123,7 @@ public class TaskManagerTest extends TestLogger {
 		new JavaTestKit(system){{
 
 			ActorGateway taskManager = null;
-			final ActorGateway jobManager = TestingUtils.createForwardingJobManager(
+			final ActorGateway jobManager = TestingUtils.createForwardingActor(
 					system,
 					getTestActor(),
 					Option.<String>empty());
@@ -917,7 +917,7 @@ public class TaskManagerTest extends TestLogger {
 	public void testTriggerStackTraceSampleMessage() throws Exception {
 		new JavaTestKit(system) {{
 			ActorGateway taskManagerActorGateway = null;
-			ActorGateway jobManagerActorGateway = TestingUtils.createForwardingJobManager(
+			ActorGateway jobManagerActorGateway = TestingUtils.createForwardingActor(
 					system,
 					getTestActor(),
 					Option.<String>empty());

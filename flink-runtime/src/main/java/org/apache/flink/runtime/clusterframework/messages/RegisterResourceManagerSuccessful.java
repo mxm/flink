@@ -18,14 +18,11 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import akka.actor.ActorRef;
-
-import org.apache.flink.runtime.clusterframework.TaskManagerInfo;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.List;
+import java.util.Collection;
 
 import static java.util.Objects.requireNonNull;
 
@@ -34,71 +31,38 @@ import static java.util.Objects.requireNonNull;
  * Carries information about the JobManager, and about the TaskManagers that the JobManager
  * still has registered.
  */
-public class RegistrationAtJobManagerSuccessful implements RequiresLeaderSessionID, Serializable {
-	
+public class RegisterResourceManagerSuccessful implements RequiresLeaderSessionID, Serializable {
+
 	private static final long serialVersionUID = 817011779310941753L;
-	
-	/** The JobManager actor reference */ 
-	private final ActorRef jobManager;
-	
-	/** The port of the JobManager's BLOB service */
-	private final int blobServerPort;
-	
+
 	/** The list of registered TaskManagers that the JobManager currently knows */
-	private final List<TaskManagerInfo> currentlyRegisteredTaskManagers;
+	private final Collection<ResourceID> currentlyRegisteredTaskManagers;
 
-
-	/**
-	 * Creates a new message with an empty list of known TaskManagers.
-	 * @param jobManager
-	 *         The JobManager actor reference
-	 * @param blobServerPort
-	 *         The port of the JobManager's BLOB service
-	 */
-	public RegistrationAtJobManagerSuccessful(ActorRef jobManager, int blobServerPort) {
-		this(jobManager, blobServerPort, Collections.<TaskManagerInfo>emptyList());
-	}
 
 	/**
 	 * Creates a new message with a list of existing known TaskManagers.
 	 * 
-	 * @param jobManager
-	 *         The JobManager actor reference.
-	 * @param blobServerPort
-	 *         The port of the JobManager's BLOB service.
 	 * @param currentlyRegisteredTaskManagers
 	 *         The list of TaskManagers that the JobManager currently knows. 
 	 */
-	public RegistrationAtJobManagerSuccessful(
-					ActorRef jobManager, int blobServerPort,
-					List<TaskManagerInfo> currentlyRegisteredTaskManagers)
+	public RegisterResourceManagerSuccessful(Collection<ResourceID> currentlyRegisteredTaskManagers)
 	{
-		this.jobManager = requireNonNull(jobManager);
-		this.blobServerPort = blobServerPort;
 		this.currentlyRegisteredTaskManagers = requireNonNull(currentlyRegisteredTaskManagers);
 	}
 	
 	// ------------------------------------------------------------------------
 
-	public ActorRef jobManager() {
-		return jobManager;
-	}
-
-	public int blobServerPort() {
-		return blobServerPort;
-	}
-	
-	public List<TaskManagerInfo> currentlyRegisteredTaskManagers() {
+	public Collection<ResourceID> currentlyRegisteredTaskManagers() {
 		return currentlyRegisteredTaskManagers;
 	}
 
 	// ------------------------------------------------------------------------
 
+
 	@Override
 	public String toString() {
-		return "RegistrationAtJobManagerSuccessful {"
-			+ " jobManager=" + jobManager
-			+ " , blobServerPort=" + blobServerPort
-			+ " }";
+		return "RegisterResourceManagerSuccessful{" +
+			"currentlyRegisteredTaskManagers=" + currentlyRegisteredTaskManagers +
+			'}';
 	}
 }

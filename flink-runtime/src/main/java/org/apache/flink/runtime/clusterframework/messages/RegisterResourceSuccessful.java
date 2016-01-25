@@ -19,27 +19,40 @@
 package org.apache.flink.runtime.clusterframework.messages;
 
 import akka.actor.ActorRef;
-import com.google.common.base.Preconditions;
+import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
+
 /**
- * This message signals that the resource manager wants to register at the JobManager leader. 
+ * Answer to RegisterResource to indicate that the requested resource is known.
+ * Sent by the ResourceManager to the JobManager.
  */
-public class RegisterResourceManager implements RequiresLeaderSessionID, java.io.Serializable {
+public class RegisterResourceSuccessful implements RequiresLeaderSessionID, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private final ActorRef resourceManager;
-	
-	public RegisterResourceManager(ActorRef resourceManager) {
-		this.resourceManager = Preconditions.checkNotNull(resourceManager);
+	private final ActorRef taskManager;
+	private final RegistrationMessages.RegisterTaskManager registrationMessage;
+
+	public RegisterResourceSuccessful(ActorRef taskManager,
+			RegistrationMessages.RegisterTaskManager registrationMessage) {
+		this.taskManager = taskManager;
+		this.registrationMessage = registrationMessage;
 	}
-	
-	public ActorRef resourceManager() {
-		return resourceManager;
+
+
+	public ActorRef getTaskManager() {
+		return taskManager;
+	}
+
+	public RegistrationMessages.RegisterTaskManager getRegistrationMessage() {
+		return registrationMessage;
 	}
 
 	@Override
 	public String toString() {
-		return "RegisterResourceManager " + resourceManager.path();
+		return "RegisterResourceSuccessful{" +
+			"taskManager=" + taskManager +
+			", registrationMessage=" + registrationMessage +
+			'}';
 	}
 }

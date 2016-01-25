@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 import java.io.Serializable;
@@ -26,73 +26,39 @@ import java.io.Serializable;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Message set to the JobManager by the Resource Manager to inform
- * about a failed TaskManager.
+ * Message sent to the ResourceManager by the JobManager to instruct to remove a resource.
  */
-public class TaskManagerFailed implements RequiresLeaderSessionID, Serializable {
+public class RemoveResource implements RequiresLeaderSessionID, Serializable {
 	private static final long serialVersionUID = 1L;
-	
+
 	/** The ID under which the resource is registered (for example container ID) */
-	private final String resourceId;
-	
-	/** The ID under which the TaskManager process registered itself */
-	private final InstanceID registrationId;
-	
-	/** Optional message with details, for logging and debugging */ 
-	private final String message;
-	
-	/**
-	 * @param resourceId The ID under which the resource is registered (for example container ID).
-	 * @param registrationId The TaskManager registration ID
-	 */
-	public TaskManagerFailed(String resourceId, InstanceID registrationId) {
-		this(resourceId, registrationId, null);
-	}
+	private final ResourceID resourceId;
 
 	/**
+	 * Constructor for a shutdown of a registered resource.
 	 * @param resourceId The ID under which the resource is registered (for example container ID).
-	 * @param registrationId The TaskManager registration ID
-	 * @param message Optional message with details, for logging and debugging.
 	 */
-	public TaskManagerFailed(String resourceId, InstanceID registrationId, String message) {
+	public RemoveResource(ResourceID resourceId) {
 		this.resourceId = requireNonNull(resourceId);
-		this.registrationId = requireNonNull(registrationId);
-		this.message = message;
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Gets the ID under which the resource is registered (for example container ID).
 	 * @return The resource ID
 	 */
-	public String resourceId() {
+	public ResourceID resourceId() {
 		return resourceId;
 	}
 
-	/**
-	 * Gets the ID under which the TaskManager process registered itself.
-	 * @return The TaskManager registration ID
-	 */
-	public InstanceID registrationId() {
-		return registrationId;
-	}
 
-	/**
-	 * Gets the optional message with details, for logging and debugging.
-	 * @return Optional message, may be null
-	 */
-	public String message() {
-		return message;
-	}
-	
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
-		return "TaskManagerFailed{" +
-			"resourceId='" + resourceId + '\'' +
-			", registrationId=" + registrationId +
-			", message='" + registrationId + "'}";
+		return "RemoveResource{" +
+			"resourceId=" + resourceId +
+			'}';
 	}
 }

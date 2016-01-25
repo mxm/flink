@@ -201,7 +201,7 @@ class YarnJobManager(
     case UnregisterClient =>
       messageListener = None
 
-    case msg @ StopAMAfterJob(jobId) =>
+    case StopAMAfterJob(jobId) =>
       log.info(s"ApplicatonMaster will shut down YARN session when job $jobId has finished.")
       stopWhenJobFinished = jobId
       // trigger regular job status messages (if this is a per-job yarn cluster)
@@ -513,7 +513,6 @@ class YarnJobManager(
   private def getContainerRequest(memoryPerTaskManager: Int): ContainerRequest = {
     // Priority for worker containers - priorities are intra-application
     val priority = Priority.newInstance(0)
-
     // Resource requirements for worker containers
     val capability = Records.newRecord(classOf[Resource])
     capability.setMemory(memoryPerTaskManager)
