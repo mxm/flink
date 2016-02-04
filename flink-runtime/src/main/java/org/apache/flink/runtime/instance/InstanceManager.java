@@ -133,17 +133,15 @@ public class InstanceManager {
 	 *
 	 * @param taskManager ActorRef to the TaskManager which wants to be registered
 	 * @param resourceID The resource id of the TaskManager
-	 * @param registrationID The registration id of the TaskManager (aka InstanceID)
 	 * @param connectionInfo ConnectionInfo of the TaskManager
 	 * @param resources Hardware description of the TaskManager
 	 * @param numberOfSlots Number of available slots on the TaskManager
 	 * @param leaderSessionID The current leader session ID of the JobManager
-	 * @return Boolean indicating registration success
+	 * @return The assigned InstanceID of the registered task manager
 	 */
-	public boolean registerTaskManager(
+	public InstanceID registerTaskManager(
 			ActorRef taskManager,
 			ResourceID resourceID,
-			InstanceID registrationID,
 			InstanceConnectionInfo connectionInfo,
 			HardwareDescription resources,
 			int numberOfSlots,
@@ -155,9 +153,9 @@ public class InstanceManager {
 
 			Instance prior = registeredHostsByConnection.get(taskManager);
 			if (prior != null) {
-				LOG.info("Registration attempt from TaskManager at " + taskManager.path() +
-						". This connection is already registered under ID " + prior.getId());
-				return false;
+				throw new IllegalStateException("Registration attempt from TaskManager at "
+					+ taskManager.path() +
+					". This connection is already registered under ID " + prior.getId());
 			}
 
 			boolean wasDead = this.deadHosts.remove(taskManager);
@@ -168,10 +166,12 @@ public class InstanceManager {
 
 			ActorGateway actorGateway = new AkkaActorGateway(taskManager, leaderSessionID);
 
-			Instance host = new Instance(actorGateway, connectionInfo, resourceID, registrationID,
+			InstanceID instanceID = new InstanceID();
+
+			Instance host = new Instance(actorGateway, connectionInfo, resourceID, instanceID,
 				resources, numberOfSlots);
 
-			registeredHostsById.put(registrationID, host);
+			registeredHostsById.put(instanceID, host);
 			registeredHostsByConnection.put(taskManager, host);
 
 			totalNumberOfAliveTaskSlots += numberOfSlots;
@@ -182,7 +182,7 @@ public class InstanceManager {
 								"Current number of alive task slots is %d.",
 						connectionInfo.getHostname(),
 						taskManager.path(),
-						registrationID,
+						instanceID,
 						registeredHostsById.size(),
 						totalNumberOfAliveTaskSlots));
 			}
@@ -192,7 +192,7 @@ public class InstanceManager {
 			// notify all listeners (for example the scheduler)
 			notifyNewInstance(host);
 
-			return true;
+			return instanceID;
 		}
 	}
 
@@ -202,8 +202,8 @@ public class InstanceManager {
 	 *
 	 * @param instanceID TaskManager which is about to be marked dead.
 	 */
-	public void unregisterTaskManager(InstanceID instanceID, boolean terminated){
-		Instance instance = registeredHostsById.get(instanceID);
+	public void unregisterTaskManager(ActorRef instanceID, boolean terminated){
+		Instance instance = registeredHostsByConnection.get(instanceID);
 
 		if (instance != null){
 			ActorRef host = instance.getActorGateway().actor();

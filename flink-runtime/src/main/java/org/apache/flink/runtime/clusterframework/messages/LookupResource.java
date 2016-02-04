@@ -16,43 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.clusterframework;
+package org.apache.flink.runtime.clusterframework.messages;
 
-import akka.actor.ActorRef;
-
+import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.InstanceID;
-
-import java.io.Serializable;
-
-import static java.util.Objects.requireNonNull;
+import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
- * Information about a TaskManager that is currently registered.
+ * Triggers a lookup at the ResourceManager to check if the resource for a TaskManager is registered.
  */
-public class TaskManagerInfo implements Serializable {
-
+public class LookupResource implements RequiresLeaderSessionID, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private final ResourceID resourceId;
+	private final ResourceID resourceID;
 
-	public TaskManagerInfo(ResourceID resourceId) {
-		this.resourceId = requireNonNull(resourceId);
-	}
-	
-	// ------------------------------------------------------------------------
-
-	public ResourceID resourceId() {
-		return resourceId;
+	public LookupResource(ResourceID resourceID) {
+		this.resourceID = Preconditions.checkNotNull(resourceID);
 	}
 
-	// ------------------------------------------------------------------------
-
+	public ResourceID getResourceID() {
+		return resourceID;
+	}
 
 	@Override
 	public String toString() {
-		return "TaskManagerInfo{" +
-			"resourceId=" + resourceId +
+		return "LookupResource{" +
+			"resourceID=" + resourceID +
 			'}';
 	}
 }

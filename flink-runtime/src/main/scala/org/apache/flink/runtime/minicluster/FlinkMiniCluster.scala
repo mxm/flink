@@ -36,7 +36,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.jobmanager.RecoveryMode
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalService, LeaderRetrievalListener,
 StandaloneLeaderRetrievalService}
-import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtResourceManager
+import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.util.ZooKeeperUtils
 import org.apache.flink.runtime.webmonitor.{WebMonitorUtils, WebMonitor}
 
@@ -438,7 +438,7 @@ abstract class FlinkMiniCluster(
   @throws(classOf[InterruptedException])
   def waitForTaskManagersToBeRegistered(timeout: FiniteDuration): Unit = {
     val futures = taskManagerActors map {
-      _ map(taskManager => (taskManager ? NotifyWhenRegisteredAtResourceManager)(timeout))
+      _ map(taskManager => (taskManager ? NotifyWhenRegisteredAtJobManager)(timeout))
     } getOrElse(Seq())
 
     Await.ready(Future.sequence(futures), timeout)

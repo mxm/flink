@@ -38,7 +38,7 @@ import org.apache.flink.runtime.{LogMessages, LeaderSessionMessageFilter, FlinkA
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
-import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtResourceManager
+import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.taskmanager.TaskManager
 
 import scala.concurrent.duration._
@@ -271,7 +271,7 @@ object TestingUtils {
     )
 
     if (waitForRegistration) {
-      val notificationResult = (taskManager ? NotifyWhenRegisteredAtResourceManager)(TESTING_DURATION)
+      val notificationResult = (taskManager ? NotifyWhenRegisteredAtJobManager)(TESTING_DURATION)
 
       Await.ready(notificationResult, TESTING_DURATION)
     }

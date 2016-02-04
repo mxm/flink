@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskManagerInfo;
+import org.apache.flink.runtime.clusterframework.messages.LookupResourceReply;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -183,7 +184,15 @@ public class StandaloneResourceManager extends FlinkResourceManager<RegisteredSt
 			super.handleMessage(message);
 		}
 	}
-	
+
+	@Override
+	protected void handleResourceLookup(ActorRef sender, ResourceID resourceID) {
+		// in standalone mode, always confirm availability of resource
+		sender().tell(decorateMessage(
+			new LookupResourceReply(true)
+		), self());
+	}
+
 	private void receiveHeartbeat(HeartbeatMessage heartbeat, ActorRef sender) {
 		RegisteredStandaloneTaskManager worker = getRegisteredTaskManager(heartbeat.workerId());
 		if (worker != null) {

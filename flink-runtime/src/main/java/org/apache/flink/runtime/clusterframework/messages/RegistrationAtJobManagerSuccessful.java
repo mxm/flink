@@ -35,70 +35,45 @@ import static java.util.Objects.requireNonNull;
  * still has registered.
  */
 public class RegistrationAtJobManagerSuccessful implements RequiresLeaderSessionID, Serializable {
-	
+
 	private static final long serialVersionUID = 817011779310941753L;
-	
-	/** The JobManager actor reference */ 
-	private final ActorRef jobManager;
-	
-	/** The port of the JobManager's BLOB service */
-	private final int blobServerPort;
-	
+
 	/** The list of registered TaskManagers that the JobManager currently knows */
 	private final Collection<TaskManagerInfo> currentlyRegisteredTaskManagers;
 
 
 	/**
 	 * Creates a new message with an empty list of known TaskManagers.
-	 * @param jobManager
-	 *         The JobManager actor reference
-	 * @param blobServerPort
-	 *         The port of the JobManager's BLOB service
 	 */
-	public RegistrationAtJobManagerSuccessful(ActorRef jobManager, int blobServerPort) {
-		this(jobManager, blobServerPort, Collections.<TaskManagerInfo>emptyList());
+	public RegistrationAtJobManagerSuccessful() {
+		this(Collections.<TaskManagerInfo>emptyList());
 	}
 
 	/**
 	 * Creates a new message with a list of existing known TaskManagers.
 	 * 
-	 * @param jobManager
-	 *         The JobManager actor reference.
-	 * @param blobServerPort
-	 *         The port of the JobManager's BLOB service.
 	 * @param currentlyRegisteredTaskManagers
 	 *         The list of TaskManagers that the JobManager currently knows. 
 	 */
 	public RegistrationAtJobManagerSuccessful(
-					ActorRef jobManager, int blobServerPort,
-					Collection<TaskManagerInfo> currentlyRegisteredTaskManagers)
+			Collection<TaskManagerInfo> currentlyRegisteredTaskManagers)
 	{
-		this.jobManager = requireNonNull(jobManager);
-		this.blobServerPort = blobServerPort;
 		this.currentlyRegisteredTaskManagers = requireNonNull(currentlyRegisteredTaskManagers);
 	}
 	
 	// ------------------------------------------------------------------------
 
-	public ActorRef jobManager() {
-		return jobManager;
-	}
-
-	public int blobServerPort() {
-		return blobServerPort;
-	}
-	
 	public Collection<TaskManagerInfo> currentlyRegisteredTaskManagers() {
 		return currentlyRegisteredTaskManagers;
 	}
 
 	// ------------------------------------------------------------------------
 
+
 	@Override
 	public String toString() {
-		return "RegistrationAtJobManagerSuccessful {"
-			+ " jobManager=" + jobManager
-			+ " , blobServerPort=" + blobServerPort
-			+ " }";
+		return "RegistrationAtJobManagerSuccessful{" +
+			"currentlyRegisteredTaskManagers=" + currentlyRegisteredTaskManagers +
+			'}';
 	}
 }

@@ -34,6 +34,8 @@ import org.apache.flink.runtime.clusterframework.messages.CheckAndAllocateContai
 import org.apache.flink.runtime.clusterframework.messages.FatalErrorOccurred;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
+import org.apache.flink.runtime.clusterframework.messages.LookupResource;
+import org.apache.flink.runtime.clusterframework.messages.LookupResourceReply;
 import org.apache.flink.runtime.clusterframework.messages.NewLeaderAvailable;
 import org.apache.flink.runtime.clusterframework.messages.RegisterInfoMessageListener;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
@@ -70,8 +72,10 @@ import scala.concurrent.duration.FiniteDuration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -124,8 +128,8 @@ public abstract class FlinkResourceManager<WorkerType extends RegisteredTaskMana
 	/** The service to find the right leader JobManager (to support high availability) */
 	private final LeaderRetrievalService leaderRetriever;
 
-	/** The currently registered workers, keyed by the container/worker id */
-	private final Map<ResourceID, WorkerType> registeredWorkers;
+	/** The currently registered resources */
+	private final Set<ResourceID> registeredWorkers;
 
 	/** List of listeners for info messages */
 	private ActorRef infoMessageListener;
@@ -135,9 +139,6 @@ public abstract class FlinkResourceManager<WorkerType extends RegisteredTaskMana
 
 	/** Our JobManager's leader session */
 	private UUID leaderSessionID;
-
-	/** The port of the JobManager's blob server, to announce to the TaskManagers */
-	private int jobManagerBlobServerPort;
 
 	/** The size of the worker pool that the resource master strives to maintain */
 	private int designatedPoolSize;
@@ -153,7 +154,7 @@ public abstract class FlinkResourceManager<WorkerType extends RegisteredTaskMana
 	protected FlinkResourceManager(Configuration flinkConfig, LeaderRetrievalService leaderRetriever) {
 		this.config = requireNonNull(flinkConfig);
 		this.leaderRetriever = requireNonNull(leaderRetriever);
-		this.registeredWorkers = new HashMap<>();
+		this.registeredWorkers = new HashSet<>();
 
 		FiniteDuration lt;
 		try {
@@ -243,10 +244,10 @@ public abstract class FlinkResourceManager<WorkerType extends RegisteredTaskMana
 				releaseTaskManager(msg.resourceId(), msg.registrationId());
 			}
 
-			// --- registration from TaskManagers
+			// --- lookup of registered resources
 
-			else if (message instanceof RegisterTaskManager) {
-				handleTaskManagerRegistration((RegisterTaskManager) message);
+			else if (message instanceof LookupResource) {
+				handleResourceLookup(sender(), ((LookupResource) message).getResourceID());
 			}
 
 			// --- messages about JobManager leader status and registration
@@ -261,8 +262,7 @@ public abstract class FlinkResourceManager<WorkerType extends RegisteredTaskMana
 			}
 			else if (message instanceof RegistrationAtJobManagerSuccessful) {
 				RegistrationAtJobManagerSuccessful msg = (RegistrationAtJobManagerSuccessful) message;
-				jobManagerLeaderConnected(msg.jobManager(), msg.blobServerPort(),
-					msg.currentlyRegisteredTaskManagers());
+				jobManagerLeaderConnected(sender(), msg.currentlyRegisteredTaskManagers());
 			}
 
 			// --- end of application
@@ -340,62 +340,18 @@ public abstract class FlinkResourceManager<WorkerType extends RegisteredTaskMana
 		return registeredWorkers.values();
 	}
 	
-	// ------------------------------------------------------------------------
-	//  Registration and Failure of TaskManagers
-	// ------------------------------------------------------------------------
-	
-	private void handleTaskManagerRegistration(RegisterTaskManager registerMessage) {
-		// handle this only if we are associated with the current leader.
-		// else the TaskManager will keep retrying 
-		if (jobManager != null) {
-			// we are currently associated with a JobManager, so we can handle this
-			WorkerType current = registeredWorkers.get(registerMessage.resourceId());
-			
-			if (current != null) {
-				// we already have a worker with that resource ID
-				sender().tell(decorateMessage(
-						new AlreadyRegistered(
-							current.registeredTaskManagerId(), jobManagerBlobServerPort)),
-					self());
-			}
-			else {
-				try {
-					log.info("TaskManager {} / {} trying to register", 
-						registerMessage.resourceId(), registerMessage.connectionInfo());
-					
-					WorkerType registeredTm = workerRegistered(registerMessage);
-					if (registeredTm != null) {
-						// add this to our bookkeeping
-						registeredWorkers.put(registeredTm.resourceId(), registeredTm);
-	
-						// let the JobManager know about the resource
-						jobManager.tell(decorateMessage(new TaskManagerAvailable(
-								registeredTm.resourceId(), registeredTm.registeredTaskManagerId(),
-								sender(), registerMessage.connectionInfo(), registerMessage.resources(),
-								registerMessage.numberOfSlots())),
-							self());
-						
-						// let the TaskManager know that registration was successful
-						sender().tell(decorateMessage(
-							new AcknowledgeRegistration(
-								registeredTm.registeredTaskManagerId(), jobManagerBlobServerPort)),
-							self());
+	/**
+	 * Lookup of a resource on which TaskManagers are started
+	 * @param sender The sender (JobManager) of the message
+	 * @param resourceID The id of the resource
+	 */
+	protected void handleResourceLookup(ActorRef sender, ResourceID resourceID) {
 
-						LOG.info("Accepted TaskManager {} / {}. Current number of registered TaskManagers: {}",
-							registeredTm.resourceId(), registerMessage.connectionInfo(), registeredWorkers.size());
-					}
-				}
-				catch (Exception e) {
-					LOG.error("TaskManager registration failed", e);
-					
-					// tell the TaskManager about the failure
-					String eStr = ExceptionUtils.stringifyException(e);
-					sender().tell(decorateMessage(
-						new RefuseRegistration("Registration failed: " + eStr)),
-						self());
-				}
-			}
-		}
+		boolean isRegistered = registeredWorkers.contains(resourceID);
+
+		sender.tell(decorateMessage(
+			new LookupResourceReply(isRegistered)),
+			self());
 	}
 
 	/**
@@ -546,11 +502,10 @@ public abstract class FlinkResourceManager<WorkerType extends RegisteredTaskMana
 	/**
 	 * // TODO
 	 * @param newJobManagerLeader
-	 * @param newJobManagerBlobServerPort
 	 * @param taskManagerInfos
 	 */
 	private void jobManagerLeaderConnected(
-						ActorRef newJobManagerLeader, int newJobManagerBlobServerPort,
+						ActorRef newJobManagerLeader,
 						Collection<TaskManagerInfo> taskManagerInfos) {
 		
 		if (jobManager == null) {

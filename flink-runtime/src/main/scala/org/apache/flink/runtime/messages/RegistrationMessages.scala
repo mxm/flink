@@ -18,17 +18,15 @@
 
 package org.apache.flink.runtime.messages
 
-import akka.actor.ActorRef
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.instance.{InstanceConnectionInfo, InstanceID, HardwareDescription}
 
 import scala.concurrent.duration.{Deadline, FiniteDuration}
 
 /**
- * A set of messages between TaskManager and ResourceManager to handle the
- * registration of the TaskManager at the Resource Manager.
+ * A set of messages between TaskManager and JobManager to handle the
+ * registration of the TaskManager at the JobManager.
  */
-// TODO might make sense to consolidate this with clusterframework.message.*
 object RegistrationMessages {
 
   /**
@@ -37,9 +35,9 @@ object RegistrationMessages {
   trait RegistrationMessage extends RequiresLeaderSessionID {}
 
   /**
-   * Triggers the TaskManager to attempt a registration at the ResourceManager.
+   * Triggers the TaskManager to attempt a registration at the JobManager.
    *
-   * @param jobManagerURL Akka URL to the JobManager to ask for the ResourceManager
+   * @param jobManagerURL Akka URL to the JobManager to ask for the JobManager
    * @param timeout The timeout for the message. The next retry will double this timeout.
    * @param deadline Optional deadline until when the registration must be completed.
    * @param attempt The attempt number, for logging.
@@ -52,21 +50,7 @@ object RegistrationMessages {
     extends RegistrationMessage
 
   /**
-    * Sent during registration by the TaskManager to the JobManager to retrieve the
-    * ResourceManager address.
-    */
-  case object LookupResourceManager extends RegistrationMessage
-
-  /**
-    * Reply sent by the JobManager to inform the TaskManager of the ResourceManager address.
-    *
-    * @param resourceManager The ActorRef of the ResourceManager (if already registered)
-    */
-  case class LookupResourceManagerReply(resourceManager: Option[ActorRef])
-    extends RegistrationMessage
-
-  /**
-   * Registers a task manager at the resource manager. A successful registration is acknowledged by
+   * Registers a task manager at the job manager. A successful registration is acknowledged by
    * [[AcknowledgeRegistration]].
    *
    * @param connectionInfo The TaskManagers connection information.
@@ -76,17 +60,17 @@ object RegistrationMessages {
   case class RegisterTaskManager(
       resourceId: ResourceID,
       connectionInfo: InstanceConnectionInfo,
-      taskManagerActor: ActorRef,
       resources: HardwareDescription,
       numberOfSlots: Int)
     extends RegistrationMessage
 
   /**
-   * Denotes the successful registration of a task manager at the resource manager. This is the
-   * response triggered by the [[RegisterTaskManager]] message.
+   * Denotes the successful registration of a task manager at the job manager. This is the
+   * response triggered by the [[RegisterTaskManager]] message when the job manager has registered
+   * the task manager with the resource manager.
    *
    * @param instanceID The instance ID under which the TaskManager is registered at the
-   *                   resource manager.
+   *                   job manager.
    * @param blobPort The server port where the JobManager's BLOB service runs.
    */
   case class AcknowledgeRegistration(
@@ -95,7 +79,7 @@ object RegistrationMessages {
     extends RegistrationMessage
 
   /**
-   * Denotes that the TaskManager has already been registered at the Resource Manager.
+   * Denotes that the TaskManager has already been registered at the JobManager.
    *
    * @param instanceID The instance ID under which the TaskManager is registered.
    * @param blobPort The server port where the JobManager's BLOB service runs.
@@ -106,7 +90,7 @@ object RegistrationMessages {
     extends RegistrationMessage
 
   /**
-   * Denotes the unsuccessful registration of a task manager at the Resource Manager. This is the
+   * Denotes the unsuccessful registration of a task manager at the JobManager. This is the
    * response triggered by the [[RegisterTaskManager]] message.
    *
    * @param reason Reason why the task manager registration was refused
