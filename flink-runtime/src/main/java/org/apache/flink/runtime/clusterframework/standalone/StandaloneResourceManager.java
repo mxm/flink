@@ -43,31 +43,11 @@ import java.util.concurrent.TimeUnit;
  * A standalone implementation of the resource manager. Used when the system is started in
  * standalone mode (via scripts), rather than via a resource framework like YARN or Mesos.
  */
-public class StandaloneResourceManager extends FlinkResourceManager<RegisteredStandaloneTaskManager> {
+public class StandaloneResourceManager extends FlinkResourceManager {
 	
-	/** The maximum pause between two heartbeats after which a TaskManager is considered failed */ 
-	private final long maxHeartbeatPause;
-
-	/** The interval in which the actor checks for failed TaskManagers */
-	private final long cleanupInterval;
-	
-	/** The scheduler that triggers periodic cleanup of dead TaskManagers */
-	private Cancellable periodicCleanupScheduler;
 
 	public StandaloneResourceManager(Configuration flinkConfig, LeaderRetrievalService leaderRetriever) {
 		super(flinkConfig, leaderRetriever);
-
-		final long heartbeatInterval = config.getLong(
-			ConfigConstants.STANDALONE_HEARTBEAT_MAX_PAUSE_KEY,
-			ConfigConstants.DEFAULT_STANDALONE_HEARTBEAT_INTERVAL);
-
-		this.maxHeartbeatPause = config.getLong(
-			ConfigConstants.STANDALONE_HEARTBEAT_MAX_PAUSE_KEY,
-			ConfigConstants.DEFAULT_STANDALONE_HEARTBEAT_MAX_PAUSE);
-		
-		this.cleanupInterval = config.getLong(
-			ConfigConstants.STANDALONE_CLEANUP_INTERVAL_KEY,
-			heartbeatInterval);
 	}
 
 	// ------------------------------------------------------------------------
@@ -76,35 +56,10 @@ public class StandaloneResourceManager extends FlinkResourceManager<RegisteredSt
 	
 	@Override
 	protected void initialize() throws Exception {
-		// the only thing we do is start the periodic check for dead TaskManagers
-		// to maintain actor thread safety, we start a periodic scheduler that
-		// sends a message that triggers the cleanup
-		
-		// cancel and pre-existing scheduler
-		if (periodicCleanupScheduler != null) {
-			periodicCleanupScheduler.cancel();
-		}
-		
-		final ActorRef self = self();
-		final FiniteDuration interval = new FiniteDuration(cleanupInterval, TimeUnit.MILLISECONDS);
-
-		periodicCleanupScheduler = context().system().scheduler().schedule(
-			interval, interval,
-			new Runnable() {
-				@Override
-				public void run() {
-					self.tell(decorateMessage(PerformCleanupMessage.get()), ActorRef.noSender());
-				}
-			}, context().dispatcher());
 	}
 
 	@Override
 	protected void shutdownApplication(ApplicationStatus finalStatus, String optionalDiagnostics) {
-		// cancel the periodic cleanup
-		if (periodicCleanupScheduler != null) {
-			periodicCleanupScheduler.cancel();
-			periodicCleanupScheduler = null;
-		}
 	}
 
 	@Override
@@ -117,16 +72,9 @@ public class StandaloneResourceManager extends FlinkResourceManager<RegisteredSt
 	}
 
 	@Override
-	protected List<RegisteredStandaloneTaskManager> reacceptRegisteredTaskManagers(
-		Collection<TaskManagerInfo> toConsolidate)
+	protected List<ResourceID> reacceptRegisteredTaskManagers(List<ResourceID> toConsolidate)
 	{
-		List<RegisteredStandaloneTaskManager> accepted = new ArrayList<>(toConsolidate.size());
-		for (TaskManagerInfo tm : toConsolidate) {
-			accepted.add(new RegisteredStandaloneTaskManager(
-				tm.resourceId(), tm.registeredTaskManagerId(),
-				tm.taskManagerActor(), tm.numSlots()));
-		}
-		return accepted;
+		return toConsolidate;
 	}
 
 	@Override
@@ -135,8 +83,7 @@ public class StandaloneResourceManager extends FlinkResourceManager<RegisteredSt
 	}
 
 	@Override
-	protected RegisteredStandaloneTaskManager workerRegistered(RegisterTaskManager registerMessage) {
-		final InstanceID registerId = new InstanceID();
+	protected ResourceID workerRegistered(RegisterTaskManager registerMessage) {
 		return new RegisteredStandaloneTaskManager(registerMessage.resourceId(), registerId,
 			registerMessage.taskManagerActor(), registerMessage.numberOfSlots());
 	}
@@ -174,15 +121,7 @@ public class StandaloneResourceManager extends FlinkResourceManager<RegisteredSt
 
 	@Override
 	protected void handleMessage(Object message) {
-		if (message instanceof HeartbeatMessage) {
-			receiveHeartbeat((HeartbeatMessage) message, sender());
-		}
-		else if (message instanceof PerformCleanupMessage) {
-			cleanupDeadWorkers();
-		}
-		else {
-			super.handleMessage(message);
-		}
+		super.handleMessage(message);
 	}
 
 	@Override
@@ -191,45 +130,6 @@ public class StandaloneResourceManager extends FlinkResourceManager<RegisteredSt
 		sender().tell(decorateMessage(
 			new LookupResourceReply(true)
 		), self());
-	}
-
-	private void receiveHeartbeat(HeartbeatMessage heartbeat, ActorRef sender) {
-		RegisteredStandaloneTaskManager worker = getRegisteredTaskManager(heartbeat.workerId());
-		if (worker != null) {
-			if (worker.registeredTaskManagerId().equals(heartbeat.registrationId())) {
-				worker.recordHeartbeat();
-				sender.tell(HeartbeatAcknowledgement.get(), self());
-			}
-			else {
-				log.debug("Received heartbeat for expired registration: {}", heartbeat);
-			}
-		}
-		else {
-			log.error("Received heartbeat for unknown worker: " + heartbeat);
-		}
-	}
-	
-	private void cleanupDeadWorkers() {
-		final long now = System.currentTimeMillis();
-
-		// we need to collect dead TaskManagers in a separate collection first,
-		// to prevent ConcurrentModificationException in the map of registered workers 
-		List<RegisteredStandaloneTaskManager> failedWorkers = new ArrayList<>(2);
-		
-		// check all currently registered TaskManagers
-		for (RegisteredStandaloneTaskManager tm : allRegisteredTaskManagers()) {
-			if (tm.isConsideredFailed(now, maxHeartbeatPause)) {
-				failedWorkers.add(tm);
-			}
-		}
-		
-		if (!failedWorkers.isEmpty()) {
-			// actually notify of the loss of the workers
-			String msg = "Received no heartbeat for " + maxHeartbeatPause + " msecs";
-			for (RegisteredStandaloneTaskManager tm : failedWorkers) {
-				notifyWorkerFailed(tm, msg);
-			}
-		}
 	}
 
 }

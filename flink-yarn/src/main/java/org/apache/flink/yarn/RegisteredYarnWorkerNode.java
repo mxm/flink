@@ -19,7 +19,6 @@
 package org.apache.flink.yarn;
 
 import akka.actor.ActorRef;
-import org.apache.flink.runtime.clusterframework.RegisteredTaskManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 

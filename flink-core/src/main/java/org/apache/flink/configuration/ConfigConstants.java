@@ -275,21 +275,7 @@ public final class ConfigConstants {
 	public static final String CONTAINERED_TASK_MANAGER_ENV_PREFIX = "containered.taskmanager.env.";
 
 	// --------------------------Standalone Setup -----------------------------
-
-	/**
-	 * Heartbeat interval for TaskManagers in standalone setups. 
-	 */
-	public static final String STANDALONE_HEARTBEAT_INTERVAL_KEY = "standalone.heartbeat-interval";
-
-	/**
-	 * Maximal heartbeat pause before a TaskManager is marked as dead by the JobManager.
-	 */
-	public static final String STANDALONE_HEARTBEAT_MAX_PAUSE_KEY = "standalone.max-heartbeat-pause";
-
-	/**
-	 * Interval in which registered TaskManagers are checked for expired heartbeats.
-	 */
-	public static final String STANDALONE_CLEANUP_INTERVAL_KEY = "standalone.failure-cleanup-interval";
+	
 	
 	// ------------------------ YARN Configuration ------------------------
 
