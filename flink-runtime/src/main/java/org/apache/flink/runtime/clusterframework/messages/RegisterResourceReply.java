@@ -31,6 +31,7 @@ public class RegisterResourceReply implements RequiresLeaderSessionID, java.io.S
 	private final boolean isRegistered;
 	private final ActorRef taskManager;
 	private final RegistrationMessages.RegisterTaskManager registrationMessage;
+	/** Optional (error) message */
 	private final String message;
 
 	public RegisterResourceReply(boolean isRegistered, ActorRef taskManager,

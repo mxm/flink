@@ -34,10 +34,7 @@ public class TestingResourceManager extends StandaloneResourceManager {
 
 	@Override
 	protected void handleMessage(Object message) {
-		if (message instanceof TestingResourceManager) {
-			// TODO
-		} else {
-			super.handleMessage(message);
-		}
+		// overwrite messages here if desired
+		super.handleMessage(message);
 	}
 }

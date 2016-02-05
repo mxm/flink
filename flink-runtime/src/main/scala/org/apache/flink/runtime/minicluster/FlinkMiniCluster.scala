@@ -286,7 +286,6 @@ abstract class FlinkMiniCluster(
     lrs.start(this)
 
     // start resource manager
-    val resourceManagerLeaderRetrievalService = createLeaderRetrievalService()
     val (rmActorSystems, rmActors) =
       (for(i <- 0 until numResourceManagers) yield {
         val actorSystem = if(useSingleActorSystem) {

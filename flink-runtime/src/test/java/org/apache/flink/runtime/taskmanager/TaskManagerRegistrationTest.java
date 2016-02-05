@@ -26,6 +26,7 @@ import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -465,10 +466,13 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			new JavaTestKit(actorSystem) {{
 				ActorRef taskManager = null;
 				ActorRef jobManager = null;
+				ActorRef resourceManager = null;
 
 				try {
 					// a simple JobManager
 					jobManager = startJobManager(config);
+
+					resourceManager = startResourceManager(config, jobManager);
 
 					// start a task manager with a configuration that provides a blocked port
 					taskManager = TaskManager.startTaskManagerComponentsAndActor(
@@ -592,7 +596,6 @@ public class TaskManagerRegistrationTest extends TestLogger {
 	private static ActorRef startJobManager(Configuration configuration) throws Exception {
 		// start the actors. don't give names, so they get generated names and we
 		// avoid conflicts with the actor names
-		// TODO RM
 		return JobManager.startJobManagerActors(
 			configuration,
 			actorSystem,
@@ -600,5 +603,13 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			NONE_STRING,
 			JobManager.class,
 			MemoryArchivist.class)._1();
+	}
+
+	private static ActorRef startResourceManager(Configuration config, ActorRef jobManager) {
+		return FlinkResourceManager.startResourceManagerActors(
+			config,
+			actorSystem,
+			new StandaloneLeaderRetrievalService(jobManager.path().toString()),
+			StandaloneResourceManager.class);
 	}
 }

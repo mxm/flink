@@ -371,37 +371,49 @@ class JobManager(
 
       if (msg.isRegistered) {
         // ResourceManager knows about the resource, now let's try to register TaskManager
-        try {
-          val instanceID = instanceManager.registerTaskManager(
-            taskManager,
-            originalMsg.resourceId,
-            originalMsg.connectionInfo,
-            originalMsg.resources,
-            originalMsg.numberOfSlots,
-            leaderSessionID.orNull)
+        // task manager has been registered in the meantime
+        if (instanceManager.isRegistered(taskManager)) {
+          val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
 
           // IMPORTANT: Send the response to the "sender", which is not the
           //            TaskManager actor, but the ask future!
           taskManager ! decorateMessage(
-            AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
+            AlreadyRegistered(
+              instanceID,
+              libraryCacheManager.getBlobServerPort)
           )
-
-          // to be notified when the taskManager is no longer reachable
-          context.watch(taskManager)
-        } catch {
-          // registerTaskManager throws an IllegalStateException if it is already shut down
-          // let the actor crash and restart itself in this case
-          case e: Exception =>
-            log.error("Failed to register TaskManager at instance manager", e)
+        } else {
+          try {
+            val instanceID = instanceManager.registerTaskManager(
+              taskManager,
+              originalMsg.resourceId,
+              originalMsg.connectionInfo,
+              originalMsg.resources,
+              originalMsg.numberOfSlots,
+              leaderSessionID.orNull)
 
             // IMPORTANT: Send the response to the "sender", which is not the
             //            TaskManager actor, but the ask future!
             taskManager ! decorateMessage(
-              RefuseRegistration(
-                ExceptionUtils.stringifyException(e))
+              AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
             )
-        }
 
+            // to be notified when the taskManager is no longer reachable
+            context.watch(taskManager)
+          } catch {
+            // registerTaskManager throws an IllegalStateException if it is already shut down
+            // let the actor crash and restart itself in this case
+            case e: Exception =>
+              log.error("Failed to register TaskManager at instance manager", e)
+
+              // IMPORTANT: Send the response to the "sender", which is not the
+              //            TaskManager actor, but the ask future!
+              taskManager ! decorateMessage(
+                RefuseRegistration(
+                  ExceptionUtils.stringifyException(e))
+              )
+          }
+        }
       } else {
         log.warn(s"TaskManager's resource id $resourceId is not registered with ResourceManager. " +
           s"Refusing registration.")

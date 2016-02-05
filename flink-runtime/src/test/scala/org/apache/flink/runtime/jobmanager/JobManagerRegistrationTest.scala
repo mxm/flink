@@ -113,6 +113,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     "handle repeated registration calls" in {
 
       val jm = startTestingJobManager(_system)
+      val rm = startTestingResourceManager(_system, jm.actor())
+
       val selfGateway = new AkkaActorGateway(testActor, null)
 
       val resourceID = ResourceID.generate()

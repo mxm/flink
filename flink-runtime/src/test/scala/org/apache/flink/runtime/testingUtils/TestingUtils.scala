@@ -443,6 +443,32 @@ object TestingUtils {
     )
   }
 
+  // TODO RM createResourceManager
+//  /** Creates a testing JobManager using the default recovery mode (standalone)
+//    *
+//    * @param actorSystem
+//    * @param configuration
+//    * @return
+//    */
+//  def createResourceManager(
+//                        actorSystem: ActorSystem,
+//                        configuration: Configuration)
+//  : ActorGateway = {
+//
+//    configuration.setString(ConfigConstants.RECOVERY_MODE, ConfigConstants.DEFAULT_RECOVERY_MODE)
+//
+//    val (actor, _) = JobManager.startJobManagerActors(
+//      configuration,
+//      actorSystem,
+//      Some(JobManager.JOB_MANAGER_NAME),
+//      Some(JobManager.ARCHIVE_NAME),
+//      classOf[JobManager],
+//      classOf[MemoryArchivist])
+//
+//    new AkkaActorGateway(actor, null)
+//  }
+
+
   class ForwardingActor(val target: ActorRef, val leaderSessionID: Option[UUID])
     extends FlinkActor with LeaderSessionMessageFilter with LogMessages {
 

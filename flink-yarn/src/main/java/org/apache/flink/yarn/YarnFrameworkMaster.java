@@ -471,6 +471,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 						"Exit status: {}", id, exitStatus);
 					
 					// notify the generic logic, which notifies the JobManager, etc.
+					// TODO RM notify jobmanager
 				}
 				
 				// general failure logging
