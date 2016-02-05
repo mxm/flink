@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
+import akka.actor.ActorRef;
 import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
@@ -28,20 +30,28 @@ import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 public class RegisterResource implements RequiresLeaderSessionID, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private final ResourceID resourceID;
+	private final ActorRef taskManager;
+ 	private final RegistrationMessages.RegisterTaskManager registerMessage;
 
-	public RegisterResource(ResourceID resourceID) {
-		this.resourceID = Preconditions.checkNotNull(resourceID);
+
+	public RegisterResource(ActorRef taskManager, RegistrationMessages.RegisterTaskManager registerMessage) {
+		this.taskManager = taskManager;
+		this.registerMessage = registerMessage;
 	}
 
-	public ResourceID getResourceID() {
-		return resourceID;
+	public ActorRef getTaskManager() {
+		return taskManager;
+	}
+
+	public RegistrationMessages.RegisterTaskManager getRegisterMessage() {
+		return registerMessage;
 	}
 
 	@Override
 	public String toString() {
 		return "RegisterResource{" +
-			"resourceID=" + resourceID +
+			"taskManager=" + taskManager +
+			", registerMessage=" + registerMessage +
 			'}';
 	}
 }

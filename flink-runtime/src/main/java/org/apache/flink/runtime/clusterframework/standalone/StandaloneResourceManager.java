@@ -43,6 +43,7 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	
 	@Override
 	protected void initialize() throws Exception {
+		// nothing to initialize
 	}
 
 	@Override

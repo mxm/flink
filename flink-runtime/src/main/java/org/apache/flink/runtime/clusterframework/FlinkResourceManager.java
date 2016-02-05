@@ -48,6 +48,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 
+import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -230,7 +231,8 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 			// --- lookup of registered resources
 
 			else if (message instanceof RegisterResource) {
-				handleRegisterResource(sender(), ((RegisterResource) message).getResourceID());
+				RegisterResource msg = (RegisterResource) message;
+				handleRegisterResource(sender(), msg.getTaskManager(), msg.getRegisterMessage());
 			}
 
 			// --- messages about JobManager leader status and registration
@@ -326,17 +328,21 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	/**
 	 * Lookup of a resource on which TaskManagers are started
 	 * @param jobManager The sender (JobManager) of the message
-	 * @param resourceID The id of the resource
+	 * @param taskManager The task manager who wants to register
+	 * @param msg The task manager's registration message
 	 */
-	private void handleRegisterResource(ActorRef jobManager, ResourceID resourceID) {
+	private void handleRegisterResource(ActorRef jobManager, ActorRef taskManager,
+			RegistrationMessages.RegisterTaskManager msg) {
+
+		ResourceID resourceID = msg.resourceId();
 		try {
-			WorkerType newWorker = workerRegistered(resourceID);
+			WorkerType newWorker = workerRegistered(msg.resourceId());
 			WorkerType oldWorker = registeredWorkers.put(resourceID, newWorker);
 			if (oldWorker != null) {
 				LOG.warn("Worker {} had been registered before.", resourceID);
 			}
 			jobManager.tell(decorateMessage(
-				new RegisterResourceReply(true)),
+				new RegisterResourceReply(true, taskManager, msg)),
 				self());
 		} catch (Exception e) {
 			LOG.error("TaskManager resource registration failed.", e);
@@ -344,7 +350,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 			// tell the TaskManager about the failure
 			String eStr = ExceptionUtils.stringifyException(e);
 			sender().tell(decorateMessage(
-				new RegisterResourceReply(false, eStr)), self());
+				new RegisterResourceReply(false, taskManager, msg, eStr)), self());
 		}
 	}
 
@@ -791,8 +797,8 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 		LeaderRetrievalService leaderRetriever,
 		Class<? extends FlinkResourceManager<?>> resourceManagerClass
 	) {
-		return startResourceManagerActors(configuration, actorSystem,
-				leaderRetriever, resourceManagerClass, null);
+		Props resourceMasterProps = Props.create(resourceManagerClass, configuration, leaderRetriever);
+		return actorSystem.actorOf(resourceMasterProps);
 	}
 
 	/**
@@ -813,11 +819,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	) {
 
 		Props resourceMasterProps = Props.create(resourceManagerClass, configuration, leaderRetriever);
-
-		if (resourceManagerActorName != null) {
-			return actorSystem.actorOf(resourceMasterProps, resourceManagerActorName);
-		} else {
-			return actorSystem.actorOf(resourceMasterProps);
-		}
+		return actorSystem.actorOf(resourceMasterProps, resourceManagerActorName);
 	}
 }

@@ -53,8 +53,7 @@ public class RegistrationAtJobManagerSuccessful implements RequiresLeaderSession
 	 * @param currentlyRegisteredTaskManagers
 	 *         The list of TaskManagers that the JobManager currently knows. 
 	 */
-	public RegistrationAtJobManagerSuccessful(
-			Collection<ResourceID> currentlyRegisteredTaskManagers)
+	public RegistrationAtJobManagerSuccessful(Collection<ResourceID> currentlyRegisteredTaskManagers)
 	{
 		this.currentlyRegisteredTaskManagers = requireNonNull(currentlyRegisteredTaskManagers);
 	}

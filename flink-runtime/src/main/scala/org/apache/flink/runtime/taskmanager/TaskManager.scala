@@ -549,9 +549,9 @@ class TaskManager(
           self ! decorateMessage(PoisonPill)
         } else {
           if (!jobManagerAkkaURL.equals(Option(jobManagerURL))) {
-            throw new IllegalStateException("Invalid internal state: Trying to register with " +
-              s"JobManager through JobManager $jobManagerURL even though the current " +
-              s"JobManagerAkkaURL is set to ${jobManagerAkkaURL.getOrElse("")}")
+            throw new Exception("Invalid internal state: Trying to register at JobManager " +
+              s"$jobManagerURL even though the current JobManagerAkkaURL is set to " +
+              s"${jobManagerAkkaURL.getOrElse("")}")
           }
 
           log.info(s"Trying to register at JobManager $jobManagerURL " +
@@ -559,35 +559,28 @@ class TaskManager(
 
           val jobManager = context.actorSelection(jobManagerURL)
 
-          val future =
-            (jobManager ? decorateMessage(
-              RegisterTaskManager(
-                resourceID,
-                connectionInfo,
-                resources,
-                numberOfSlots))
-            )(timeout)
+          jobManager ! decorateMessage(
+            RegisterTaskManager(
+              resourceID,
+              connectionInfo,
+              resources,
+              numberOfSlots)
+          )
 
-          future.onSuccess({
-            case AcknowledgeRegistration =>
-            case AlreadyRegistered =>
-            case RefuseRegistration =>
-          })(context.dispatcher)
+          // the next timeout computes via exponential backoff with cap
+          val nextTimeout = (timeout * 2).min(TaskManager.MAX_REGISTRATION_TIMEOUT)
 
-          // something went wrong, try again
-          future.onFailure({
-            case _ =>
-              // the next timeout computes via exponential backoff with cap
-              val nextTimeout = (timeout * 2).min(TaskManager.MAX_REGISTRATION_TIMEOUT)
-
-              self ! decorateMessage(
-                TriggerTaskManagerRegistration(
-                  jobManagerURL,
-                  nextTimeout,
-                  deadline,
-                  attempt + 1)
-              )
-          })(context.dispatcher)
+          // schedule (with our timeout s delay) a check triggers a new registration
+          // attempt, if we are not registered by then
+          context.system.scheduler.scheduleOnce(
+            timeout,
+            self,
+            decorateMessage(TriggerTaskManagerRegistration(
+              jobManagerURL,
+              nextTimeout,
+              deadline,
+              attempt + 1)
+            ))(context.dispatcher)
         }
 
       // successful registration. associate with the JobManager

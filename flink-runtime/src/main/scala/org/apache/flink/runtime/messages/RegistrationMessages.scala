@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.messages
 
+import akka.actor.ActorRef
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.instance.{InstanceConnectionInfo, InstanceID, HardwareDescription}
 

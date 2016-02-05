@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
+import akka.actor.ActorRef;
+import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
@@ -27,14 +29,20 @@ public class RegisterResourceReply implements RequiresLeaderSessionID, java.io.S
 	private static final long serialVersionUID = 1L;
 
 	private final boolean isRegistered;
+	private final ActorRef taskManager;
+	private final RegistrationMessages.RegisterTaskManager registrationMessage;
 	private final String message;
 
-	public RegisterResourceReply(boolean isRegistered) {
-		this(isRegistered, "");
+	public RegisterResourceReply(boolean isRegistered, ActorRef taskManager,
+								 RegistrationMessages.RegisterTaskManager registrationMessage) {
+		this(isRegistered, taskManager, registrationMessage, "");
 	}
 
-	public RegisterResourceReply(boolean isRegistered, String message) {
+	public RegisterResourceReply(boolean isRegistered, ActorRef taskManager,
+								 RegistrationMessages.RegisterTaskManager registrationMessage, String message) {
 		this.isRegistered = isRegistered;
+		this.taskManager = taskManager;
+		this.registrationMessage = registrationMessage;
 		this.message = message;
 	}
 
@@ -46,10 +54,20 @@ public class RegisterResourceReply implements RequiresLeaderSessionID, java.io.S
 		return message;
 	}
 
+	public ActorRef getTaskManager() {
+		return taskManager;
+	}
+
+	public RegistrationMessages.RegisterTaskManager getRegistrationMessage() {
+		return registrationMessage;
+	}
+
 	@Override
 	public String toString() {
 		return "RegisterResourceReply{" +
 			"isRegistered=" + isRegistered +
+			", taskManager=" + taskManager +
+			", registrationMessage=" + registrationMessage +
 			", message='" + message + '\'' +
 			'}';
 	}

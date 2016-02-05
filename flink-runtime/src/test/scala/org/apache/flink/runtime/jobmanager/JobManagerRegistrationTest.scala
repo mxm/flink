@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager
+package org.apache.flink.runtime.jobmanager
 
 import java.net.InetAddress
 
@@ -25,15 +25,14 @@ import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
-import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.instance._
-import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
+import org.apache.flink.runtime.jobmanager.ResourceManagerRegistrationTest.PlainForwardingActor
+import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
 
-import org.apache.flink.runtime.resourcemanager.ResourceManagerRegistrationTest.PlainForwardingActor
-import org.apache.flink.runtime.util.LeaderRetrievalUtils
+import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.junit.Assert.{assertNotEquals, assertNotNull}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -43,10 +42,10 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 /**
- * Tests for the ResourceManager's behavior when a TaskManager solicits registration.
+ * Tests for the JobManager's behavior when a TaskManager solicits registration.
  */
 @RunWith(classOf[JUnitRunner])
-class ResourceManagerRegistrationTest(_system: ActorSystem) extends TestKit(_system) with
+class JobManagerRegistrationTest(_system: ActorSystem) extends TestKit(_system) with
 ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
   def this() = this(AkkaUtils.createLocalActorSystem(new Configuration()))
@@ -55,10 +54,11 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     TestKit.shutdownActorSystem(system)
   }
 
-  "The ResourceManager" should {
+  "The JobManager" should {
 
     "assign a TaskManager a unique instance ID" in {
-      val rm = startTestingResourceManager(_system)
+      val jm = startTestingJobManager(_system)
+      val rm = startTestingResourceManager(_system, jm.actor())
 
       val tm1 = _system.actorOf(Props(new PlainForwardingActor(testActor)))
       val tm2 = _system.actorOf(Props(new PlainForwardingActor(testActor)))
@@ -73,11 +73,10 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       // task manager 1
       within(1 second) {
-        rm.tell(
+        jm.tell(
           RegisterTaskManager(
             ResourceID.generate(),
             connectionInfo1,
-            self,
             hardwareDescription,
             1),
           new AkkaActorGateway(tm1, null))
@@ -91,11 +90,10 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
       // task manager 2
       within(1 second) {
-        rm.tell(
+        jm.tell(
           RegisterTaskManager(
             ResourceID.generate(),
             connectionInfo2,
-            self,
             hardwareDescription,
             1),
           new AkkaActorGateway(tm2, null))
@@ -114,7 +112,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
     "handle repeated registration calls" in {
 
-      val rm = startTestingResourceManager(_system)
+      val jm = startTestingJobManager(_system)
       val selfGateway = new AkkaActorGateway(testActor, null)
 
       val resourceID = ResourceID.generate()
@@ -122,29 +120,26 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       val hardwareDescription = HardwareDescription.extractFromSystem(10)
 
       within(5 second) {
-        rm.tell(
+        jm.tell(
           RegisterTaskManager(
             resourceID,
             connectionInfo,
-            self,
             hardwareDescription,
             1),
           selfGateway)
 
-        rm.tell(
+        jm.tell(
           RegisterTaskManager(
             resourceID,
             connectionInfo,
-            self,
             hardwareDescription,
             1),
           selfGateway)
 
-        rm.tell(
+        jm.tell(
           RegisterTaskManager(
             resourceID,
             connectionInfo,
-            self,
             hardwareDescription,
             1),
           selfGateway)
@@ -167,12 +162,24 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     }
   }
 
-  private def startTestingResourceManager(system: ActorSystem): ActorGateway = {
+  private def startTestingJobManager(system: ActorSystem): ActorGateway = {
+    val (jm: ActorRef, _) = JobManager.startJobManagerActors(
+      new Configuration(),
+      _system,
+      None,
+      None,
+      classOf[JobManager],
+      classOf[MemoryArchivist])
+    new AkkaActorGateway(jm, null)
+  }
+
+  private def startTestingResourceManager(system: ActorSystem, jm: ActorRef): ActorGateway = {
+    val jobManagerURL = AkkaUtils.getAkkaURL(system, jm)
     val rm: ActorRef = FlinkResourceManager.startResourceManagerActors(
       new Configuration(),
       _system,
-      LeaderRetrievalUtils.createLeaderRetrievalService(new Configuration()),
-      classOf[StandaloneResourceManager])
+      new StandaloneLeaderRetrievalService(jobManagerURL),
+      classOf[TestingResourceManager])
     new AkkaActorGateway(rm, null)
   }
 }

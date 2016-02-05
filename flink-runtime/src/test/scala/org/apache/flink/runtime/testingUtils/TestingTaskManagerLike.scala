@@ -211,15 +211,15 @@ trait TestingTaskManagerLike extends FlinkActor {
     case RequestLeaderSessionID =>
       sender() ! ResponseLeaderSessionID(leaderSessionID.orNull)
 
-    case NotifyWhenRegisteredAtResourceManager(resourceManager: ActorRef) =>
-      if(isConnectedToResourceManager && resourceManager == currentResourceManager.get) {
+    case NotifyWhenRegisteredAtResourceManager(jobManager: ActorRef) =>
+      if(isConnected && jobManager == currentJobManager.get) {
         sender() ! true
       } else {
         val list = waitForRegisteredAtResourceManager.getOrElse(
-          resourceManager,
+          jobManager,
           Set[ActorRef]())
 
-        waitForRegisteredAtResourceManager += resourceManager -> (list + sender())
+        waitForRegisteredAtResourceManager += jobManager -> (list + sender())
       }
 
     case msg @ (_: AcknowledgeRegistration | _: AlreadyRegistered) =>

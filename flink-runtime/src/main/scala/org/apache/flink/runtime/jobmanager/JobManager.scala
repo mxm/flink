@@ -39,9 +39,7 @@ import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.clusterframework.messages._
-import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.clusterframework.{TaskManagerInfo, FlinkResourceManager}
 import org.apache.flink.runtime.execution.UnrecoverableException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.{RestartStrategy, RestartStrategyFactory}
@@ -54,7 +52,6 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGr
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService, StandaloneLeaderElectionService}
 
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -323,12 +320,12 @@ class JobManager(
       // ditch current resource manager (if any)
       currentResourceManager = Option(msg.resourceManager())
 
-      val taskManagerInfos = instanceManager.getAllRegisteredInstances.asScala.map(
-        instance => new TaskManagerInfo(instance.getResourceId)).toList
+      val taskManagerResources = instanceManager.getAllRegisteredInstances.asScala.map(
+        instance => instance.getResourceId).toList
 
       // confirm registration and send known task managers with their resource ids
       sender ! decorateMessage(
-        new RegistrationAtJobManagerSuccessful(taskManagerInfos.asJava))
+        new RegistrationAtJobManagerSuccessful(taskManagerResources.asJava))
 
     case msg @ RegisterTaskManager(
           resourceId,
@@ -340,12 +337,82 @@ class JobManager(
 
       val taskManager = sender()
 
-      handleTaskManagerRegistration(
-        taskManager,
-        resourceId,
-        connectionInfo,
-        hardwareInformation,
-        numberOfSlots)
+      if (instanceManager.isRegistered(taskManager)) {
+        val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
+
+        // IMPORTANT: Send the response to the "sender", which is not the
+        //            TaskManager actor, but the ask future!
+        taskManager ! decorateMessage(
+          AlreadyRegistered(
+            instanceID,
+            libraryCacheManager.getBlobServerPort)
+        )
+      } else {
+
+        currentResourceManager match {
+          case Some(rm) =>
+            rm ! decorateMessage(new RegisterResource(taskManager, msg))
+          case None =>
+            log.warn("Task Manager Registration but not connected to ResourceManager")
+            taskManager ! decorateMessage(
+              RefuseRegistration(
+                ExceptionUtils.stringifyException(new IllegalStateException(
+                  "JobManager currently doesn't have a registered ResourceManager")))
+            )
+        }
+
+      }
+
+    case msg: RegisterResourceReply =>
+
+      val originalMsg = msg.getRegistrationMessage
+      val taskManager = msg.getTaskManager
+      val resourceId = originalMsg.resourceId
+
+      if (msg.isRegistered) {
+        // ResourceManager knows about the resource, now let's try to register TaskManager
+        try {
+          val instanceID = instanceManager.registerTaskManager(
+            taskManager,
+            originalMsg.resourceId,
+            originalMsg.connectionInfo,
+            originalMsg.resources,
+            originalMsg.numberOfSlots,
+            leaderSessionID.orNull)
+
+          // IMPORTANT: Send the response to the "sender", which is not the
+          //            TaskManager actor, but the ask future!
+          taskManager ! decorateMessage(
+            AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
+          )
+
+          // to be notified when the taskManager is no longer reachable
+          context.watch(taskManager)
+        } catch {
+          // registerTaskManager throws an IllegalStateException if it is already shut down
+          // let the actor crash and restart itself in this case
+          case e: Exception =>
+            log.error("Failed to register TaskManager at instance manager", e)
+
+            // IMPORTANT: Send the response to the "sender", which is not the
+            //            TaskManager actor, but the ask future!
+            taskManager ! decorateMessage(
+              RefuseRegistration(
+                ExceptionUtils.stringifyException(e))
+            )
+        }
+
+      } else {
+        log.warn(s"TaskManager's resource id $resourceId is not registered with ResourceManager. " +
+          s"Refusing registration.")
+
+        taskManager  ! decorateMessage(
+          RefuseRegistration(
+            ExceptionUtils.stringifyException(new IllegalStateException(
+              "Resource $resourceId not registered " +
+                s"with resource manager.")))
+        )
+      }
 
     case RequestNumberRegisteredTaskManager =>
       sender ! decorateMessage(instanceManager.getNumberOfRegisteredTaskManagers)
@@ -874,90 +941,6 @@ class JobManager(
 
     case RequestWebMonitorPort =>
       sender() ! ResponseWebMonitorPort(webMonitorPort)
-  }
-
-  private def handleTaskManagerRegistration(
-     taskManager: ActorRef,
-     resourceId: ResourceID,
-     connectionInfo: InstanceConnectionInfo,
-     hardwareInformation: HardwareDescription,
-     numberOfSlots: Int): Unit = {
-
-    if (instanceManager.isRegistered(taskManager)) {
-      val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
-
-      // IMPORTANT: Send the response to the "sender", which is not the
-      //            TaskManager actor, but the ask future!
-      sender() ! decorateMessage(
-        AlreadyRegistered(
-          instanceID,
-          libraryCacheManager.getBlobServerPort)
-      )
-    } else {
-
-      currentResourceManager match {
-        case Some(rm) =>
-          val future = (rm ? new RegisterResource(resourceId))(timeout)
-          future.onSuccess({
-            case msg: RegisterResourceReply =>
-              if (msg.isRegistered) {
-                // ResourceManager knows about the resource, now let's try to register TaskManager
-                try {
-                  val instanceID = instanceManager.registerTaskManager(
-                    taskManager,
-                    resourceId,
-                    connectionInfo,
-                    hardwareInformation,
-                    numberOfSlots,
-                    leaderSessionID.orNull)
-
-                  // IMPORTANT: Send the response to the "sender", which is not the
-                  //            TaskManager actor, but the ask future!
-                  sender() ! decorateMessage(
-                    AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
-                  )
-
-                  // to be notified when the taskManager is no longer reachable
-                  context.watch(taskManager)
-                } catch {
-                  // registerTaskManager throws an IllegalStateException if it is already shut down
-                  // let the actor crash and restart itself in this case
-                  case e: Exception =>
-                    log.error("Failed to register TaskManager at instance manager", e)
-
-                    // IMPORTANT: Send the response to the "sender", which is not the
-                    //            TaskManager actor, but the ask future!
-                    sender() ! decorateMessage(
-                      RefuseRegistration(
-                        ExceptionUtils.stringifyException(e))
-                    )
-                }
-
-              } else {
-                log.warn(s"TaskManager's resource id $resourceId is not registered " +
-                  s"with ResourceManager. Refusing registration.")
-
-                taskManager  ! decorateMessage(
-                  RefuseRegistration(
-                    ExceptionUtils.stringifyException(new IllegalStateException(
-                      "Resource $resourceId not registered " +
-                      s"with resource manager.")))
-                )
-              }
-          }
-      )(context.dispatcher)
-
-        case None =>
-          log.warn("Task Manager Registration but not connected to ResourceManager")
-
-          taskManager  ! decorateMessage(
-            RefuseRegistration(
-              ExceptionUtils.stringifyException(new IllegalStateException(
-                "JobManager currently doesn't have a registered ResourceManager")))
-          )
-      }
-
-    }
   }
 
   /**
