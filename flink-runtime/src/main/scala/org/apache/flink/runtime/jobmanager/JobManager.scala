@@ -313,15 +313,6 @@ class JobManager(
 
       futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) ++ newFuturesToComplete)
 
-      // inform the resource manager that we don't need the instances anymore
-      currentResourceManager foreach {
-        (rm) =>
-          instanceManager.getAllRegisteredInstances.asScala.foreach {
-            (instance) =>
-              rm ! decorateMessage(new ReleaseTaskManager(instance.getResourceId, instance.getId))
-          }
-      }
-
       instanceManager.unregisterAllTaskManagers()
 
       leaderSessionID = None
@@ -906,9 +897,9 @@ class JobManager(
 
       currentResourceManager match {
         case Some(rm) =>
-          val future = (rm ? new LookupResource(resourceId))(timeout)
+          val future = (rm ? new RegisterResource(resourceId))(timeout)
           future.onSuccess({
-            case msg: LookupResourceReply =>
+            case msg: RegisterResourceReply =>
               if (msg.isRegistered) {
                 // ResourceManager knows about the resource, now let's try to register TaskManager
                 try {

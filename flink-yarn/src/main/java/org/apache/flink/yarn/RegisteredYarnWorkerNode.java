@@ -26,17 +26,15 @@ import org.apache.hadoop.yarn.api.records.Container;
 
 import static java.util.Objects.requireNonNull;
 
-public class RegisteredYarnWorkerNode extends RegisteredTaskManager {
+public class RegisteredYarnWorkerNode extends ResourceID {
 	
 	/** The container on which the worker runs */
 	private final Container yarnContainer;
 
 	public RegisteredYarnWorkerNode(
-		ResourceID resourceId, InstanceID registrationId,
-		ActorRef taskManagerActor, int numSlots,
-		Container yarnContainer)
+		ResourceID resourceId, Container yarnContainer)
 	{
-		super(resourceId, registrationId, taskManagerActor, numSlots);
+		super(resourceId.getResourceId());
 		this.yarnContainer = requireNonNull(yarnContainer);
 	}
 
@@ -45,15 +43,11 @@ public class RegisteredYarnWorkerNode extends RegisteredTaskManager {
 	}
 	
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
-		return "RegisteredYarnWorkerNode {" +
-			"resourceId=" + resourceId() +
-			", registeredTaskManagerId=" + registeredTaskManagerId() +
-			", taskManagerActor=" + taskManagerActor() +
-			", numSlots=" + numSlots() +
-			", yarnContainer=" + yarnContainer +
+		return "RegisteredYarnWorkerNode{" +
+			"yarnContainer=" + yarnContainer +
 			'}';
 	}
 }

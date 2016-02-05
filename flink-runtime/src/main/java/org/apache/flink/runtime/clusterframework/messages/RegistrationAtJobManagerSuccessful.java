@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import akka.actor.ActorRef;
-
-import org.apache.flink.runtime.clusterframework.TaskManagerInfo;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 import java.io.Serializable;
@@ -39,14 +37,14 @@ public class RegistrationAtJobManagerSuccessful implements RequiresLeaderSession
 	private static final long serialVersionUID = 817011779310941753L;
 
 	/** The list of registered TaskManagers that the JobManager currently knows */
-	private final Collection<TaskManagerInfo> currentlyRegisteredTaskManagers;
+	private final Collection<ResourceID> currentlyRegisteredTaskManagers;
 
 
 	/**
 	 * Creates a new message with an empty list of known TaskManagers.
 	 */
 	public RegistrationAtJobManagerSuccessful() {
-		this(Collections.<TaskManagerInfo>emptyList());
+		this(Collections.<ResourceID>emptyList());
 	}
 
 	/**
@@ -56,14 +54,14 @@ public class RegistrationAtJobManagerSuccessful implements RequiresLeaderSession
 	 *         The list of TaskManagers that the JobManager currently knows. 
 	 */
 	public RegistrationAtJobManagerSuccessful(
-			Collection<TaskManagerInfo> currentlyRegisteredTaskManagers)
+			Collection<ResourceID> currentlyRegisteredTaskManagers)
 	{
 		this.currentlyRegisteredTaskManagers = requireNonNull(currentlyRegisteredTaskManagers);
 	}
 	
 	// ------------------------------------------------------------------------
 
-	public Collection<TaskManagerInfo> currentlyRegisteredTaskManagers() {
+	public Collection<ResourceID> currentlyRegisteredTaskManagers() {
 		return currentlyRegisteredTaskManagers;
 	}
 

@@ -23,25 +23,25 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
- * Answer to LookupResourceReply to indicate whether the requested resource is available.
+ * Triggers a lookup at the ResourceManager to check if the resource for a TaskManager is registered.
  */
-public class LookupResourceReply implements RequiresLeaderSessionID, java.io.Serializable {
+public class RegisterResource implements RequiresLeaderSessionID, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private final boolean isRegistered;
+	private final ResourceID resourceID;
 
-	public LookupResourceReply(boolean isRegistered) {
-		this.isRegistered = isRegistered;
+	public RegisterResource(ResourceID resourceID) {
+		this.resourceID = Preconditions.checkNotNull(resourceID);
 	}
 
-	public boolean isRegistered() {
-		return isRegistered;
+	public ResourceID getResourceID() {
+		return resourceID;
 	}
 
 	@Override
 	public String toString() {
-		return "LookupResourceReply{" +
-			"isRegistered=" + isRegistered +
+		return "RegisterResource{" +
+			"resourceID=" + resourceID +
 			'}';
 	}
 }

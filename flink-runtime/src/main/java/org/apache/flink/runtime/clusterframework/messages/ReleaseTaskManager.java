@@ -26,18 +26,15 @@ import java.io.Serializable;
 
 /**
  * Message sent by the JobManager to the ResourceManager to tell it that a
- * specific TaskManager can be released.
+ * specific TaskManager and its resource can be released.
  */
 public class ReleaseTaskManager implements RequiresLeaderSessionID, Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	private final ResourceID resourceId;
-	
-	private final InstanceID registrationId;
 
-	public ReleaseTaskManager(ResourceID resourceId, InstanceID registrationId) {
+	public ReleaseTaskManager(ResourceID resourceId) {
 		this.resourceId = resourceId;
-		this.registrationId = registrationId;
 	}
 	
 	// ------------------------------------------------------------------------
@@ -46,9 +43,6 @@ public class ReleaseTaskManager implements RequiresLeaderSessionID, Serializable
 		return resourceId;
 	}
 
-	public InstanceID registrationId() {
-		return registrationId;
-	}
 
 	// ------------------------------------------------------------------------
 	
@@ -56,7 +50,6 @@ public class ReleaseTaskManager implements RequiresLeaderSessionID, Serializable
 	public String toString() {
 		return "ReleaseTaskManager {" +
 			"resourceId='" + resourceId + '\'' +
-			", registrationId=" + registrationId +
 			'}';
 	}
 }

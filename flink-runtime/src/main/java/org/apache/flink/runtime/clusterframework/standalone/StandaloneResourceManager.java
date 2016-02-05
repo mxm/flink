@@ -18,32 +18,19 @@
 
 package org.apache.flink.runtime.clusterframework.standalone;
 
-import akka.actor.ActorRef;
-import akka.actor.Cancellable;
-
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.TaskManagerInfo;
-import org.apache.flink.runtime.clusterframework.messages.LookupResourceReply;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager;
 
-import scala.concurrent.duration.FiniteDuration;
-
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A standalone implementation of the resource manager. Used when the system is started in
  * standalone mode (via scripts), rather than via a resource framework like YARN or Mesos.
  */
-public class StandaloneResourceManager extends FlinkResourceManager {
+public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> {
 	
 
 	public StandaloneResourceManager(Configuration flinkConfig, LeaderRetrievalService leaderRetriever) {
@@ -74,6 +61,7 @@ public class StandaloneResourceManager extends FlinkResourceManager {
 	@Override
 	protected List<ResourceID> reacceptRegisteredTaskManagers(List<ResourceID> toConsolidate)
 	{
+		// we accept everything
 		return toConsolidate;
 	}
 
@@ -83,18 +71,18 @@ public class StandaloneResourceManager extends FlinkResourceManager {
 	}
 
 	@Override
-	protected ResourceID workerRegistered(RegisterTaskManager registerMessage) {
-		return new RegisteredStandaloneTaskManager(registerMessage.resourceId(), registerId,
-			registerMessage.taskManagerActor(), registerMessage.numberOfSlots());
+	protected ResourceID workerRegistered(ResourceID resourceID) {
+		// we accept everything
+		return resourceID;
 	}
 
 	@Override
-	protected void workerUnRegistered(RegisteredStandaloneTaskManager worker) {
+	protected void workerUnRegistered(ResourceID resourceID) {
 		// nothing to do, we only wait for the worker to re-register
 	}
 
 	@Override
-	protected void releaseRegisteredWorker(RegisteredStandaloneTaskManager registeredWorker) {
+	protected void releaseRegisteredWorker(ResourceID resourceID) {
 		// cannot release any workers, they simply stay
 	}
 
@@ -122,14 +110,6 @@ public class StandaloneResourceManager extends FlinkResourceManager {
 	@Override
 	protected void handleMessage(Object message) {
 		super.handleMessage(message);
-	}
-
-	@Override
-	protected void handleResourceLookup(ActorRef sender, ResourceID resourceID) {
-		// in standalone mode, always confirm availability of resource
-		sender().tell(decorateMessage(
-			new LookupResourceReply(true)
-		), self());
 	}
 
 }

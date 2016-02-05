@@ -32,49 +32,37 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.clusterframework.messages.CheckAndAllocateContainers;
 import org.apache.flink.runtime.clusterframework.messages.FatalErrorOccurred;
-import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
-import org.apache.flink.runtime.clusterframework.messages.LookupResource;
-import org.apache.flink.runtime.clusterframework.messages.LookupResourceReply;
+import org.apache.flink.runtime.clusterframework.messages.RegisterResource;
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceReply;
 import org.apache.flink.runtime.clusterframework.messages.NewLeaderAvailable;
 import org.apache.flink.runtime.clusterframework.messages.RegisterInfoMessageListener;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
 import org.apache.flink.runtime.clusterframework.messages.RegistrationAtJobManagerSuccessful;
-import org.apache.flink.runtime.clusterframework.messages.ReleaseTaskManager;
 import org.apache.flink.runtime.clusterframework.messages.SetWorkerPoolSize;
-import org.apache.flink.runtime.clusterframework.messages.ShutdownTaskManager;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
-import org.apache.flink.runtime.clusterframework.messages.TaskManagerRemoved;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
-import org.apache.flink.runtime.messages.Messages;
-import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager;
-import org.apache.flink.runtime.messages.RegistrationMessages.AcknowledgeRegistration;
 
+import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import scala.concurrent.Await;
 import scala.concurrent.Future;
-import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static java.util.Objects.requireNonNull;
 
@@ -96,12 +84,12 @@ import static java.util.Objects.requireNonNull;
  *     <li>At some point, the TaskManager processes will have started and send a registration
  *         message to the JobManager. The JobManager will perform
  *         a lookup with the ResourceManager to check if it really started this TaskManager.
- *         The method {@link #workerRegistered(RegisterTaskManager)} will be called
- *         to create a tracking worker object for the registered worker.</li>
+ *         The method {@link #workerRegistered(ResourceID)} will be called
+ *         to inform about a registered worker.</li>
  * </ol>
  *
  */
-public abstract class FlinkResourceManager extends FlinkUntypedActor {
+public abstract class FlinkResourceManager<WorkerType extends ResourceID> extends FlinkUntypedActor {
 
 	/** The exit code with which the process is stopped in case of a fatal error */
 	protected static final int EXIT_CODE_FATAL_ERROR = -13;
@@ -123,8 +111,8 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 	/** The service to find the right leader JobManager (to support high availability) */
 	private final LeaderRetrievalService leaderRetriever;
 
-	/** The currently allocated resources */
-	private final Set<ResourceID> allocatedWorkers;
+	/** The currently registered resources */
+	private final Map<ResourceID, WorkerType> registeredWorkers;
 
 	/** List of listeners for info messages */
 	private ActorRef infoMessageListener;
@@ -149,7 +137,7 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 	protected FlinkResourceManager(Configuration flinkConfig, LeaderRetrievalService leaderRetriever) {
 		this.config = requireNonNull(flinkConfig);
 		this.leaderRetriever = requireNonNull(leaderRetriever);
-		this.allocatedWorkers = new HashSet<>();
+		this.registeredWorkers = new HashMap<>();
 
 		FiniteDuration lt;
 		try {
@@ -234,15 +222,15 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 				SetWorkerPoolSize msg = (SetWorkerPoolSize) message;
 				adjustDesignatedNumberOfWorkers(msg.numberOfWorkers());
 			}
-			else if (message instanceof ReleaseTaskManager) {
-				ReleaseTaskManager msg = (ReleaseTaskManager) message;
-				releaseTaskManager(msg.resourceId(), msg.registrationId());
-			}
+//			else if (message instanceof ReleaseTaskManager) {
+//				ReleaseTaskManager msg = (ReleaseTaskManager) message;
+//				releaseTaskManager(msg.resourceId());
+//			}
 
 			// --- lookup of registered resources
 
-			else if (message instanceof LookupResource) {
-				handleResourceLookup(sender(), ((LookupResource) message).getResourceID());
+			else if (message instanceof RegisterResource) {
+				handleRegisterResource(sender(), ((RegisterResource) message).getResourceID());
 			}
 
 			// --- messages about JobManager leader status and registration
@@ -313,17 +301,17 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 	 * @return The number of currently registered TaskManagers.
 	 */
 	public int getNumberOfRegisteredTaskManagers() {
-		return allocatedWorkers.size();
+		return registeredWorkers.size();
 	}
 
 	/**
 	 * Gets the registered worker for a given resource ID, if one is available.
 	 *
 	 * @param resourceId The resource ID for the worker.
-	 * @return The worker for that resource ID, or null, if none is registered under that ID.
+	 * @return True if already registered, otherwise false
 	 */
-	public WorkerType getRegisteredTaskManager(ResourceID resourceId) {
-		return allocatedWorkers.get(resourceId);
+	public boolean isRegistered(ResourceID resourceId) {
+		return registeredWorkers.containsKey(resourceId);
 	}
 
 	/**
@@ -331,76 +319,85 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 	 *
 	 * @return All currently registered TaskManagers.
 	 */
-	public Collection<WorkerType> allRegisteredTaskManagers() {
-		return allocatedWorkers.values();
+	public Collection<WorkerType> allRegisteredWorkers() {
+		return registeredWorkers.values();
 	}
 
 	/**
 	 * Lookup of a resource on which TaskManagers are started
-	 * @param sender The sender (JobManager) of the message
+	 * @param jobManager The sender (JobManager) of the message
 	 * @param resourceID The id of the resource
 	 */
-	protected void handleResourceLookup(ActorRef sender, ResourceID resourceID) {
-
-		boolean isRegistered = allocatedWorkers.contains(resourceID);
-
-		sender.tell(decorateMessage(
-			new LookupResourceReply(isRegistered)),
-			self());
-	}
-
-	/**
-	 * Releases the given TaskManager. Note that this does not automatically shrink
-	 * the designated worker pool size.
-	 *
-	 * @param resourceId The TaskManager's resource id.
-	 * @param registrationId The TaskManager's registration id.
-	 */
-	private void releaseTaskManager(ResourceID resourceId, InstanceID registrationId) {
+	private void handleRegisterResource(ActorRef jobManager, ResourceID resourceID) {
 		try {
-			WorkerType worker = allocatedWorkers.remove(resourceId);
-			if (worker != null) {
-				if (worker.registeredTaskManagerId().equals(registrationId)) {
-					// tell the TaskManager process to cleanly quit
-					worker.taskManagerActor().tell(
-						new ShutdownTaskManager("TaskManager was released as a resource."),
-						self());
+			WorkerType newWorker = workerRegistered(resourceID);
+			WorkerType oldWorker = registeredWorkers.put(resourceID, newWorker);
+			if (oldWorker != null) {
+				LOG.warn("Worker {} had been registered before.", resourceID);
+			}
+			jobManager.tell(decorateMessage(
+				new RegisterResourceReply(true)),
+				self());
+		} catch (Exception e) {
+			LOG.error("TaskManager resource registration failed.", e);
 
-					// make sure the resource framework deallocates the resource
-					releaseRegisteredWorker(worker);
-				}
-				else {
-					// we are in an inconsistent state. not sure how this happened, but we
-					// definitely need to fix it from here
-					LOG.error("Inconsistent registration of TaskManager resource {}. " +
-						"Forcing TaskManager to re-register.", resourceId);
-					forceTaskManagerToReconnect(worker, "Inconsistent registration of TaskManager");
-				}
-			}
-			else {
-				// may happen if the container failed and the JobManager requested a
-				// release at the same time
-				LOG.debug("Received request to release unknown TaskManager with resource id {}",
-					resourceId);
-			}
-		}
-		finally {
-			// in any case, we acknowledge the receipt of that message, because we handled it
-			sender().tell(Acknowledge.get(), ActorRef.noSender());
+			// tell the TaskManager about the failure
+			String eStr = ExceptionUtils.stringifyException(e);
+			sender().tell(decorateMessage(
+				new RegisterResourceReply(false, eStr)), self());
 		}
 	}
 
-	private void forceTaskManagerToReconnect(WorkerType worker, String reason) {
-		// out of our bookkeeping
-		allocatedWorkers.remove(worker.resourceId());
+//	/**
+//	 * Releases the given TaskManager. Note that this does not automatically shrink
+//	 * the designated worker pool size.
+//	 *
+//	 * @param resourceId The TaskManager's resource id.
+//	 */
+//	private void releaseTaskManager(ResourceID resourceId) {
+//		try {
+//			if (registeredWorkers.remove(resourceId)) {
+//				if (worker.registeredTaskManagerId().equals(registrationId)) {
+//					// tell the TaskManager process to cleanly quit
+//					worker.taskManagerActor().tell(
+//						new ShutdownTaskManager("TaskManager was released as a resource."),
+//						self());
+//
+//					// make sure the resource framework deallocates the resource
+//					releaseRegisteredWorker(worker);
+//				}
+//				else {
+//					// we are in an inconsistent state. not sure how this happened, but we
+//					// definitely need to fix it from here
+//					LOG.error("Inconsistent registration of TaskManager resource {}. " +
+//						"Forcing TaskManager to re-register.", resourceId);
+//					forceTaskManagerToReconnect(worker, "Inconsistent registration of TaskManager");
+//				}
+//			}
+//			else {
+//				// may happen if the container failed and the JobManager requested a
+//				// release at the same time
+//				LOG.debug("Received request to release unknown TaskManager with resource id {}",
+//					resourceId);
+//			}
+//		}
+//		finally {
+//			// in any case, we acknowledge the receipt of that message, because we handled it
+//			sender().tell(Acknowledge.get(), ActorRef.noSender());
+//		}
+//	}
 
-		// framework should know the worker is pending re-registration
-		workerUnRegistered(worker);
-
-		// make the TaskManager go back to registration attempts
-		worker.taskManagerActor().tell(
-			decorateMessage(new Messages.Disconnect(reason)), ActorRef.noSender());
-	}
+//	private void forceTaskManagerToReconnect(WorkerType worker, String reason) {
+//		// out of our bookkeeping
+//		registeredWorkers.remove(worker.resourceId());
+//
+//		// framework should know the worker is pending re-registration
+//		workerUnRegistered(worker);
+//
+//		// make the TaskManager go back to registration attempts
+//		worker.taskManagerActor().tell(
+//			decorateMessage(new Messages.Disconnect(reason)), ActorRef.noSender());
+//	}
 
 	// ------------------------------------------------------------------------
 	//  Registration and consolidation with JobManager Leader
@@ -480,91 +477,66 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 
 			jobManager = null;
 			leaderSessionID = null;
-			jobManagerBlobServerPort = -1;
 			infoMessageListener = null;
 
 			// we move all currently registered TaskManagers to the "registration pending" status
 			LOG.info("Setting {} currently registered TaskManagers to await their re-registration " +
-				"with the new leader JobManager", allocatedWorkers.size());
+				"with the new leader JobManager", registeredWorkers.size());
 
-			for (WorkerType worker : allocatedWorkers.values()) {
+			for (WorkerType worker : registeredWorkers.values()) {
 				workerUnRegistered(worker);
 			}
-			allocatedWorkers.clear();
+
+			registeredWorkers.clear();
 		}
 	}
 
 	/**
 	 * // TODO
 	 * @param newJobManagerLeader
-	 * @param taskManagerInfos
+	 * @param workers
 	 */
 	private void jobManagerLeaderConnected(
 						ActorRef newJobManagerLeader,
-						Collection<TaskManagerInfo> taskManagerInfos) {
+						Collection<ResourceID> workers) {
 
 		if (jobManager == null) {
 			LOG.info("Resource Manager associating with leading JobManager {} - leader session {}",
 						newJobManagerLeader, leaderSessionID);
 
 			jobManager = newJobManagerLeader;
-			jobManagerBlobServerPort = newJobManagerBlobServerPort;
 
-			if (taskManagerInfos.size() > 0) {
+			if (workers.size() > 0) {
 				LOG.info("Received TaskManagers that were registered at the leader JobManager. " +
 						"Trying to consolidate.");
 
 				// keep track of which TaskManagers are not handled
-				Map<ResourceID, TaskManagerInfo> toHandle = new HashMap<>();
-				for (TaskManagerInfo tmInfo : taskManagerInfos) {
-					toHandle.put(tmInfo.resourceId(), tmInfo);
+				List<ResourceID> toHandle = new ArrayList<>(workers.size());
+				for (ResourceID resourceID : workers) {
+					toHandle.add(resourceID);
 				}
 
 				try {
 					// ask the framework to tell us which ones we should keep for now
-					List<WorkerType> consolidated = reacceptRegisteredTaskManagers(toHandle.values());
+					List<WorkerType> consolidated = reacceptRegisteredTaskManagers(toHandle);
 					log.info("Consolidated {} TaskManagers", consolidated.size());
 
 					// put the consolidated TaskManagers into our bookkeeping
-					for (WorkerType tm : consolidated) {
-						allocatedWorkers.put(tm.resourceId(), tm);
-						toHandle.remove(tm.resourceId());
-						// TaskManager is already registered with Resource Manager. Otherwise, the
-						// JobManager wouldn't know about the particular TaskManager.
-						// We might have to update the resource manager address, in case it crashed
-						// and was restarted on a different node.
-						tm.taskManagerActor().tell(decorateMessage(new AcknowledgeRegistration(
-							tm.registeredTaskManagerId(), newJobManagerBlobServerPort
-						)), self());
+					for (WorkerType worker : consolidated) {
+						registeredWorkers.put(worker, worker);
+						toHandle.remove(worker);
 					}
 				}
 				catch (Throwable t) {
 					LOG.error("Error during consolidation of known TaskManagers", t);
 					// the framework should release the remaining unclear resources
-					for (ResourceID id : toHandle.keySet()) {
+					for (ResourceID id : toHandle) {
 						releasePendingWorker(id);
 					}
 				}
 
-				if (toHandle.isEmpty()) {
-					log.info("Consolidated all TaskManager registrations");;
-				}
-				else {
-					log.info("Failed to consolidate {} TaskManagers", toHandle.size());
-
-					// whatever is left to handle (because it was not known, or because of an exception)
-					// will be sent to the JobManager as failed
-					String msg = "Could not consolidate TaskManager after Resource Manager failure/re-association";
-
-					for (TaskManagerInfo failed : toHandle.values()) {
-						jobManager.tell(decorateMessage(new TaskManagerRemoved(
-								failed.resourceId(), failed.registeredTaskManagerId(), msg)),
-							self());
-					}
-				}
 			}
-		}
-		else {
+		} else {
 			String msg = "Attempting to associate with new JobManager leader " + newJobManagerLeader
 				+ " without previously disassociating from current leader " + jobManager;
 			fatalError(msg, new Exception(msg));
@@ -578,48 +550,46 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 	private void shutdownCluster(ApplicationStatus status, String diagnostics) {
 		LOG.info("Shutting down cluster with status {} : {}", status, diagnostics);
 
-		// the shutdown consists of the following steps:
-		// 1) notify all workers to shut down (messages to task managers)
-		// 2) await the replies
-
-		// send the messages to the workers. note that this means only currently registered
-		// TaskManagers get this shutdown call to cleanly exit. All not registered TaskManagers
-		// need to be killed by the framework as part of releasing the container/resource.
-
-		ShutdownTaskManager shutdownMessage = new ShutdownTaskManager(
-			"The cluster is being shutdown with application status " + status);
-
-		Timeout timeout = new Timeout(messageTimeout);
-		Deadline deadline = messageTimeout.fromNow();
-
-		List<Future<?>> futures = new ArrayList<>(allocatedWorkers.size());
-		for (WorkerType tm : allocatedWorkers.values()) {
-			futures.add(
-				Patterns.ask(tm.taskManagerActor(), decorateMessage(shutdownMessage),
-				timeout));
-		}
-
-		// now we wait on the futures until all nodes responded, or the
-		// futures time out. That gives the nodes a chance to shut down cleanly
-		try {
-			for (Future<?> f : futures) {
-				Await.ready(f, deadline.timeLeft());
-			}
-		} catch (InterruptedException ignored) {
-			// we make only a best effort to cleanly shut down. if we are interrupted,
-			// the framework logic must act as a failsafe to eventually deallocate the container
-		} catch (TimeoutException e) {
-			log.error("Failed to shutdown all workers.");
-		}
-
-		// shut the resource master down.
-		shutdownApplication(status, diagnostics);
-
-		// TODO respond to JobManager?
-
-		// we shut down the whole process now.
-		int exitCode = status.processExitCode();
-		System.exit(exitCode);
+		// TODO RM
+//
+//		// the shutdown consists of the following steps:
+//		// 1) send message to job manager
+//		// 2) await reply
+//
+//		ShutdownTaskManager shutdownMessage = new ShutdownTaskManager(
+//			"The cluster is being shutdown with application status " + status);
+//
+//		Timeout timeout = new Timeout(messageTimeout);
+//		Deadline deadline = messageTimeout.fromNow();
+//
+//		List<Future<?>> futures = new ArrayList<>(registeredWorkers.size());
+//		for (ResourceID resourceID : registeredWorkers) {
+//			futures.add(
+//				Patterns.ask(tm.taskManagerActor(), decorateMessage(shutdownMessage),
+//				timeout));
+//		}
+//
+//		// now we wait on the futures until all nodes responded, or the
+//		// futures time out. That gives the nodes a chance to shut down cleanly
+//		try {
+//			for (Future<?> f : futures) {
+//				Await.ready(f, deadline.timeLeft());
+//			}
+//		} catch (InterruptedException ignored) {
+//			// we make only a best effort to cleanly shut down. if we are interrupted,
+//			// the framework logic must act as a failsafe to eventually deallocate the container
+//		} catch (TimeoutException e) {
+//			log.error("Failed to shutdown all workers.");
+//		}
+//
+//		// shut the resource master down.
+//		shutdownApplication(status, diagnostics);
+//
+//		// TODO respond to JobManager?
+//
+//		// we shut down the whole process now.
+//		int exitCode = status.processExitCode();
+//		System.exit(exitCode);
 	}
 
 	// ------------------------------------------------------------------------
@@ -637,7 +607,7 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 	 */
 	private void checkWorkersPool() {
 		// see how many workers we want, and whether we have enough
-		int allAvailableAndPending = allocatedWorkers.size() +
+		int allAvailableAndPending = registeredWorkers.size() +
 			getNumWorkersPendingRegistration() + getNumWorkerRequestsPending();
 
 		int missing = designatedPoolSize - allAvailableAndPending;
@@ -680,15 +650,13 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 	 * This method should be called by the framework once it detects that a currently registered
 	 * worker has failed.
 	 *
-	 * @param worker The worker that has failed.
+	 * @param resourceID Id of the worker that has failed.
 	 * @param message An informational message that explains why the worker failed.
 	 */
-	public void notifyWorkerFailed(WorkerType worker, String message) {
-		allocatedWorkers.remove(worker.resourceId());
+	public void notifyWorkerFailed(ResourceID resourceID, String message) {
+		registeredWorkers.remove(resourceID);
 
-		jobManager.tell(decorateMessage(new TaskManagerRemoved(
-				worker.resourceId(), worker.registeredTaskManagerId(), message)),
-			self());
+		// TODO RM
 	}
 
 	// ------------------------------------------------------------------------
@@ -742,19 +710,19 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 	 * Trigger a release of a registered worker.
 	 * @param resourceID The worker resource id
 	 */
-	protected abstract void releaseRegisteredWorker(ResourceID resourceID);
+	protected abstract void releaseRegisteredWorker(WorkerType resourceID);
 
 	/**
 	 * Callback when a worker was registered.
 	 * @param resourceID The worker resource id
 	 */
-	protected abstract void workerRegistered(ResourceID resourceID) throws Exception;
+	protected abstract WorkerType workerRegistered(ResourceID resourceID);
 
 	/**
 	 * Callback when a worker was unregistered.
 	 * @param resourceID The worker resource id
 	 */
-	protected abstract void workerUnRegistered(ResourceID resourceID);
+	protected abstract void workerUnRegistered(WorkerType resourceID);
 
 	/**
 	 * This method is called when the resource manager starts after a failure and reconnects to
@@ -768,12 +736,12 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 	 *
 	 * It is possible that the resource manager initially confirms some TaskManagers to be alive, even
 	 * through they are in an uncertain status, if it later sends necessary failure notifications
-	 * via calling {@link #notifyWorkerFailed(RegisteredTaskManager, String)}.
+	 * via calling {@link #notifyWorkerFailed(ResourceID, String)}.
 	 *
 	 * @param registered The list of TaskManagers that the JobManager knows.
 	 * @return The subset of TaskManagers that the resource manager can confirm to be alive.
 	 */
-	protected abstract List<ResourceID> reacceptRegisteredTaskManagers(List<ResourceID> registered);
+	protected abstract List<WorkerType> reacceptRegisteredTaskManagers(List<ResourceID> registered);
 
 	/**
 	 * Gets the number of requested workers that have not yet been granted.
@@ -804,15 +772,6 @@ public abstract class FlinkResourceManager extends FlinkUntypedActor {
 		infoMessageListener = listener;
 	}
 
-
-	private GetClusterStatusResponse queryClusterStatus() {
-		int numSlots = 0;
-		for (WorkerType worker : allRegisteredTaskManagers()) {
-			numSlots += worker.numSlots();
-		}
-
-		return new GetClusterStatusResponse(allocatedWorkers.size(), numSlots);
-	}
 
 	// ------------------------------------------------------------------------
 	//  Startup

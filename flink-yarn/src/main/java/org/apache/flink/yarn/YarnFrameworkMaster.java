@@ -27,15 +27,12 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.TaskManagerInfo;
 import org.apache.flink.runtime.clusterframework.messages.SetWorkerPoolSize;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager;
 import org.apache.flink.yarn.messages.ContainersAllocated;
 import org.apache.flink.yarn.messages.ContainersComplete;
 
@@ -56,7 +53,6 @@ import org.slf4j.Logger;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -75,8 +71,8 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 
 	/** The default heartbeat interval during regular operation */
 	private static final int DEFAULT_YARN_HEARTBEAT_INTERVAL_MS = 5000;
-	
-	
+
+
 	/** The containers where a TaskManager is starting and we are waiting for it to register */ 
 	private final Map<ResourceID, YarnContainerInLaunch> containersInLaunch;
 
@@ -307,7 +303,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	
 	private void releaseYarnContainer(Container container) {
 		log.info("Releasing YARN container {}", container.getId());
-		
+
 		containersBeingReturned.put(container.getId(), container);
 
 		// release the container on the node manager
@@ -324,46 +320,38 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	}
 
 	@Override
-	protected RegisteredYarnWorkerNode workerRegistered(RegisterTaskManager registerMessage) {
-		YarnContainerInLaunch inLaunch = containersInLaunch.remove(registerMessage.resourceId());
-		if (inLaunch != null) {
-			// the registering TaskManager is from a known container
-			return new RegisteredYarnWorkerNode(registerMessage.resourceId(), new InstanceID(),
-				registerMessage.taskManagerActor(), registerMessage.numberOfSlots(),
-				inLaunch.container());
-		}
-		else {
-			LOG.error("Cannot register TaskManager {} / {} - unknown resource id.",
-				registerMessage.resourceId(), registerMessage.connectionInfo());
+	protected RegisteredYarnWorkerNode workerRegistered(ResourceID resourceID) {
+		YarnContainerInLaunch inLaunch = containersInLaunch.remove(resourceID);
+		if (inLaunch == null) {
+			log.error("Cannot register Worker - unknown resource id {}", resourceID);
 			return null;
+		} else {
+			return new RegisteredYarnWorkerNode(resourceID, inLaunch.container());
 		}
 	}
 
 	@Override
 	protected void workerUnRegistered(RegisteredYarnWorkerNode worker) {
-		LOG.info("Setting status of container {} to wait for TaskManager registration.", worker.resourceId());
-		containersInLaunch.put(worker.resourceId(), 
+		LOG.info("Setting status of container {} to wait for TaskManager registration.", worker.getResourceId());
+		containersInLaunch.put(worker,
 			new YarnContainerInLaunch(worker.yarnContainer(), System.currentTimeMillis()));
 	}
 
 	@Override
-	protected List<RegisteredYarnWorkerNode> reacceptRegisteredTaskManagers(Collection<TaskManagerInfo> toConsolidate) {
+	protected List<RegisteredYarnWorkerNode> reacceptRegisteredTaskManagers(List<ResourceID> toConsolidate) {
 		// we check for each task manager if we recognize its container
 		List<RegisteredYarnWorkerNode> accepted = new ArrayList<>();
-		for (TaskManagerInfo tm : toConsolidate) {
-			YarnContainerInLaunch yci = containersInLaunch.remove(tm.resourceId());
+		for (ResourceID resourceID : toConsolidate) {
+			YarnContainerInLaunch yci = containersInLaunch.remove(resourceID);
 			
 			if (yci != null) {
-				LOG.info("YARN container consolidation recognizes TaskManager {} / {} / {}",
-					tm.resourceId(), tm.registeredTaskManagerId(), tm.taskManagerActor().path());
+				LOG.info("YARN container consolidation recognizes Resource {} ", resourceID);
 				
-				accepted.add(new RegisteredYarnWorkerNode(tm.resourceId(),
-					tm.registeredTaskManagerId(), tm.taskManagerActor(),
-					tm.numSlots(), yci.container()));
+				accepted.add(new RegisteredYarnWorkerNode(resourceID, yci.container()));
 			}
 			else {
-				LOG.info("YARN container consolidation does not recognize TaskManager {} / {}",
-					tm.resourceId(), tm.registeredTaskManagerId());
+				LOG.info("YARN container consolidation does not recognize TaskManager {}",
+					resourceID);
 			}
 		}
 		return accepted;
