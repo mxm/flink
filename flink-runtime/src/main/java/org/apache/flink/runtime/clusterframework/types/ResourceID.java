@@ -49,10 +49,13 @@ public class ResourceID implements Serializable {
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
-
-		return resourceId.equals(((ResourceID) o).resourceId);
+		if (this == o) {
+			return true;
+		} else if (o == null || getClass() != o.getClass()) {
+			return false;
+		} else {
+			return resourceId.equals(((ResourceID) o).resourceId);
+		}
 	}
 
 	@Override

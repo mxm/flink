@@ -29,7 +29,6 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -148,7 +147,7 @@ public class YarnApplicationMasterRunner {
 			// run the actual work in a secured privileged action
 			return ugi.doAs(new PrivilegedAction<Integer>() {
 				@Override
-				 public Integer run() {
+				public Integer run() {
 					return runApplicationMaster();
 				}
 			});

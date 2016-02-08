@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.clusterframework.messages;
 
 import akka.actor.ActorRef;
-import com.google.common.base.Preconditions;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
@@ -31,7 +29,7 @@ public class RegisterResource implements RequiresLeaderSessionID, java.io.Serial
 	private static final long serialVersionUID = 1L;
 
 	private final ActorRef taskManager;
- 	private final RegistrationMessages.RegisterTaskManager registerMessage;
+	private final RegistrationMessages.RegisterTaskManager registerMessage;
 
 
 	public RegisterResource(ActorRef taskManager, RegistrationMessages.RegisterTaskManager registerMessage) {

@@ -35,12 +35,12 @@ public class RegisterResourceReply implements RequiresLeaderSessionID, java.io.S
 	private final String message;
 
 	public RegisterResourceReply(boolean isRegistered, ActorRef taskManager,
-								 RegistrationMessages.RegisterTaskManager registrationMessage) {
+			RegistrationMessages.RegisterTaskManager registrationMessage) {
 		this(isRegistered, taskManager, registrationMessage, "");
 	}
 
 	public RegisterResourceReply(boolean isRegistered, ActorRef taskManager,
-								 RegistrationMessages.RegisterTaskManager registrationMessage, String message) {
+			RegistrationMessages.RegisterTaskManager registrationMessage, String message) {
 		this.isRegistered = isRegistered;
 		this.taskManager = taskManager;
 		this.registrationMessage = registrationMessage;
