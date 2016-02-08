@@ -662,7 +662,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	public void notifyWorkerFailed(ResourceID resourceID, String message) {
 		registeredWorkers.remove(resourceID);
 
-		// TODO RM
+		// TODO RM add message to job manager
 	}
 
 	// ------------------------------------------------------------------------

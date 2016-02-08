@@ -354,11 +354,12 @@ class JobManager(
             rm ! decorateMessage(new RegisterResource(taskManager, msg))
           case None =>
             log.warn("Task Manager Registration but not connected to ResourceManager")
-            taskManager ! decorateMessage(
-              RefuseRegistration(
-                ExceptionUtils.stringifyException(new IllegalStateException(
-                  "JobManager currently doesn't have a registered ResourceManager")))
-            )
+            // TODO RM
+//            taskManager ! decorateMessage(
+//              RefuseRegistration(
+//                ExceptionUtils.stringifyException(new IllegalStateException(
+//                  "JobManager currently doesn't have a registered ResourceManager")))
+//            )
         }
 
       }

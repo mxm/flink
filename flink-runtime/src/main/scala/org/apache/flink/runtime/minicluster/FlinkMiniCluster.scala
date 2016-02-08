@@ -92,9 +92,6 @@ abstract class FlinkMiniCluster(
 
   val numJobManagers = getNumberOfJobManagers
 
-  // Number of resource managers is set to 1 for now
-  val numResourceManagers = 1
-
   val numTaskManagers = configuration.getInteger(
     ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
     ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER)
@@ -138,6 +135,8 @@ abstract class FlinkMiniCluster(
       )
     }
   }
+
+  def getNumberOfResourceManagers: Int = getNumberOfJobManagers
 
   def getJobManagersAsJava = {
     import collection.JavaConverters._
@@ -285,9 +284,9 @@ abstract class FlinkMiniCluster(
     jobManagerLeaderRetrievalService = Some(lrs)
     lrs.start(this)
 
-    // start resource manager
+    // start as many resource managers as job managers
     val (rmActorSystems, rmActors) =
-      (for(i <- 0 until numResourceManagers) yield {
+      (for(i <- 0 until getNumberOfResourceManagers) yield {
         val actorSystem = if(useSingleActorSystem) {
           jmActorSystems(0)
         } else {
@@ -385,9 +384,10 @@ abstract class FlinkMiniCluster(
       taskManagerActorSystems foreach {
         _ foreach(_.shutdown())
       }
-      resourceManagerActorSystems foreach {
-        _ foreach(_.shutdown())
-      }
+    }
+
+    resourceManagerActorSystems foreach {
+      _ foreach(_.shutdown())
     }
 
     jobManagerActorSystems foreach {

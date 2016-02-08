@@ -113,6 +113,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			try {
 				// a simple JobManager
 				jobManager = createJobManager(actorSystem, config);
+				startResourceManager(config, jobManager.actor());
 
 				// start two TaskManagers. it will automatically try to register
 				taskManager1 = createTaskManager(
@@ -194,6 +195,10 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				jobManager = createJobManager(
 						actorSystem,
 						new Configuration());
+
+				startResourceManager(config, jobManager.actor());
+
+				startResourceManager(config, jobManager.actor());
 
 				// check that the TaskManagers are registered
 				Future<Object> responseFuture = taskManager.ask(
