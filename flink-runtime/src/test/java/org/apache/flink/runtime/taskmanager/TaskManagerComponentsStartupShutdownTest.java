@@ -45,6 +45,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.junit.Test;
 import scala.Option;
 import scala.Tuple2;
@@ -81,12 +82,11 @@ public class TaskManagerComponentsStartupShutdownTest {
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
-			final ActorRef resourceManager = FlinkResourceManager.startResourceManagerActors(
+			FlinkResourceManager.startResourceManagerActors(
 				config,
 				actorSystem,
-				l,
-				StandaloneResourceManager.class
-			)
+				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager),
+				StandaloneResourceManager.class);
 
 			// create the components for the TaskManager manually
 			final TaskManagerConfiguration tmConfig = new TaskManagerConfiguration(
