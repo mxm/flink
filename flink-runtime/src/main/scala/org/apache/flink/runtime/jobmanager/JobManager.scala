@@ -310,6 +310,13 @@ class JobManager(
 
       futuresToComplete = Some(futuresToComplete.getOrElse(Seq()) ++ newFuturesToComplete)
 
+      // disconnect the registered task managers
+      instanceManager.getAllRegisteredInstances.asScala.foreach {
+        _.getActorGateway().tell(
+          Disconnect("JobManager is no longer the leader"),
+          new AkkaActorGateway(self, leaderSessionID.orNull))
+      }
+
       instanceManager.unregisterAllTaskManagers()
 
       leaderSessionID = None
