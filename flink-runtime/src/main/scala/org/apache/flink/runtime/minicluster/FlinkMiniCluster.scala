@@ -239,16 +239,22 @@ abstract class FlinkMiniCluster(
 
   def startResourceManagerActorSystem(index: Int): ActorSystem = {
     val config = getResourceManagerAkkaConfig(index)
+    val port = configuration.getInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, -1) + 1
+    println(s"ResourceManager: $port")
     AkkaUtils.createActorSystem(config)
   }
 
   def startJobManagerActorSystem(index: Int): ActorSystem = {
     val config = getJobManagerAkkaConfig(index)
+    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1) + 1
+    println(s"JobManager: $port")
     AkkaUtils.createActorSystem(config)
   }
 
   def startTaskManagerActorSystem(index: Int): ActorSystem = {
     val config = getTaskManagerAkkaConfig(index)
+    val port = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, -1) + 1
+    println(s"TaskManager: $port")
     AkkaUtils.createActorSystem(config)
   }
 
