@@ -240,7 +240,6 @@ abstract class FlinkMiniCluster(
 
   def startTaskManagerActorSystem(index: Int): ActorSystem = {
     val config = getTaskManagerAkkaConfig(index)
-
     AkkaUtils.createActorSystem(config)
   }
 
@@ -378,16 +377,20 @@ abstract class FlinkMiniCluster(
       _.map(gracefulStop(_, timeout))
     } getOrElse(Seq())
 
-    Await.ready(Future.sequence(jmFutures ++ tmFutures), timeout)
+    val rmFutures = resourceManagerActors map {
+      _.map(gracefulStop(_, timeout))
+    } getOrElse(Seq())
+
+    Await.ready(Future.sequence(jmFutures ++ tmFutures ++ rmFutures), timeout)
 
     if (!useSingleActorSystem) {
       taskManagerActorSystems foreach {
         _ foreach(_.shutdown())
       }
-    }
 
-    resourceManagerActorSystems foreach {
-      _ foreach(_.shutdown())
+      resourceManagerActorSystems foreach {
+        _ foreach(_.shutdown())
+      }
     }
 
     jobManagerActorSystems foreach {
@@ -416,7 +419,6 @@ abstract class FlinkMiniCluster(
   //                          Utility Methods
   // --------------------------------------------------------------------------
 
-  // TODO RM
 //  /**
 //    * Waits for the leading ResourceManager to be registered at the JobManager
 //    */

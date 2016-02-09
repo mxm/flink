@@ -26,12 +26,16 @@ import akka.pattern.ask
 import org.apache.curator.test.TestingCluster
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenRegisteredAtResourceManager
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager;
 import org.apache.flink.runtime.testingUtils.{TestingJobManager, TestingMemoryArchivist, TestingTaskManager, TestingUtils}
+
+import org.apache.flink.runtime.testutils.TestingResourceManager
 
 import scala.concurrent.{Await, Future}
 
@@ -69,10 +73,12 @@ class ForkableFlinkMiniCluster(
 
     if (forkNumber != -1) {
       val jobManagerRPC = 1024 + forkNumber*300
+      val resourceManagerRPC = 1024 + forkNumber*300
       val taskManagerRPC = 1024 + forkNumber*300 + 100
       val taskManagerData = 1024 + forkNumber*300 + 200
 
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRPC)
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerRPC)
       config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, taskManagerRPC)
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerData)
     }
@@ -84,7 +90,6 @@ class ForkableFlinkMiniCluster(
     val config = configuration.clone()
 
     val jobManagerName = getJobManagerName(index)
-    val resoureceManagerName = getResourceManagerName(index)
     val archiveName = getArchiveName(index)
 
     val jobManagerPort = config.getInteger(
@@ -104,6 +109,29 @@ class ForkableFlinkMiniCluster(
       classOf[TestingMemoryArchivist])
 
     jobManager
+  }
+
+  override def startResourceManager(index: Int, system: ActorSystem): ActorRef = {
+    val config = configuration.clone()
+
+    val resourceManagerName = getResourceManagerName(index)
+
+    val resourceManagerPort = config.getInteger(
+      ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
+
+    if(resourceManagerPort > 0) {
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerPort + index)
+    }
+
+    val resourceManager = FlinkResourceManager.startResourceManagerActors(
+      config,
+      system,
+      createLeaderRetrievalService(),
+      classOf[TestingResourceManager],
+      resourceManagerName)
+
+    resourceManager
   }
 
   override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {
@@ -182,6 +210,7 @@ class ForkableFlinkMiniCluster(
   // TODO
 //  def restartResourceManager
 
+
   def restartTaskManager(index: Int): Unit = {
     (taskManagerActorSystems, taskManagerActors) match {
       case (Some(tmActorSystems), Some(tmActors)) =>
@@ -238,10 +267,10 @@ class ForkableFlinkMiniCluster(
     }
   }
 
-  def waitForTaskManagersToBeRegisteredAtResourceManager(jobManager: ActorRef): Unit = {
+  def waitForTaskManagersToBeRegisteredAtJobManager(jobManager: ActorRef): Unit = {
     val futures = taskManagerActors.map {
       _.map {
-        tm => (tm ? NotifyWhenRegisteredAtResourceManager(jobManager))(timeout)
+        tm => (tm ? NotifyWhenRegisteredAtJobManager(jobManager))(timeout)
       }
     }.getOrElse(Seq())
 

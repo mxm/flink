@@ -60,29 +60,6 @@ class LocalFlinkMiniCluster(
     config
   }
 
-  override def startResourceManager(index: Int, system: ActorSystem): ActorRef = {
-    val config = configuration.clone()
-
-    val resourceManagerName = getResourceManagerName(index)
-
-    val resourceManagerPort = config.getInteger(
-      ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
-
-    if(resourceManagerPort > 0) {
-      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerPort + index)
-    }
-
-    val resourceManager = FlinkResourceManager.startResourceManagerActors(
-      config,
-      system,
-      createLeaderRetrievalService(),
-      classOf[StandaloneResourceManager],
-      getResourceManagerName(index))
-
-    resourceManager
-  }
-
   override def startJobManager(index: Int, system: ActorSystem): ActorRef = {
     val config = configuration.clone()
 
@@ -106,6 +83,29 @@ class LocalFlinkMiniCluster(
       classOf[MemoryArchivist])
 
     jobManager
+  }
+
+  override def startResourceManager(index: Int, system: ActorSystem): ActorRef = {
+    val config = configuration.clone()
+
+    val resourceManagerName = getResourceManagerName(index)
+
+    val resourceManagerPort = config.getInteger(
+      ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
+
+    if(resourceManagerPort > 0) {
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerPort + index)
+    }
+
+    val resourceManager = FlinkResourceManager.startResourceManagerActors(
+      config,
+      system,
+      createLeaderRetrievalService(),
+      classOf[StandaloneResourceManager],
+      resourceManagerName)
+
+    resourceManager
   }
 
   override def startTaskManager(index: Int, system: ActorSystem): ActorRef = {

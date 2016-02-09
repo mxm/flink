@@ -211,7 +211,7 @@ trait TestingTaskManagerLike extends FlinkActor {
     case RequestLeaderSessionID =>
       sender() ! ResponseLeaderSessionID(leaderSessionID.orNull)
 
-    case NotifyWhenRegisteredAtResourceManager(jobManager: ActorRef) =>
+    case NotifyWhenRegisteredAtJobManager(jobManager: ActorRef) =>
       if(isConnected && jobManager == currentJobManager.get) {
         sender() ! true
       } else {
