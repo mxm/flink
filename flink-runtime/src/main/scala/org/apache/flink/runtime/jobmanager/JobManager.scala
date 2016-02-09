@@ -361,12 +361,56 @@ class JobManager(
             rm ! decorateMessage(new RegisterResource(taskManager, msg))
           case None =>
             log.warn("Task Manager Registration but not connected to ResourceManager")
-            // TODO RM
-//            taskManager ! decorateMessage(
-//              RefuseRegistration(
-//                ExceptionUtils.stringifyException(new IllegalStateException(
-//                  "JobManager currently doesn't have a registered ResourceManager")))
-//            )
+            // ResourceManager not yet available, will send task manager information later on when
+            // he registers
+
+            // TODO RM refactor to registerTaskManager message!
+
+            if (instanceManager.isRegistered(taskManager)) {
+              val instanceID = instanceManager.getRegisteredInstance(taskManager).getId
+
+              // IMPORTANT: Send the response to the "sender", which is not the
+              //            TaskManager actor, but the ask future!
+              taskManager ! decorateMessage(
+                AlreadyRegistered(
+                  instanceID,
+                  libraryCacheManager.getBlobServerPort)
+              )
+            } else {
+              try {
+                val instanceID = instanceManager.registerTaskManager(
+                  taskManager,
+                  resourceId,
+                  connectionInfo,
+                  hardwareInformation,
+                  numberOfSlots,
+                  leaderSessionID.orNull)
+
+                // IMPORTANT: Send the response to the "sender", which is not the
+                //            TaskManager actor, but the ask future!
+                taskManager ! decorateMessage(
+                  AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
+                )
+
+                // to be notified when the taskManager is no longer reachable
+                context.watch(taskManager)
+              } catch {
+                // registerTaskManager throws an IllegalStateException if it is already shut down
+                // let the actor crash and restart itself in this case
+                case e: Exception =>
+                  log.error("Failed to register TaskManager at instance manager", e)
+
+                  // IMPORTANT: Send the response to the "sender", which is not the
+                  //            TaskManager actor, but the ask future!
+                  taskManager ! decorateMessage(
+                    RefuseRegistration(
+                      ExceptionUtils.stringifyException(e))
+                  )
+              }
+            }
+
+          // TODO RM refactor to registerTaskManager message! ^^^^^^^
+
         }
 
       }
