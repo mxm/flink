@@ -28,11 +28,11 @@ import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.instance._
 import org.apache.flink.runtime.jobmanager.ResourceManagerRegistrationTest.PlainForwardingActor
-import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
 
 import org.apache.flink.runtime.testutils.TestingResourceManager
+import org.apache.flink.runtime.util.LeaderRetrievalUtils
 import org.junit.Assert.{assertNotEquals, assertNotNull}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
@@ -72,7 +72,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       var id2: InstanceID = null
 
       // task manager 1
-      within(1 second) {
+      within(10 seconds) {
         jm.tell(
           RegisterTaskManager(
             ResourceID.generate(),
@@ -89,7 +89,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       }
 
       // task manager 2
-      within(1 second) {
+      within(10 seconds) {
         jm.tell(
           RegisterTaskManager(
             ResourceID.generate(),
@@ -121,7 +121,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       val connectionInfo = new InstanceConnectionInfo(InetAddress.getLocalHost,1)
       val hardwareDescription = HardwareDescription.extractFromSystem(10)
 
-      within(5 second) {
+      within(20 seconds) {
         jm.tell(
           RegisterTaskManager(
             resourceID,
@@ -177,10 +177,11 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
   private def startTestingResourceManager(system: ActorSystem, jm: ActorRef): ActorGateway = {
     val jobManagerURL = AkkaUtils.getAkkaURL(system, jm)
+    val config = new Configuration()
     val rm: ActorRef = FlinkResourceManager.startResourceManagerActors(
-      new Configuration(),
+      config,
       _system,
-      new StandaloneLeaderRetrievalService(jobManagerURL),
+      LeaderRetrievalUtils.createLeaderRetrievalService(config, jm),
       classOf[TestingResourceManager])
     new AkkaActorGateway(rm, null)
   }
