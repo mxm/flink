@@ -72,7 +72,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       var id2: InstanceID = null
 
       // task manager 1
-      within(10 seconds) {
+      within(37 seconds) {
         jm.tell(
           RegisterTaskManager(
             ResourceID.generate(),
@@ -89,7 +89,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       }
 
       // task manager 2
-      within(10 seconds) {
+      within(35 seconds) {
         jm.tell(
           RegisterTaskManager(
             ResourceID.generate(),
@@ -121,7 +121,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       val connectionInfo = new InstanceConnectionInfo(InetAddress.getLocalHost,1)
       val hardwareDescription = HardwareDescription.extractFromSystem(10)
 
-      within(20 seconds) {
+      within(30 seconds) {
         jm.tell(
           RegisterTaskManager(
             resourceID,
