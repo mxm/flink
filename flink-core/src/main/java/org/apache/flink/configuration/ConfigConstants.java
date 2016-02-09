@@ -627,7 +627,7 @@ public final class ConfigConstants {
 	/**
 	 * The default network port of the resource manager.
 	 */
-	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 6123;
+	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 7123;
 
 	/**
 	 * Default number of retries for failed BLOB fetches.
