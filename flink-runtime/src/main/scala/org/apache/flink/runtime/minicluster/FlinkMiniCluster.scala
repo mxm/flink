@@ -136,7 +136,16 @@ abstract class FlinkMiniCluster(
     }
   }
 
-  def getNumberOfResourceManagers: Int = getNumberOfJobManagers
+  def getNumberOfResourceManagers: Int = {
+    if(recoveryMode == RecoveryMode.STANDALONE) {
+      1
+    } else {
+      configuration.getInteger(
+        ConfigConstants.LOCAL_NUMBER_RESOURCE_MANAGER,
+        ConfigConstants.DEFAULT_LOCAL_NUMBER_RESOURCE_MANAGER
+      )
+    }
+  }
 
   def getJobManagersAsJava = {
     import collection.JavaConverters._

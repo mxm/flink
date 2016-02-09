@@ -627,7 +627,7 @@ public final class ConfigConstants {
 	/**
 	 * The default network port of the resource manager.
 	 */
-	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 7123;
+	public static final int DEFAULT_RESOURCE_MANAGER_IPC_PORT = 0;
 
 	/**
 	 * Default number of retries for failed BLOB fetches.
@@ -867,6 +867,10 @@ public final class ConfigConstants {
 	public static final String LOCAL_NUMBER_JOB_MANAGER = "local.number-jobmanager";
 
 	public static final int DEFAULT_LOCAL_NUMBER_JOB_MANAGER = 1;
+
+	public static final String LOCAL_NUMBER_RESOURCE_MANAGER = "local.number-resourcemanager";
+
+	public static final int DEFAULT_LOCAL_NUMBER_RESOURCE_MANAGER = 1;
 
 	public static final String LOCAL_START_WEBSERVER = "local.start-webserver";
 

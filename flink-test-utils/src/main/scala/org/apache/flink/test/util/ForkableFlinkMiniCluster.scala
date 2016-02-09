@@ -27,7 +27,6 @@ import org.apache.curator.test.TestingCluster
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
-import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.jobmanager.{JobManager, RecoveryMode}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
@@ -73,9 +72,9 @@ class ForkableFlinkMiniCluster(
 
     if (forkNumber != -1) {
       val jobManagerRPC = 1024 + forkNumber*300
-      val resourceManagerRPC = 1024 + forkNumber*300
       val taskManagerRPC = 1024 + forkNumber*300 + 100
       val taskManagerData = 1024 + forkNumber*300 + 200
+      val resourceManagerRPC = 1024 + forkNumber*300 + 300
 
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRPC)
       config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerRPC)

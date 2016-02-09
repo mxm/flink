@@ -63,6 +63,7 @@ class TestingCluster(
     val cfg = new Configuration()
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")
     cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 0)
+    cfg.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, 0)
     cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10)
     cfg.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
 
@@ -70,24 +71,6 @@ class TestingCluster(
 
     cfg.addAll(userConfig)
     cfg
-  }
-
-  override def startResourceManager(index: Int, system: ActorSystem): ActorRef = {
-    val config = configuration.clone()
-
-    val resourceManagerName = if(singleActorSystem) {
-      FlinkResourceManager.RESOURCE_MANAGER_NAME + "_" + (index + 1)
-    } else {
-      FlinkResourceManager.RESOURCE_MANAGER_NAME
-    }
-
-    val testResourceManagerProps = Props(
-      new TestingResourceManager(
-        config,
-        createLeaderRetrievalService()
-      ))
-
-    system.actorOf(testResourceManagerProps, resourceManagerName)
   }
 
   override def startJobManager(index: Int, actorSystem: ActorSystem): ActorRef = {
@@ -155,6 +138,32 @@ class TestingCluster(
     }
 
     actorSystem.actorOf(dispatcherJobManagerProps, jobManagerName)
+  }
+
+  override def startResourceManager(index: Int, system: ActorSystem): ActorRef = {
+    val config = configuration.clone()
+
+    val resourceManagerName = if(singleActorSystem) {
+      FlinkResourceManager.RESOURCE_MANAGER_NAME + "_" + (index + 1)
+    } else {
+      FlinkResourceManager.RESOURCE_MANAGER_NAME
+    }
+
+    val resourceManagerPort = config.getInteger(
+      ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
+      ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
+
+    if(resourceManagerPort > 0) {
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerPort + index)
+    }
+
+    val testResourceManagerProps = Props(
+      new TestingResourceManager(
+        config,
+        createLeaderRetrievalService()
+      ))
+
+    system.actorOf(testResourceManagerProps, resourceManagerName)
   }
 
   override def startTaskManager(index: Int, system: ActorSystem) = {
