@@ -52,6 +52,9 @@ public class InstanceManager {
 	/** Set of hosts known to run a task manager that are thus able to execute tasks (by connection). */
 	private final Map<ActorRef, Instance> registeredHostsByConnection;
 
+	/** Set of hosts known to run a task manager that are thus able to execute tasks (by ResourceID). */
+	private final Map<ResourceID, Instance> registeredHostsByResource;
+
 	/** Set of hosts that were present once and have died */
 	private final Set<ActorRef> deadHosts;
 
@@ -72,9 +75,10 @@ public class InstanceManager {
 	 * Creates an new instance manager.
 	 */
 	public InstanceManager() {
-		this.registeredHostsById = new LinkedHashMap<InstanceID, Instance>();
-		this.registeredHostsByConnection = new LinkedHashMap<ActorRef, Instance>();
-		this.deadHosts = new HashSet<ActorRef>();
+		this.registeredHostsById = new LinkedHashMap<>();
+		this.registeredHostsByConnection = new LinkedHashMap<>();
+		this.registeredHostsByResource = new LinkedHashMap<>();
+		this.deadHosts = new HashSet<>();
 	}
 
 	public void shutdown() {
@@ -90,6 +94,7 @@ public class InstanceManager {
 
 			this.registeredHostsById.clear();
 			this.registeredHostsByConnection.clear();
+			this.registeredHostsByResource.clear();
 			this.deadHosts.clear();
 			this.totalNumberOfAliveTaskSlots = 0;
 		}
@@ -173,6 +178,7 @@ public class InstanceManager {
 
 			registeredHostsById.put(instanceID, host);
 			registeredHostsByConnection.put(taskManager, host);
+			registeredHostsByResource.put(resourceID, host);
 
 			totalNumberOfAliveTaskSlots += numberOfSlots;
 
@@ -210,6 +216,7 @@ public class InstanceManager {
 
 			registeredHostsByConnection.remove(host);
 			registeredHostsById.remove(instance.getId());
+			registeredHostsByResource.remove(instance.getResourceId());
 
 			if (terminated) {
 				deadHosts.add(instance.getActorGateway().actor());
@@ -245,6 +252,7 @@ public class InstanceManager {
 
 		registeredHostsById.clear();
 		registeredHostsByConnection.clear();
+		registeredHostsByResource.clear();
 	}
 
 	public boolean isRegistered(ActorRef taskManager) {
@@ -285,6 +293,10 @@ public class InstanceManager {
 
 	public Instance getRegisteredInstance(ActorRef ref) {
 		return registeredHostsByConnection.get(ref);
+	}
+
+	public Instance getRegisteredInstance(ResourceID ref) {
+		return registeredHostsByResource.get(ref);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.clusterframework.messages;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 import java.io.Serializable;
@@ -26,26 +27,20 @@ import java.io.Serializable;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Message sent to the JobManager by the Resource Manager to inform
- * about the removal of a resource.
+ * Message sent to the ResourceManager by the JobManager to instruct to remove a resource.
  */
-public class ResourceRemoved implements RequiresLeaderSessionID, Serializable {
+public class RemoveResource implements RequiresLeaderSessionID, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/** The ID under which the resource is registered (for example container ID) */
 	private final ResourceID resourceId;
 
-	/** Optional message with details, for logging and debugging */
-	private final String message;
-
 	/**
 	 * Constructor for a shutdown of a registered resource.
 	 * @param resourceId The ID under which the resource is registered (for example container ID).
-	 * @param message Optional message with details, for logging and debugging.
 	 */
-	public ResourceRemoved(ResourceID resourceId, String message) {
+	public RemoveResource(ResourceID resourceId) {
 		this.resourceId = requireNonNull(resourceId);
-		this.message = message;
 	}
 
 	// ------------------------------------------------------------------------
@@ -58,21 +53,13 @@ public class ResourceRemoved implements RequiresLeaderSessionID, Serializable {
 		return resourceId;
 	}
 
-	/**
-	 * Gets the optional message with details, for logging and debugging.
-	 * @return Optional message, may be null
-	 */
-	public String message() {
-		return message;
-	}
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
-		return "ResourceRemoved{" +
+		return "RemoveResource{" +
 			"resourceId=" + resourceId +
-			", message='" + message + '\'' +
 			'}';
 	}
 }

@@ -41,6 +41,8 @@ import org.apache.flink.runtime.clusterframework.messages.RegisterResourceSucces
 import org.apache.flink.runtime.clusterframework.messages.NewLeaderAvailable;
 import org.apache.flink.runtime.clusterframework.messages.RegisterInfoMessageListener;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
+import org.apache.flink.runtime.clusterframework.messages.RemoveResource;
+import org.apache.flink.runtime.clusterframework.messages.ResourceRemoved;
 import org.apache.flink.runtime.clusterframework.messages.SetWorkerPoolSize;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
@@ -225,10 +227,10 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 				SetWorkerPoolSize msg = (SetWorkerPoolSize) message;
 				adjustDesignatedNumberOfWorkers(msg.numberOfWorkers());
 			}
-//			else if (message instanceof ReleaseTaskManager) {
-//				ReleaseTaskManager msg = (ReleaseTaskManager) message;
-//				releaseTaskManager(msg.resourceId());
-//			}
+			else if (message instanceof RemoveResource) {
+				RemoveResource msg = (RemoveResource) message;
+				removeRegisteredResource(msg.resourceId());
+			}
 
 			// --- lookup of registered resources
 
@@ -365,44 +367,21 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 		}
 	}
 
-//	/**
-//	 * Releases the given TaskManager. Note that this does not automatically shrink
-//	 * the designated worker pool size.
-//	 *
-//	 * @param resourceId The TaskManager's resource id.
-//	 */
-//	private void releaseTaskManager(ResourceID resourceId) {
-//		try {
-//			if (registeredWorkers.remove(resourceId)) {
-//				if (worker.registeredTaskManagerId().equals(registrationId)) {
-//					// tell the TaskManager process to cleanly quit
-//					worker.taskManagerActor().tell(
-//						new ShutdownTaskManager("TaskManager was released as a resource."),
-//						self());
-//
-//					// make sure the resource framework deallocates the resource
-//					releaseRegisteredWorker(worker);
-//				}
-//				else {
-//					// we are in an inconsistent state. not sure how this happened, but we
-//					// definitely need to fix it from here
-//					LOG.error("Inconsistent registration of TaskManager resource {}. " +
-//						"Forcing TaskManager to re-register.", resourceId);
-//					forceTaskManagerToReconnect(worker, "Inconsistent registration of TaskManager");
-//				}
-//			}
-//			else {
-//				// may happen if the container failed and the JobManager requested a
-//				// release at the same time
-//				LOG.debug("Received request to release unknown TaskManager with resource id {}",
-//					resourceId);
-//			}
-//		}
-//		finally {
-//			// in any case, we acknowledge the receipt of that message, because we handled it
-//			sender().tell(Acknowledge.get(), ActorRef.noSender());
-//		}
-//	}
+	/**
+	 * Releases the given resource. Note that this does not automatically shrink
+	 * the designated worker pool size.
+	 *
+	 * @param resourceId The TaskManager's resource id.
+	 */
+	private void removeRegisteredResource(ResourceID resourceId) {
+
+		WorkerType worker = registeredWorkers.remove(resourceId);
+		if (worker != null) {
+			releaseRegisteredWorker(worker);
+		} else {
+			LOG.warn("Resource {} could not be released", resourceId);
+		}
+	}
 
 
 	// ------------------------------------------------------------------------
@@ -583,8 +562,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 //		// shut the resource master down.
 //		shutdownApplication(status, diagnostics);
 //
-//		// TODO respond to JobManager?
-//
 //		// we shut down the whole process now.
 //		int exitCode = status.processExitCode();
 //		System.exit(exitCode);
@@ -641,7 +618,10 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * re-examination.
 	 */
 	public void triggerCheckWorkers() {
-		self().tell(decorateMessage(CheckAndAllocateContainers.get()), ActorRef.noSender());
+		self().tell(
+			decorateMessage(
+				CheckAndAllocateContainers.get()),
+			ActorRef.noSender());
 	}
 
 	/**
@@ -652,9 +632,13 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * @param message An informational message that explains why the worker failed.
 	 */
 	public void notifyWorkerFailed(ResourceID resourceID, String message) {
-		registeredWorkers.remove(resourceID);
-
-		// TODO RM add message to job manager
+		WorkerType worker = registeredWorkers.remove(resourceID);
+		if (worker != null) {
+			jobManager.tell(
+				decorateMessage(
+					new ResourceRemoved(resourceID, message)),
+				self());
+		}
 	}
 
 	// ------------------------------------------------------------------------

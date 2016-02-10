@@ -453,6 +453,20 @@ class JobManager(
 
       // TODO RM cleanup
 
+    case msg: ResourceRemoved =>
+      // we're being informed by the resource manager that a resource has become unavailable
+      val resourceID = msg.resourceId()
+
+      if (msg.failed()) {
+        log.warn(s"Resource has been removed due to failure: ${resourceID}")
+      } else {
+        log.debug(s"Resource has been removed: ${resourceID}")
+      }
+
+      val instance = instanceManager.getRegisteredInstance(resourceID)
+      // trigger removal of task manager
+      self ! decorateMessage(Terminated(instance.getActorGateway.actor()))
+
     case RequestNumberRegisteredTaskManager =>
       sender ! decorateMessage(instanceManager.getNumberOfRegisteredTaskManagers)
 

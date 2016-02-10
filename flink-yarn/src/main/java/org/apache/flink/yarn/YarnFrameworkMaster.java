@@ -429,7 +429,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 		// were gracefully returned by this application master
 
 		for (ContainerStatus status : containers) {
-			final String id = status.getContainerId().toString();
+			final ResourceID id = new ResourceID(status.getContainerId().toString());
 
 			// check if this is a failed container or a completed container
 			if (containersBeingReturned.remove(status.getContainerId()) != null) {
@@ -457,12 +457,10 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 					// we will trigger re-acquiring new containers at the end
 				} else {
 					// failed registered worker
-					log.info("Container {} failed, with a TaskManager in launch or registration. " +
-						"Exit status: {}", id, exitStatus);
+					log.info("Container {} failed. Exit status: {}", id, exitStatus);
 
 					// notify the generic logic, which notifies the JobManager, etc.
-					// TODO RM notify jobmanager
-					notifyFailedWorker
+					notifyWorkerFailed(id, "Container " + id + " failed. " + "Exit status: {}" + exitStatus);
 				}
 
 				// general failure logging
