@@ -59,10 +59,10 @@ class ForkableFlinkMiniCluster(
   var zookeeperCluster: Option[TestingCluster] = None
 
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
-    val forNumberString = System.getProperty("forkNumber")
+    val forkNumberString = System.getProperty("forkNumber")
 
     val forkNumber = try {
-      Integer.parseInt(forNumberString)
+      Integer.parseInt(forkNumberString)
     }
     catch {
       case e: NumberFormatException => -1
@@ -71,15 +71,15 @@ class ForkableFlinkMiniCluster(
     val config = userConfiguration.clone()
 
     if (forkNumber != -1) {
-      val jobManagerRPC = 1024 + forkNumber*300
-      val taskManagerRPC = 1024 + forkNumber*300 + 100
-      val taskManagerData = 1024 + forkNumber*300 + 200
-      val resourceManagerRPC = 1024 + forkNumber*300 + 300
+      val jobManagerRPC = 1024 + forkNumber*400
+      val taskManagerRPC = 1024 + forkNumber*400 + 100
+      val taskManagerData = 1024 + forkNumber*400 + 200
+      val resourceManagerRPC = 1024 + forkNumber*400 + 300
 
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRPC)
-      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerRPC)
       config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, taskManagerRPC)
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerData)
+      config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerRPC)
     }
 
     super.generateConfiguration(config)
@@ -119,7 +119,7 @@ class ForkableFlinkMiniCluster(
       ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY,
       ConfigConstants.DEFAULT_RESOURCE_MANAGER_IPC_PORT)
 
-    if(resourceManagerPort > 0) {
+    if (resourceManagerPort > 0) {
       config.setInteger(ConfigConstants.RESOURCE_MANAGER_IPC_PORT_KEY, resourceManagerPort + index)
     }
 
@@ -206,7 +206,7 @@ class ForkableFlinkMiniCluster(
     }
   }
 
-  // TODO
+  // TODO RM
 //  def restartResourceManager
 
 
