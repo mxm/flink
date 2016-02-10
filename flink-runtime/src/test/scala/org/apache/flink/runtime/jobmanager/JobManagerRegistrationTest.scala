@@ -27,7 +27,7 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.instance._
-import org.apache.flink.runtime.jobmanager.ResourceManagerRegistrationTest.PlainForwardingActor
+import org.apache.flink.runtime.jobmanager.JobManagerRegistrationTest.PlainForwardingActor
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
 
@@ -187,7 +187,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
   }
 }
 
-object ResourceManagerRegistrationTest {
+object JobManagerRegistrationTest {
 
   class PlainForwardingActor(private val target: ActorRef) extends Actor {
     override def receive: Receive = {
