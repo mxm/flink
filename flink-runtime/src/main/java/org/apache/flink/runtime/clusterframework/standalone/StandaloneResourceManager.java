@@ -25,7 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.UUID;
 
 /**
  * A standalone implementation of the resource manager. Used when the system is started in
@@ -41,7 +41,14 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	// ------------------------------------------------------------------------
 	//  Framework specific behavior
 	// ------------------------------------------------------------------------
-	
+
+
+	@Override
+	protected void newJobManagerLeaderAvailable(String leaderAddress, UUID leaderSessionID) {
+		// TODO RM only notify of new leader when the leaderAddress shares the same path
+		super.newJobManagerLeaderAvailable(leaderAddress, leaderSessionID);
+	}
+
 	@Override
 	protected void initialize() throws Exception {
 		// nothing to initialize
