@@ -330,14 +330,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	}
 
 	@Override
-	protected void workerUnRegistered(RegisteredYarnWorkerNode worker) {
-		LOG.info("Setting status of container {} to wait for TaskManager registration.", worker.getResourceId());
-		containersInLaunch.put(worker,
-			new YarnContainerInLaunch(worker.yarnContainer(), System.currentTimeMillis()));
-	}
-
-	@Override
-	protected Collection<RegisteredYarnWorkerNode> reacceptRegisteredTaskManagers(Collection<ResourceID> toConsolidate) {
+	protected Collection<RegisteredYarnWorkerNode> reacceptRegisteredWorkers(Collection<ResourceID> toConsolidate) {
 		// we check for each task manager if we recognize its container
 		List<RegisteredYarnWorkerNode> accepted = new ArrayList<>();
 		for (ResourceID resourceID : toConsolidate) {

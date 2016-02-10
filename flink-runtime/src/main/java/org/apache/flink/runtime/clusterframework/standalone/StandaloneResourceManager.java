@@ -68,7 +68,7 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	}
 
 	@Override
-	protected Collection<ResourceID> reacceptRegisteredTaskManagers(Collection<ResourceID> toConsolidate)
+	protected Collection<ResourceID> reacceptRegisteredWorkers(Collection<ResourceID> toConsolidate)
 	{
 		// we accept everything
 		return toConsolidate;
@@ -83,11 +83,6 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	protected ResourceID workerRegistered(ResourceID resourceID) {
 		// we accept everything
 		return resourceID;
-	}
-
-	@Override
-	protected void workerUnRegistered(ResourceID resourceID) {
-		// nothing to do, we only wait for the worker to re-register
 	}
 
 	@Override

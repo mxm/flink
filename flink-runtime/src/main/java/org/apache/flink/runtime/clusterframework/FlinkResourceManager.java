@@ -490,9 +490,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	}
 
 	/**
-	 * // TODO
-	 * @param newJobManagerLeader
-	 * @param workers
+	 * Callback when we're informed about a new leading JobManager.
+	 * @param newJobManagerLeader The ActorRef of the new jobManager
+	 * @param workers The existing workers the JobManager has registered.
 	 */
 	private void jobManagerLeaderConnected(
 						ActorRef newJobManagerLeader,
@@ -516,7 +516,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 
 				try {
 					// ask the framework to tell us which ones we should keep for now
-					Collection<WorkerType> consolidated = reacceptRegisteredTaskManagers(workers);
+					Collection<WorkerType> consolidated = reacceptRegisteredWorkers(workers);
 					log.info("Consolidated {} TaskManagers", consolidated.size());
 
 					// put the consolidated TaskManagers into our bookkeeping
@@ -717,12 +717,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	protected abstract WorkerType workerRegistered(ResourceID resourceID) throws Exception;
 
 	/**
-	 * Callback when a worker was unregistered.
-	 * @param resourceID The worker resource id
-	 */
-	protected abstract void workerUnRegistered(WorkerType resourceID);
-
-	/**
 	 * This method is called when the resource manager starts after a failure and reconnects to
 	 * the leader JobManager, who still has some workers registered. The method is used to consolidate
 	 * the view between resource manager and JobManager. The resource manager gets the list of TaskManagers
@@ -739,7 +733,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * @param registered The list of TaskManagers that the JobManager knows.
 	 * @return The subset of TaskManagers that the resource manager can confirm to be alive.
 	 */
-	protected abstract Collection<WorkerType> reacceptRegisteredTaskManagers(Collection<ResourceID> registered);
+	protected abstract Collection<WorkerType> reacceptRegisteredWorkers(Collection<ResourceID> registered);
 
 	/**
 	 * Gets the number of requested workers that have not yet been granted.
@@ -899,7 +893,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	) {
 		return startResourceManagerActors(
 			configuration, actorSystem, leaderRetriever, resourceManagerClass,
-			RESOURCE_MANAGER_NAME);
+			RESOURCE_MANAGER_NAME + "-" + UUID.randomUUID());
 	}
 
 	/**
@@ -920,6 +914,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	) {
 
 		Props resourceMasterProps = Props.create(resourceManagerClass, configuration, leaderRetriever);
+
 		return actorSystem.actorOf(resourceMasterProps, resourceManagerActorName);
 	}
 }
