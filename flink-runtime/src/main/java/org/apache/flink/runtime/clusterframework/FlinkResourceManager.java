@@ -916,8 +916,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 		LeaderRetrievalService leaderRetriever,
 		Class<? extends FlinkResourceManager<?>> resourceManagerClass
 	) {
-		Props resourceMasterProps = Props.create(resourceManagerClass, configuration, leaderRetriever);
-		return actorSystem.actorOf(resourceMasterProps);
+		return startResourceManagerActors(
+			configuration, actorSystem, leaderRetriever, resourceManagerClass,
+			RESOURCE_MANAGER_NAME);
 	}
 
 	/**
