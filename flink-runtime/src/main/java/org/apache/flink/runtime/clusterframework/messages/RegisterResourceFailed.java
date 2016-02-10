@@ -19,37 +19,31 @@
 package org.apache.flink.runtime.clusterframework.messages;
 
 import akka.actor.ActorRef;
-import org.apache.flink.runtime.messages.RegistrationMessages;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 /**
- * Answer to RegisterResourceReply to indicate whether the requested resource is registered.
+ * Answer to RegisterResource to indicate that the requested resource is unknown.
+ * Sent by the ResourceManager to the JobManager.
  */
-public class RegisterResourceReply implements RequiresLeaderSessionID, java.io.Serializable {
+public class RegisterResourceFailed implements RequiresLeaderSessionID, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private final boolean isRegistered;
+	/** Task Manager which tried to register */
 	private final ActorRef taskManager;
-	private final RegistrationMessages.RegisterTaskManager registrationMessage;
-	/** Optional (error) message */
+
+	/** The id of the task manager resource */
+	private final ResourceID resourceID;
+
+	/** Error message */
 	private final String message;
 
-	public RegisterResourceReply(boolean isRegistered, ActorRef taskManager,
-			RegistrationMessages.RegisterTaskManager registrationMessage) {
-		this(isRegistered, taskManager, registrationMessage, "");
-	}
-
-	public RegisterResourceReply(boolean isRegistered, ActorRef taskManager,
-			RegistrationMessages.RegisterTaskManager registrationMessage, String message) {
-		this.isRegistered = isRegistered;
+	public RegisterResourceFailed(ActorRef taskManager, ResourceID resourceId, String message) {
 		this.taskManager = taskManager;
-		this.registrationMessage = registrationMessage;
+		this.resourceID = resourceId;
 		this.message = message;
 	}
 
-	public boolean isRegistered() {
-		return isRegistered;
-	}
 
 	public String getMessage() {
 		return message;
@@ -59,16 +53,15 @@ public class RegisterResourceReply implements RequiresLeaderSessionID, java.io.S
 		return taskManager;
 	}
 
-	public RegistrationMessages.RegisterTaskManager getRegistrationMessage() {
-		return registrationMessage;
+	public ResourceID getResourceID() {
+		return resourceID;
 	}
 
 	@Override
 	public String toString() {
-		return "RegisterResourceReply{" +
-			"isRegistered=" + isRegistered +
-			", taskManager=" + taskManager +
-			", registrationMessage=" + registrationMessage +
+		return "RegisterResourceFailed{" +
+			"taskManager=" + taskManager +
+			", resourceID=" + resourceID +
 			", message='" + message + '\'' +
 			'}';
 	}

@@ -30,10 +30,13 @@ import org.apache.flink.api.common.JobExecutionResult
 
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.client.JobClient
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.jobmanager.{MemoryArchivist, JobManager}
+import org.apache.flink.runtime.testutils.TestingResourceManager
+import org.apache.flink.runtime.util.LeaderRetrievalUtils
 import org.apache.flink.runtime.{LogMessages, LeaderSessionMessageFilter, FlinkActor}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.instance.{AkkaActorGateway, ActorGateway}
@@ -443,30 +446,29 @@ object TestingUtils {
     )
   }
 
-  // TODO RM createResourceManager
-//  /** Creates a testing JobManager using the default recovery mode (standalone)
-//    *
-//    * @param actorSystem
-//    * @param configuration
-//    * @return
-//    */
-//  def createResourceManager(
-//                        actorSystem: ActorSystem,
-//                        configuration: Configuration)
-//  : ActorGateway = {
-//
-//    configuration.setString(ConfigConstants.RECOVERY_MODE, ConfigConstants.DEFAULT_RECOVERY_MODE)
-//
-//    val (actor, _) = JobManager.startJobManagerActors(
-//      configuration,
-//      actorSystem,
-//      Some(JobManager.JOB_MANAGER_NAME),
-//      Some(JobManager.ARCHIVE_NAME),
-//      classOf[JobManager],
-//      classOf[MemoryArchivist])
-//
-//    new AkkaActorGateway(actor, null)
-//  }
+  /** Creates a testing JobManager using the default recovery mode (standalone)
+    *
+    * @param actorSystem The actor system to start the actor
+    * @param jobManager The jobManager for the standalone leader service.
+    * @param configuration The configuration
+    * @return
+    */
+  def createResourceManager(
+      actorSystem: ActorSystem,
+      jobManager: ActorRef,
+      configuration: Configuration)
+  : ActorGateway = {
+
+    configuration.setString(ConfigConstants.RECOVERY_MODE, ConfigConstants.DEFAULT_RECOVERY_MODE)
+
+    val actor = FlinkResourceManager.startResourceManagerActors(
+      configuration,
+      actorSystem,
+      LeaderRetrievalUtils.createLeaderRetrievalService(configuration, jobManager),
+      classOf[TestingResourceManager])
+
+    new AkkaActorGateway(actor, null)
+  }
 
 
   class ForwardingActor(val target: ActorRef, val leaderSessionID: Option[UUID])

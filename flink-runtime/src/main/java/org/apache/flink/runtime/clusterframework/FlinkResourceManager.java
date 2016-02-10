@@ -26,6 +26,7 @@ import akka.dispatch.OnComplete;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -34,7 +35,8 @@ import org.apache.flink.runtime.clusterframework.messages.CheckAndAllocateContai
 import org.apache.flink.runtime.clusterframework.messages.FatalErrorOccurred;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResource;
-import org.apache.flink.runtime.clusterframework.messages.RegisterResourceReply;
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceFailed;
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceSuccessful;
 import org.apache.flink.runtime.clusterframework.messages.NewLeaderAvailable;
 import org.apache.flink.runtime.clusterframework.messages.RegisterInfoMessageListener;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
@@ -307,6 +309,14 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	}
 
 	/**
+	 * Gets the currently registered resources.
+	 * @return
+	 */
+	public Collection<WorkerType> getRegisteredTaskManagers() {
+		return registeredWorkers.values();
+	}
+
+	/**
 	 * Gets the registered worker for a given resource ID, if one is available.
 	 *
 	 * @param resourceId The resource ID for the worker.
@@ -332,17 +342,18 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * @param msg The task manager's registration message
 	 */
 	private void handleRegisterResource(ActorRef jobManager, ActorRef taskManager,
-			RegistrationMessages.RegisterTaskManager msg) {
+				RegistrationMessages.RegisterTaskManager msg) {
 
 		ResourceID resourceID = msg.resourceId();
 		try {
+			Preconditions.checkNotNull(resourceID);
 			WorkerType newWorker = workerRegistered(msg.resourceId());
 			WorkerType oldWorker = registeredWorkers.put(resourceID, newWorker);
 			if (oldWorker != null) {
 				LOG.warn("Worker {} had been registered before.", resourceID);
 			}
 			jobManager.tell(decorateMessage(
-				new RegisterResourceReply(true, taskManager, msg)),
+				new RegisterResourceSuccessful(taskManager, msg)),
 				self());
 		} catch (Exception e) {
 			LOG.error("TaskManager resource registration failed.", e);
@@ -350,7 +361,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 			// tell the TaskManager about the failure
 			String eStr = ExceptionUtils.stringifyException(e);
 			sender().tell(decorateMessage(
-				new RegisterResourceReply(false, taskManager, msg, eStr)), self());
+				new RegisterResourceFailed(taskManager, resourceID, eStr)), self());
 		}
 	}
 
@@ -524,7 +535,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 
 				try {
 					// ask the framework to tell us which ones we should keep for now
-					List<WorkerType> consolidated = reacceptRegisteredTaskManagers(toHandle);
+					Collection<WorkerType> consolidated = reacceptRegisteredTaskManagers(workers);
 					log.info("Consolidated {} TaskManagers", consolidated.size());
 
 					// put the consolidated TaskManagers into our bookkeeping
@@ -722,7 +733,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * Callback when a worker was registered.
 	 * @param resourceID The worker resource id
 	 */
-	protected abstract WorkerType workerRegistered(ResourceID resourceID);
+	protected abstract WorkerType workerRegistered(ResourceID resourceID) throws Exception;
 
 	/**
 	 * Callback when a worker was unregistered.
@@ -747,7 +758,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * @param registered The list of TaskManagers that the JobManager knows.
 	 * @return The subset of TaskManagers that the resource manager can confirm to be alive.
 	 */
-	protected abstract List<WorkerType> reacceptRegisteredTaskManagers(List<ResourceID> registered);
+	protected abstract Collection<WorkerType> reacceptRegisteredTaskManagers(Collection<ResourceID> registered);
 
 	/**
 	 * Gets the number of requested workers that have not yet been granted.
@@ -782,6 +793,114 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	// ------------------------------------------------------------------------
 	//  Startup
 	// ------------------------------------------------------------------------
+
+	public static void startResourceManager() {
+
+	}
+
+	// TODO RM
+//	/**
+//	 * Starts and runs the TaskManager.
+//	 *
+//	 * This method first tries to select the network interface to use for the TaskManager
+//	 * communication. The network interface is used both for the actor communication
+//	 * (coordination) as well as for the data exchange between task managers. Unless
+//	 * the hostname/interface is explicitly configured in the configuration, this
+//	 * method will try out various interfaces and methods to connect to the JobManager
+//	 * and select the one where the connection attempt is successful.
+//	 *
+//	 * After selecting the network interface, this method brings up an actor system
+//	 * for the TaskManager and its actors, starts the TaskManager's services
+//	 * (library cache, shuffle network stack, ...), and starts the TaskManager itself.
+//	 *
+//	 * @param configuration The configuration for the TaskManager.
+//	 * @param taskManagerClass The actor class to instantiate.
+//	 *                         Allows to use TaskManager subclasses for example for YARN.
+//	 */
+//	@throws(classOf[Exception])
+//	def selectNetworkInterfaceAndRunTaskManager(
+//		configuration: Configuration,
+//		resourceID: ResourceID,
+//		taskManagerClass: Class[_ <:TaskManager])
+//	: Unit = {
+//
+//		val (taskManagerHostname, actorSystemPort) = selectNetworkInterfaceAndPort(configuration)
+//
+//		runTaskManager(
+//			taskManagerHostname,
+//			resourceID,
+//			actorSystemPort,
+//			configuration,
+//			taskManagerClass)
+//	}
+//
+//	@throws(classOf[IOException])
+//		@throws(classOf[IllegalConfigurationException])
+//	def selectNetworkInterfaceAndPort(
+//		configuration: Configuration)
+//	: (String, Int) = {
+//
+//		var taskManagerHostname = configuration.getString(
+//			ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null)
+//
+//		if (taskManagerHostname != null) {
+//			LOG.info("Using configured hostname/address for TaskManager: " + taskManagerHostname)
+//		}
+//		else {
+//			val leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(configuration)
+//			val lookupTimeout = AkkaUtils.getLookupTimeout(configuration)
+//
+//			val taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
+//				leaderRetrievalService,
+//				lookupTimeout)
+//
+//			taskManagerHostname = taskManagerAddress.getHostName()
+//			LOG.info(s"TaskManager will use hostname/address '$taskManagerHostname' " +
+//				s"(${taskManagerAddress.getHostAddress()}) for communication.")
+//		}
+//
+//		// if no task manager port has been configured, use 0 (system will pick any free port)
+//		val actorSystemPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0)
+//		if (actorSystemPort < 0 || actorSystemPort > 65535) {
+//			throw new IllegalConfigurationException("Invalid value for '" +
+//				ConfigConstants.TASK_MANAGER_IPC_PORT_KEY +
+//				"' (port for the TaskManager actor system) : " + actorSystemPort +
+//				" - Leave config parameter empty or use 0 to let the system choose a port automatically.")
+//		}
+//
+//		(taskManagerHostname, actorSystemPort)
+//	}
+//
+//	/**
+//	 * Starts and runs the TaskManager. Brings up an actor system for the TaskManager and its
+//	 * actors, starts the TaskManager's services (library cache, shuffle network stack, ...),
+//	 * and starts the TaskManager itself.
+//	 *
+//	 * This method will also spawn a process reaper for the TaskManager (kill the process if
+//	 * the actor fails) and optionally start the JVM memory logging thread.
+//	 *
+//	 * @param taskManagerHostname The hostname/address of the interface where the actor system
+//	 *                         will communicate.
+//	 * @param resourceID The id of the resource which the task manager will run on.
+//	 * @param actorSystemPort The port at which the actor system will communicate.
+//	 * @param configuration The configuration for the TaskManager.
+//	 */
+//	@throws(classOf[Exception])
+//	def runTaskManager(
+//		taskManagerHostname: String,
+//		resourceID: ResourceID,
+//		actorSystemPort: Int,
+//		configuration: Configuration)
+//	: Unit = {
+//
+//		runTaskManager(
+//			taskManagerHostname,
+//			resourceID,
+//			actorSystemPort,
+//			configuration,
+//			classOf[TaskManager])
+//	}
+
 
 	/**
 	 * Starts the resource manager actors.

@@ -21,7 +21,11 @@ package org.apache.flink.runtime.testutils;
 import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+
+import java.util.Collection;
+import java.util.List;
 
 /**
  * A testing resource manager which may alter the default standalone resource master's behavior.
@@ -32,9 +36,31 @@ public class TestingResourceManager extends StandaloneResourceManager {
 		super(flinkConfig, leaderRetriever);
 	}
 
+	/**
+	 * Overwrite messages here if desired
+	 */
 	@Override
 	protected void handleMessage(Object message) {
-		// overwrite messages here if desired
-		super.handleMessage(message);
+
+		if (message instanceof GetRegisteredResources) {
+			sender().tell(new GetRegisteredResourcesReply(getRegisteredTaskManagers()), self());
+		} else {
+			super.handleMessage(message);
+		}
+	}
+
+	/**
+	 * Testing messages
+	 */
+	public static class GetRegisteredResources {
+	}
+
+	public static class GetRegisteredResourcesReply {
+
+		public GetRegisteredResourcesReply(Collection<ResourceID> resources) {
+			this.resources = resources;
+		}
+
+		public Collection<ResourceID> resources;
 	}
 }

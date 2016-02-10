@@ -53,6 +53,7 @@ import org.slf4j.Logger;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -320,11 +321,10 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	}
 
 	@Override
-	protected RegisteredYarnWorkerNode workerRegistered(ResourceID resourceID) {
+	protected RegisteredYarnWorkerNode workerRegistered(ResourceID resourceID) throws Exception {
 		YarnContainerInLaunch inLaunch = containersInLaunch.remove(resourceID);
 		if (inLaunch == null) {
-			log.error("Cannot register Worker - unknown resource id {}", resourceID);
-			return null;
+			throw new Exception("Cannot register Worker - unknown resource id " + resourceID);
 		} else {
 			return new RegisteredYarnWorkerNode(resourceID, inLaunch.container());
 		}
@@ -338,7 +338,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	}
 
 	@Override
-	protected List<RegisteredYarnWorkerNode> reacceptRegisteredTaskManagers(List<ResourceID> toConsolidate) {
+	protected Collection<RegisteredYarnWorkerNode> reacceptRegisteredTaskManagers(Collection<ResourceID> toConsolidate) {
 		// we check for each task manager if we recognize its container
 		List<RegisteredYarnWorkerNode> accepted = new ArrayList<>();
 		for (ResourceID resourceID : toConsolidate) {

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -60,7 +61,7 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	}
 
 	@Override
-	protected List<ResourceID> reacceptRegisteredTaskManagers(List<ResourceID> toConsolidate)
+	protected Collection<ResourceID> reacceptRegisteredTaskManagers(Collection<ResourceID> toConsolidate)
 	{
 		// we accept everything
 		return toConsolidate;
