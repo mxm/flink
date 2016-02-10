@@ -73,20 +73,19 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	/** The default heartbeat interval during regular operation */
 	private static final int DEFAULT_YARN_HEARTBEAT_INTERVAL_MS = 5000;
 
-
-	/** The containers where a TaskManager is starting and we are waiting for it to register */ 
+	/** The containers where a TaskManager is starting and we are waiting for it to register */
 	private final Map<ResourceID, YarnContainerInLaunch> containersInLaunch;
 
 	/** Containers we have released, where we are waiting for an acknowledgement that
 	 * they are released */
 	private final Map<ContainerId, Container> containersBeingReturned;
-	
+
 	/** The YARN / Hadoop configuration object */
 	private final YarnConfiguration yarnConfig;
 
 	/** The TaskManager container parameters (like container memory size) */
 	private final ContaineredTaskManagerParameters taskManagerParameters;
-	
+
 	/** Context information used to start a TaskManager Java process */
 	private final ContainerLaunchContext taskManagerLaunchContext;
 
@@ -95,32 +94,32 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 
 	/** Web interface URL, may be null */
 	private final String webInterfaceURL;
-	
+
 	/** Default heartbeat interval between this actor and the YARN resource manager */
 	private final int yarnHeartbeatIntervalMillis;
-	
+
 	/** Number of failed TaskManager containers before stopping the application. -1 means infinite. */ 
 	private final int maxFailedContainers;
-	
+
 	/** The number of workers to size to pool to initially */
 	private final int numInitialTaskManagers;
-	
+
 	/** Callback handler for the asynchronous resourceManagerClient */
 	private YarnResourceManagerCallbackHandler resourceManagerCallbackHandler;
-	
+
 	/** Client to communicate with the Resource Manager (YARN's master) */
 	private AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient;
-	
+
 	/** Client to communicate with the Node manager and launch TaskManager processes */
 	private NMClient nodeManagerClient;
-	
+
 	/** The number of containers requested, but not yet granted */
 	private int numPendingContainerRequests;
-	
+
 	/** The number of failed containers since the master became active */
 	private int failedContainersSoFar;
-	
-	
+
+
 	public YarnFrameworkMaster(
 			Configuration flinkConfig,
 			LeaderRetrievalService leaderRetrievalService,
@@ -132,7 +131,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 			int yarnHeartbeatIntervalMillis,
 			int maxFailedContainers,
 			int numInitialTaskManagers) {
-		
+
 		super(flinkConfig, leaderRetrievalService);
 
 		this.yarnConfig = requireNonNull(yarnConfig);
@@ -143,7 +142,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 		this.yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMillis;
 		this.maxFailedContainers = maxFailedContainers;
 		this.numInitialTaskManagers = numInitialTaskManagers;
-		
+
 		this.containersInLaunch = new HashMap<>();
 		this.containersBeingReturned = new HashMap<>();
 	}
@@ -174,11 +173,11 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	@Override
 	protected void initialize() throws Exception {
 		log.info("Initializing YARN resource master");
-		
+
 		// create the client to communicate with the resource manager
 		ActorGateway selfGateway = new AkkaActorGateway(self(), getLeaderSessionID());
 		resourceManagerCallbackHandler = new YarnResourceManagerCallbackHandler(selfGateway);
-		
+
 		resourceManagerClient = AMRMClientAsync.createAMRMClientAsync(
 			yarnHeartbeatIntervalMillis, resourceManagerCallbackHandler);
 		resourceManagerClient.init(yarnConfig);
@@ -192,7 +191,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 
 		// register with Resource Manager
 		log.info("Registering Application Master with tracking url {}", webInterfaceURL);
-		
+
 		scala.Option<Object> portOption = AkkaUtils.getAddress(getContext().system()).port();
 		int actorSystemPort = portOption.isDefined() ? (int) portOption.get() : -1;
 
@@ -202,15 +201,15 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 		// if this application master starts as part of an ApplicationMaster/JobManager recovery,
 		// then some worker containers are most likely still alive and we can re-obtain them
 		List<Container> containersFromPreviousAttempts = getContainersFromPreviousAttempts(response);
-		
+
 		if (!containersFromPreviousAttempts.isEmpty()) {
 			log.info("Retrieved {} TaskManagers from previous attempt", containersFromPreviousAttempts.size());
-		
+
 			final long now = System.currentTimeMillis();
 			for (Container c : containersFromPreviousAttempts) {
 				containersInLaunch.put(new ResourceID(c.getId().toString()), new YarnContainerInLaunch(c, now));
 			}
-			
+
 			// adjust the progress indicator
 			updateProgress();
 		}
@@ -253,12 +252,12 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 		// kill this process, this will make YARN restart the process
 		System.exit(EXIT_CODE_FATAL_ERROR);
 	}
-	
+
 	@Override
 	protected void requestNewWorkers(int numWorkers) {
 		final long mem = taskManagerParameters.taskManagerTotalMemoryMB();
 		final int containerMemorySizeMB;
-		
+
 		if (mem <= Integer.MAX_VALUE) {
 			containerMemorySizeMB = (int) mem;
 		} else {
@@ -266,7 +265,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 			log.error("Decreasing container size from {} MB to {} MB (integer value overflow)", 
 				mem, containerMemorySizeMB);
 		}
-		
+
 		for (int i = 0; i < numWorkers; i++) {
 			numPendingContainerRequests++;
 			log.info("Requesting new TaskManager container with {} megabytes memory. Pending requests: {}",
@@ -278,11 +277,11 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 			// Resource requirements for worker containers
 			// NOTE: VCores are hard-coded to one currently (YARN is not accounting for CPUs)
 			Resource capability = Resource.newInstance(containerMemorySizeMB, 1);
-			
+
 			resourceManagerClient.addContainerRequest(
 				new AMRMClient.ContainerRequest(capability, null, null, priority));
 		}
-		
+
 		// make sure we transmit the request fast and receive fast news of granted allocations
 		resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);
 	}
@@ -343,10 +342,10 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 		List<RegisteredYarnWorkerNode> accepted = new ArrayList<>();
 		for (ResourceID resourceID : toConsolidate) {
 			YarnContainerInLaunch yci = containersInLaunch.remove(resourceID);
-			
+
 			if (yci != null) {
 				LOG.info("YARN container consolidation recognizes Resource {} ", resourceID);
-				
+
 				accepted.add(new RegisteredYarnWorkerNode(resourceID, yci.container()));
 			}
 			else {
@@ -435,17 +434,16 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	private void containersComplete(List<ContainerStatus> containers) {
 		// the list contains both failed containers, as well as containers that
 		// were gracefully returned by this application master
-		
+
 		for (ContainerStatus status : containers) {
 			final String id = status.getContainerId().toString();
-			
+
 			// check if this is a failed container or a completed container
 			if (containersBeingReturned.remove(status.getContainerId()) != null) {
 				// regular completed container that we released
 				log.info("Container {} completed successfully with diagnostics: {}",
 					id, status.getDiagnostics());
-			}
-			else {
+			} else {
 				// failed container, either at startup, or running
 				final String exitStatus;
 				switch (status.getExitStatus()) {
@@ -458,22 +456,22 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 					default:
 						exitStatus = String.valueOf(status.getExitStatus());
 				}
-				
+
 				final YarnContainerInLaunch launched = containersInLaunch.remove(id);
 				if (launched != null) {
 					log.info("Container {} failed, with a TaskManager in launch or registration. " +
 							"Exit status: {}", id, exitStatus);
 					// we will trigger re-acquiring new containers at the end
-				}
-				else {
+				} else {
 					// failed registered worker
 					log.info("Container {} failed, with a TaskManager in launch or registration. " +
 						"Exit status: {}", id, exitStatus);
-					
+
 					// notify the generic logic, which notifies the JobManager, etc.
 					// TODO RM notify jobmanager
+					notifyFailedWorker
 				}
-				
+
 				// general failure logging
 				failedContainersSoFar++;
 
@@ -481,10 +479,10 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 					"exitStatus=%s diagnostics=%s",
 					id, status.getState(), exitStatus, status.getDiagnostics());
 				sendInfoMessage(diagMessage);
-				
+
 				log.info(diagMessage);
 				log.info("Total number of failed containers so far: " + failedContainersSoFar);
-				
+
 				// maxFailedContainers == -1 is infinite number of retries.
 				if (maxFailedContainers >= 0 && failedContainersSoFar > maxFailedContainers) {
 					String msg = "Stopping YARN session because the number of failed containers ("
@@ -492,11 +490,11 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 						+ maxFailedContainers + "). This number is controlled by the '"
 						+ ConfigConstants.YARN_MAX_FAILED_CONTAINERS + "' configuration setting. "
 						+ "By default its the number of requested containers.";
-					
+
 					log.error(msg);
 					self().tell(decorateMessage(new StopCluster(ApplicationStatus.FAILED, msg)),
 						ActorRef.noSender());
-					
+
 					// no need to do anything else
 					return;
 				}
@@ -504,7 +502,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 		}
 
 		updateProgress();
-		
+
 		// in case failed containers were among the finished containers, make
 		// sure we re-examine and request new ones
 		triggerCheckWorkers();
@@ -513,12 +511,12 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	private void updateProgress() {
 		final int required = getDesignatedWorkerPoolSize();
 		final int available = getNumberOfRegisteredTaskManagers() + containersInLaunch.size();
 		final float progress = (required <= 0) ? 1.0f : available / (float) required;
-		
+
 		if (resourceManagerCallbackHandler != null) {
 			resourceManagerCallbackHandler.setCurrentProgress(progress);
 		}
@@ -546,7 +544,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 			}
 		}
 	}
-	
+
 	/**
 	 * Checks if a YARN application still has registered containers. If the application master
 	 * registered at the resource manager for the first time, this list will be empty. If the
@@ -641,7 +639,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 			log.info("YARN application tolerates {} failed TaskManager containers before giving up",
 				maxFailedContainers);
 		}
-			
+
 		return Props.create(actorClass,
 			flinkConfig, yarnConfig,
 			leaderRetrievalService,

@@ -32,7 +32,7 @@ import static java.util.Objects.requireNonNull;
  * Carries information about the JobManager, and about the TaskManagers that the JobManager
  * still has registered.
  */
-public class RegistrationAtJobManagerSuccessful implements RequiresLeaderSessionID, Serializable {
+public class RegisterResourceManagerSuccessful implements RequiresLeaderSessionID, Serializable {
 
 	private static final long serialVersionUID = 817011779310941753L;
 
@@ -41,19 +41,12 @@ public class RegistrationAtJobManagerSuccessful implements RequiresLeaderSession
 
 
 	/**
-	 * Creates a new message with an empty list of known TaskManagers.
-	 */
-	public RegistrationAtJobManagerSuccessful() {
-		this(Collections.<ResourceID>emptyList());
-	}
-
-	/**
 	 * Creates a new message with a list of existing known TaskManagers.
 	 * 
 	 * @param currentlyRegisteredTaskManagers
 	 *         The list of TaskManagers that the JobManager currently knows. 
 	 */
-	public RegistrationAtJobManagerSuccessful(Collection<ResourceID> currentlyRegisteredTaskManagers)
+	public RegisterResourceManagerSuccessful(Collection<ResourceID> currentlyRegisteredTaskManagers)
 	{
 		this.currentlyRegisteredTaskManagers = requireNonNull(currentlyRegisteredTaskManagers);
 	}
@@ -69,7 +62,7 @@ public class RegistrationAtJobManagerSuccessful implements RequiresLeaderSession
 
 	@Override
 	public String toString() {
-		return "RegistrationAtJobManagerSuccessful{" +
+		return "RegisterResourceManagerSuccessful{" +
 			"currentlyRegisteredTaskManagers=" + currentlyRegisteredTaskManagers +
 			'}';
 	}

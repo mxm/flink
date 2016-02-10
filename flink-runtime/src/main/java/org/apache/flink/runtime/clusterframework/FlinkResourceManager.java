@@ -36,11 +36,11 @@ import org.apache.flink.runtime.clusterframework.messages.FatalErrorOccurred;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResource;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceFailed;
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceSuccessful;
 import org.apache.flink.runtime.clusterframework.messages.NewLeaderAvailable;
 import org.apache.flink.runtime.clusterframework.messages.RegisterInfoMessageListener;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
-import org.apache.flink.runtime.clusterframework.messages.RegistrationAtJobManagerSuccessful;
 import org.apache.flink.runtime.clusterframework.messages.SetWorkerPoolSize;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
@@ -247,8 +247,8 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 				TriggerRegistrationAtJobManager msg = (TriggerRegistrationAtJobManager) message;
 				triggerConnectingToJobManager(msg.jobManagerAddress());
 			}
-			else if (message instanceof RegistrationAtJobManagerSuccessful) {
-				RegistrationAtJobManagerSuccessful msg = (RegistrationAtJobManagerSuccessful) message;
+			else if (message instanceof RegisterResourceManagerSuccessful) {
+				RegisterResourceManagerSuccessful msg = (RegisterResourceManagerSuccessful) message;
 				jobManagerLeaderConnected(sender(), msg.currentlyRegisteredTaskManagers());
 			}
 
@@ -336,7 +336,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	}
 
 	/**
-	 * Lookup of a resource on which TaskManagers are started
+	 * Register a resource on which a TaskManager has been started
 	 * @param jobManager The sender (JobManager) of the message
 	 * @param taskManager The task manager who wants to register
 	 * @param msg The task manager's registration message
@@ -404,17 +404,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 //		}
 //	}
 
-//	private void forceTaskManagerToReconnect(WorkerType worker, String reason) {
-//		// out of our bookkeeping
-//		registeredWorkers.remove(worker.resourceId());
-//
-//		// framework should know the worker is pending re-registration
-//		workerUnRegistered(worker);
-//
-//		// make the TaskManager go back to registration attempts
-//		worker.taskManagerActor().tell(
-//			decorateMessage(new Messages.Disconnect(reason)), ActorRef.noSender());
-//	}
 
 	// ------------------------------------------------------------------------
 	//  Registration and consolidation with JobManager Leader
@@ -465,7 +454,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 			public void onComplete(Throwable failure, Object msg) {
 				if (msg != null) {
 					if (msg instanceof LeaderSessionMessage &&
-						((LeaderSessionMessage) msg).message() instanceof RegistrationAtJobManagerSuccessful)
+						((LeaderSessionMessage) msg).message() instanceof RegisterResourceManagerSuccessful)
 					{
 						self().tell(msg, ActorRef.noSender());
 					}
@@ -495,14 +484,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 			jobManager = null;
 			leaderSessionID = null;
 			infoMessageListener = null;
-
-			// we move all currently registered TaskManagers to the "registration pending" status
-			LOG.info("Setting {} currently registered TaskManagers to await their re-registration " +
-				"with the new leader JobManager", registeredWorkers.size());
-
-			for (WorkerType worker : registeredWorkers.values()) {
-				workerUnRegistered(worker);
-			}
 
 			registeredWorkers.clear();
 		}

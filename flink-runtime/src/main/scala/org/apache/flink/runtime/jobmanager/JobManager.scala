@@ -332,7 +332,7 @@ class JobManager(
 
       // confirm registration and send known task managers with their resource ids
       sender ! decorateMessage(
-        new RegistrationAtJobManagerSuccessful(taskManagerResources.asJava))
+        new RegisterResourceManagerSuccessful(taskManagerResources.asJava))
 
     case msg @ RegisterTaskManager(
           resourceId,

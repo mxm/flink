@@ -28,7 +28,7 @@ import org.apache.flink.runtime.clusterframework.messages.RegisterResource;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceFailed;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceSuccessful;
-import org.apache.flink.runtime.clusterframework.messages.RegistrationAtJobManagerSuccessful;
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -85,7 +85,7 @@ public class ResourceManagerTest {
 			resourceList.add(ResourceID.generate());
 			resourceList.add(ResourceID.generate());
 
-			resourceManager.tell(new RegistrationAtJobManagerSuccessful(resourceList), fakeJobManager);
+			resourceManager.tell(new RegisterResourceManagerSuccessful(resourceList), fakeJobManager);
 
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
 			TestingResourceManager.GetRegisteredResourcesReply reply =
@@ -148,7 +148,7 @@ public class ResourceManagerTest {
 
 			// register with JM
 			expectMsgClass(RegisterResourceManager.class);
-			resourceManager.tell(new RegistrationAtJobManagerSuccessful(Collections.<ResourceID>emptyList()), fakeJobManager);
+			resourceManager.tell(new RegisterResourceManagerSuccessful(Collections.<ResourceID>emptyList()), fakeJobManager);
 
 			ResourceID resourceID = ResourceID.generate();
 

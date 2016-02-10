@@ -28,47 +28,31 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * Message sent to the JobManager by the Resource Manager to inform
- * about the removal of a TaskManager.
+ * about the removal of a resource.
  */
-public class TaskManagerRemoved implements RequiresLeaderSessionID, Serializable {
+public class ResourceRemoved implements RequiresLeaderSessionID, Serializable {
 	private static final long serialVersionUID = 1L;
-	
+
 	/** The ID under which the resource is registered (for example container ID) */
 	private final ResourceID resourceId;
-	
-	/** The ID under which the TaskManager process registered itself */
-	private final InstanceID registrationId;
 
+	/** Flag to indicate abnormal removal of the resource */
 	private final boolean failed;
 
 	/** Optional message with details, for logging and debugging */ 
 	private final String message;
-	
-	/**
-	 * Constructor for the a normal shutdown of the task manager without a failure.
-	 * @param resourceId The ID under which the resource is registered (for example container ID).
-	 * @param registrationId The TaskManager registration ID
-	 */
-	public TaskManagerRemoved(ResourceID resourceId, InstanceID registrationId) {
-		this.resourceId = requireNonNull(resourceId);
-		this.registrationId = requireNonNull(registrationId);
-		this.message = null;
-		this.failed = false;
-	}
 
 	/**
-	 * Constructor for the abnormal shutdown of the task manager.
+	 * Constructor for a shutdown of a registered resource.
 	 * @param resourceId The ID under which the resource is registered (for example container ID).
-	 * @param registrationId The TaskManager registration ID
 	 * @param message Optional message with details, for logging and debugging.
 	 */
-	public TaskManagerRemoved(ResourceID resourceId, InstanceID registrationId, String message) {
+	public ResourceRemoved(ResourceID resourceId, boolean failed, String message) {
 		this.resourceId = requireNonNull(resourceId);
-		this.registrationId = requireNonNull(registrationId);
 		this.message = message;
-		this.failed = true;
+		this.failed = failed;
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -77,14 +61,6 @@ public class TaskManagerRemoved implements RequiresLeaderSessionID, Serializable
 	 */
 	public ResourceID resourceId() {
 		return resourceId;
-	}
-
-	/**
-	 * Gets the ID under which the TaskManager process registered itself.
-	 * @return The TaskManager registration ID
-	 */
-	public InstanceID registrationId() {
-		return registrationId;
 	}
 
 	/**
@@ -102,14 +78,15 @@ public class TaskManagerRemoved implements RequiresLeaderSessionID, Serializable
 	public String message() {
 		return message;
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
-		return "TaskManagerRemoved{" +
-			"resourceId='" + resourceId + '\'' +
-			", registrationId=" + registrationId +
-			", message='" + registrationId + "'}";
+		return "ResourceRemoved{" +
+			"resourceId=" + resourceId +
+			", failed=" + failed +
+			", message='" + message + '\'' +
+			'}';
 	}
 }
