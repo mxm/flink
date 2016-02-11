@@ -113,7 +113,7 @@ public class ResourceManagerITCase {
 	public void testResourceManagerTaskManagerRegistration() {
 
 		new JavaTestKit(system){{
-		new Within(duration("10 seconds")) {
+		new Within(duration("30 seconds")) {
 		@Override
 		protected void run() {
 
