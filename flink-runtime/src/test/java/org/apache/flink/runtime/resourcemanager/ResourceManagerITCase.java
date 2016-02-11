@@ -30,8 +30,8 @@ import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 import scala.Option;
@@ -45,13 +45,13 @@ public class ResourceManagerITCase {
 
 	private static Configuration config = new Configuration();
 
-	@BeforeClass
-	public static void setup() {
+	@Before
+	public void setup() {
 		system = AkkaUtils.createActorSystem(AkkaUtils.getDefaultAkkaConfig());
 	}
 
-	@AfterClass
-	public static void teardown() {
+	@After
+	public void teardown() {
 		JavaTestKit.shutdownActorSystem(system);
 	}
 
@@ -107,6 +107,44 @@ public class ResourceManagerITCase {
 		}};
 	}
 
+	/**
+	 * Tests whether the resource manager gets informed upon TaskManager registration.
+	 */
+	@Test
+	public void testResourceManagerTaskManagerRegistration() {
 
+		new JavaTestKit(system){{
+		new Within(duration("10 seconds")) {
+		@Override
+		protected void run() {
+
+			ActorGateway jobManager = TestingUtils.createJobManager(system, config);
+			ActorGateway me =
+				TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+			// start the resource manager
+			ActorGateway resourceManager =
+				TestingUtils.createResourceManager(system, jobManager.actor(), config);
+
+			// notify about its registration at the job manager
+			jobManager.tell(new TestingJobManagerMessages.NotifyWhenResourceManagerConnected(), me);
+
+			// Wait for resource manager
+			expectMsgEquals(true);
+
+			// start task manager and wait for registration
+			ActorGateway taskManager =
+				TestingUtils.createTaskManager(system, jobManager.actor(), config, false, true);
+
+			// check if we registered the task manager resource
+			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), me);
+
+			TestingResourceManager.GetRegisteredResourcesReply reply =
+				expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
+
+			assertEquals(1, reply.resources.size());
+
+		}};
+		}};
+	}
 
 }
