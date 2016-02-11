@@ -107,12 +107,6 @@ public class ResourceManagerITCase {
 		}};
 	}
 
-	/**
-	 * Tests notification of JobManager about a failed resource.
-	 */
-	@Test
-	public void testResourceFailureNotification() {
-		// TODO RM
-	}
+
 
 }

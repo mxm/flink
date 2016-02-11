@@ -18,14 +18,12 @@
 
 package org.apache.flink.runtime.testutils;
 
-import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import java.util.Collection;
-import java.util.List;
 
 /**
  * A testing resource manager which may alter the default standalone resource master's behavior.
@@ -44,6 +42,9 @@ public class TestingResourceManager extends StandaloneResourceManager {
 
 		if (message instanceof GetRegisteredResources) {
 			sender().tell(new GetRegisteredResourcesReply(getRegisteredTaskManagers()), self());
+		} else if (message instanceof FailResource) {
+			ResourceID resourceID = ((FailResource) message).resourceID;
+			notifyWorkerFailed(resourceID, "Failed for test case.");
 		} else {
 			super.handleMessage(message);
 		}
@@ -52,15 +53,27 @@ public class TestingResourceManager extends StandaloneResourceManager {
 	/**
 	 * Testing messages
 	 */
-	public static class GetRegisteredResources {
-	}
+	public static class GetRegisteredResources {}
 
 	public static class GetRegisteredResourcesReply {
+
+		public Collection<ResourceID> resources;
 
 		public GetRegisteredResourcesReply(Collection<ResourceID> resources) {
 			this.resources = resources;
 		}
 
-		public Collection<ResourceID> resources;
+	}
+
+	/**
+	 * Fails all resources that the resource manager has registered
+	 */
+	public static class FailResource {
+
+		public ResourceID resourceID;
+
+		public FailResource(ResourceID resourceID) {
+			this.resourceID = resourceID;
+		}
 	}
 }

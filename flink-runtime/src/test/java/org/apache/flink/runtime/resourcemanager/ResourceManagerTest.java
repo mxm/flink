@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManage
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceSuccessful;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
 import org.apache.flink.runtime.clusterframework.messages.RemoveResource;
+import org.apache.flink.runtime.clusterframework.messages.ResourceRemoved;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -247,6 +248,7 @@ public class ResourceManagerTest {
 				expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
 
 			assertEquals(1, reply.resources.size());
+			assertTrue(reply.resources.contains(resourceID));
 
 			// remove resource
 			resourceManager.tell(new RemoveResource(resourceID), fakeJobManager);
@@ -256,6 +258,70 @@ public class ResourceManagerTest {
 			reply =	expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
 
 			assertEquals(0, reply.resources.size());
+
+		}};
+		}};
+	}
+
+	/**
+	 * Tests notification of JobManager about a failed resource.
+	 */
+	@Test
+	public void testResourceFailureNotification() {
+		new JavaTestKit(system){{
+		new Within(duration("10 seconds")) {
+		@Override
+		protected void run() {
+
+			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), config);
+
+			// register with JM
+			expectMsgClass(RegisterResourceManager.class);
+			resourceManager.tell(new RegisterResourceManagerSuccessful(Collections.<ResourceID>emptyList()), fakeJobManager);
+
+			ResourceID resourceID1 = ResourceID.generate();
+			ResourceID resourceID2 = ResourceID.generate();
+
+			// Send task manager registration
+			resourceManager.tell(new RegisterResource(
+					ActorRef.noSender(),
+					new RegistrationMessages.RegisterTaskManager(resourceID1,
+						Mockito.mock(InstanceConnectionInfo.class),
+						null,
+						1)),
+				fakeJobManager);
+
+			// Send task manager registration
+			resourceManager.tell(new RegisterResource(
+					ActorRef.noSender(),
+					new RegistrationMessages.RegisterTaskManager(resourceID2,
+						Mockito.mock(InstanceConnectionInfo.class),
+						null,
+						1)),
+				fakeJobManager);
+
+			expectMsgClass(RegisterResourceSuccessful.class);
+			expectMsgClass(RegisterResourceSuccessful.class);
+
+			// check for number registration of registered resources
+			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
+			TestingResourceManager.GetRegisteredResourcesReply reply =
+				expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
+
+			assertEquals(2, reply.resources.size());
+			assertTrue(reply.resources.contains(resourceID1));
+			assertTrue(reply.resources.contains(resourceID2));
+
+			// fail resources
+			resourceManager.tell(new TestingResourceManager.FailResource(resourceID1), fakeJobManager);
+			resourceManager.tell(new TestingResourceManager.FailResource(resourceID2), fakeJobManager);
+
+			ResourceRemoved answer = expectMsgClass(ResourceRemoved.class);
+			ResourceRemoved answer2 = expectMsgClass(ResourceRemoved.class);
+
+			assertEquals(resourceID1, answer.resourceId());
+			assertEquals(resourceID2, answer2.resourceId());
 
 		}};
 		}};
