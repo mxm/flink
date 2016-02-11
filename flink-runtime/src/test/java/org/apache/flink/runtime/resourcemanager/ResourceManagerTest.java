@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.messages.RegisterResourceFailed
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceSuccessful;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
+import org.apache.flink.runtime.clusterframework.messages.RemoveResource;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -46,6 +47,8 @@ import scala.Option;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import static org.junit.Assert.*;
 
 public class ResourceManagerTest {
 
@@ -70,12 +73,12 @@ public class ResourceManagerTest {
 	 * Tests the registration and reconciliation of the ResourceManager with the JobManager
 	 */
 	@Test
-	public void testJobManagerRegistration() {
+	public void testJobManagerRegistrationAndReconciliation() {
 		new JavaTestKit(system){{
 		new Within(duration("10 seconds")) {
 		@Override
 		protected void run() {
-			fakeJobManager = TestingUtils.createForwardingJobManager(system, getTestActor(), Option.<String>empty());
+			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
 			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), config);
 
 			expectMsgClass(RegisterResourceManager.class);
@@ -93,7 +96,7 @@ public class ResourceManagerTest {
 
 			for (ResourceID id : resourceList) {
 				if (!reply.resources.contains(id)) {
-					Assert.fail("Expected to find all resources that were provided during registration.");
+					fail("Expected to find all resources that were provided during registration.");
 				}
 			}
 		}};
@@ -114,7 +117,7 @@ public class ResourceManagerTest {
 			Configuration shortTimeoutConfig = config.clone();
 			shortTimeoutConfig.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT, "1 s");
 
-			fakeJobManager = TestingUtils.createForwardingJobManager(system, getTestActor(), Option.<String>empty());
+			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
 			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), shortTimeoutConfig);
 
 			// wait for registration message
@@ -143,7 +146,7 @@ public class ResourceManagerTest {
 		@Override
 		protected void run() {
 
-			fakeJobManager = TestingUtils.createForwardingJobManager(system, getTestActor(), Option.<String>empty());
+			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
 			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), config);
 
 			// register with JM
@@ -168,7 +171,7 @@ public class ResourceManagerTest {
 			TestingResourceManager.GetRegisteredResourcesReply reply =
 				expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
 
-			Assert.assertEquals(1, reply.resources.size());
+			assertEquals(1, reply.resources.size());
 
 			// Send task manager registration again
 			resourceManager.tell(new RegisterResource(
@@ -185,7 +188,7 @@ public class ResourceManagerTest {
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
 			reply = expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
 
-			Assert.assertEquals(1, reply.resources.size());
+			assertEquals(1, reply.resources.size());
 
 
 			// Send invalid null resource id to throw an exception during resource registration
@@ -203,7 +206,57 @@ public class ResourceManagerTest {
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
 			reply = expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
 
-			Assert.assertEquals(1, reply.resources.size());
+			assertEquals(1, reply.resources.size());
+		}};
+		}};
+	}
+
+	@Test
+	public void testResourceRemoval() {
+		new JavaTestKit(system){{
+		new Within(duration("10 seconds")) {
+		@Override
+		protected void run() {
+
+			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), config);
+
+			// register with JM
+			expectMsgClass(RegisterResourceManager.class);
+			resourceManager.tell(new RegisterResourceManagerSuccessful(Collections.<ResourceID>emptyList()), fakeJobManager);
+
+			ResourceID resourceID = ResourceID.generate();
+
+			// remove unknown resource
+			resourceManager.tell(new RemoveResource(resourceID), fakeJobManager);
+
+			// Send task manager registration
+			resourceManager.tell(new RegisterResource(
+					ActorRef.noSender(),
+					new RegistrationMessages.RegisterTaskManager(resourceID,
+						Mockito.mock(InstanceConnectionInfo.class),
+						null,
+						1)),
+				fakeJobManager);
+
+			expectMsgClass(RegisterResourceSuccessful.class);
+
+			// check for number registration of registered resources
+			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
+			TestingResourceManager.GetRegisteredResourcesReply reply =
+				expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
+
+			assertEquals(1, reply.resources.size());
+
+			// remove resource
+			resourceManager.tell(new RemoveResource(resourceID), fakeJobManager);
+
+			// check for number registration of registered resources
+			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
+			reply =	expectMsgClass(TestingResourceManager.GetRegisteredResourcesReply.class);
+
+			assertEquals(0, reply.resources.size());
+
 		}};
 		}};
 	}
