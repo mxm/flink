@@ -407,17 +407,14 @@ class JobManager(
             "Resource $resourceId not registered " +
               s"with resource manager."))))
 
-      // TODO RM cleanup
 
     case msg: ResourceRemoved =>
       // we're being informed by the resource manager that a resource has become unavailable
       val resourceID = msg.resourceId()
-
       log.debug(s"Resource has been removed: $resourceID")
-
       val instance = instanceManager.getRegisteredInstance(resourceID)
       // trigger removal of task manager
-      self ! decorateMessage(Terminated(instance.getActorGateway.actor()))
+      handleTaskManagerTerminated(instance.getActorGateway.actor())
 
     case RequestNumberRegisteredTaskManager =>
       sender ! decorateMessage(instanceManager.getNumberOfRegisteredTaskManagers)
@@ -894,12 +891,7 @@ class JobManager(
       gateway.forward(SendStackTrace, new AkkaActorGateway(sender, leaderSessionID.orNull))
 
     case Terminated(taskManagerActorRef) =>
-      if (instanceManager.isRegistered(taskManagerActorRef)) {
-        log.info(s"Task manager ${taskManagerActorRef.path} terminated.")
-
-        instanceManager.unregisterTaskManager(taskManagerActorRef, true)
-        context.unwatch(taskManagerActorRef)
-      }
+      handleTaskManagerTerminated(taskManagerActorRef)
 
     case RequestJobManagerStatus =>
       sender() ! decorateMessage(JobManagerStatusAlive)
@@ -946,6 +938,20 @@ class JobManager(
 
     case RequestWebMonitorPort =>
       sender() ! ResponseWebMonitorPort(webMonitorPort)
+  }
+
+  /**
+    * Handler to be executed when a task manager terminates.
+    * (Akka Deathwatch or notifiction from ResourceManager)
+    * @param taskManager The ActorRef of the taskManager
+    */
+  private def handleTaskManagerTerminated(taskManager: ActorRef): Unit = {
+    if (instanceManager.isRegistered(taskManager)) {
+      log.info(s"Task manager ${taskManager.path} terminated.")
+
+      instanceManager.unregisterTaskManager(taskManager, true)
+      context.unwatch(taskManager)
+    }
   }
 
   /**

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.clusterframework.messages;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 import java.io.Serializable;

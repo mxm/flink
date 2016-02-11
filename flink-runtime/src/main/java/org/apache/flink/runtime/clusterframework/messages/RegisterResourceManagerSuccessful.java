@@ -23,7 +23,6 @@ import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Collections;
 
 import static java.util.Objects.requireNonNull;
 
