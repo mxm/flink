@@ -58,7 +58,6 @@ import java.net.ServerSocket;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.testingUtils.TestingUtils.createForwardingJobManager;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.stopActor;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.createTaskManager;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.createJobManager;
@@ -284,7 +283,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			ActorGateway jm = null;
 			ActorGateway taskManager =null;
 			try {
-				jm= createForwardingJobManager(actorSystem, getTestActor(), Option.<String>empty());
+				jm = TestingUtils.createForwardingActor(actorSystem, getTestActor(), Option.<String>empty());
 				final ActorGateway jmGateway = jm;
 
 				// we make the test actor (the test kit) the JobManager to intercept
@@ -347,7 +346,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			final String JOB_MANAGER_NAME = "ForwardingJobManager";
 
 			try {
-				fakeJobManager1Gateway = createForwardingJobManager(
+				fakeJobManager1Gateway = TestingUtils.createForwardingActor(
 						actorSystem,
 						getTestActor(),
 						Option.apply(JOB_MANAGER_NAME));
@@ -415,7 +414,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				long deadline = 20000000000L + System.nanoTime();
 				do {
 					try {
-						fakeJobManager2Gateway = createForwardingJobManager(
+						fakeJobManager2Gateway = TestingUtils.createForwardingActor(
 								actorSystem,
 								getTestActor(),
 								Option.apply(JOB_MANAGER_NAME));

@@ -38,7 +38,7 @@ import scala.concurrent.{Await, Future}
 
 /**
  * Testing cluster which starts the [[JobManager]] and [[TaskManager]] actors with testing support
- * in the same [[ActorSystem]].
+ * in the same or separate [[ActorSystem]]s.
  *
  * @param userConfiguration Configuration object with the user provided configuration values
  * @param singleActorSystem true if all actors shall be running in the same [[ActorSystem]],

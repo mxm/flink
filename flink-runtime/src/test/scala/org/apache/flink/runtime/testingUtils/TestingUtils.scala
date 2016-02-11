@@ -395,18 +395,18 @@ object TestingUtils {
 
   /** Creates a forwarding JobManager which sends all received message to the forwarding target.
     *
-    * @param actorSystem
-    * @param forwardingTarget
-    * @param jobManagerName
+    * @param actorSystem The actor system to start the actor in.
+    * @param forwardingTarget Target to forward to.
+    * @param actorName Name for forwarding Actor
     * @return
     */
-  def createForwardingJobManager(
+  def createForwardingActor(
       actorSystem: ActorSystem,
       forwardingTarget: ActorRef,
-      jobManagerName: Option[String] = None)
+      actorName: Option[String] = None)
     : ActorGateway = {
 
-    val actor = jobManagerName match {
+    val actor = actorName match {
       case Some(name) =>
         actorSystem.actorOf(
           Props(
