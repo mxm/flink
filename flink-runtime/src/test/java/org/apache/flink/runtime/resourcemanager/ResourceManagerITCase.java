@@ -41,7 +41,6 @@ import static junit.framework.Assert.*;
 public class ResourceManagerITCase {
 
 	private static ActorSystem system;
-	private static TestingCluster cluster;
 
 	private static Configuration config = new Configuration();
 
