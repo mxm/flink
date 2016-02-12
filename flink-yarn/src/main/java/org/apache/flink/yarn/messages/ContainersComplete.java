@@ -20,12 +20,13 @@ package org.apache.flink.yarn.messages;
 
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
+import org.apache.flink.yarn.YarnResourceManager;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 
 import java.util.List;
 
 /**
- * Message sent by the callback handler to the {@link org.apache.flink.yarn.YarnFrameworkMaster}
+ * Message sent by the callback handler to the {@link YarnResourceManager}
  * to notify it that a set of new containers is complete.
  * 
  * NOTE: This message is not serializable, because the ContainerStatus object is not serializable.

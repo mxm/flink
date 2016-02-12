@@ -69,9 +69,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * This class is the executable entry point for the YARN application master.
  * It starts actor system and the actors for {@link org.apache.flink.runtime.jobmanager.JobManager}
- * and {@link org.apache.flink.yarn.YarnFrameworkMaster}.
+ * and {@link YarnResourceManager}.
  * 
- * The JobManager handles Flink job execution, while the YarnFrameworkMaster handles container
+ * The JobManager handles Flink job execution, while the YarnResourceManager handles container
  * allocation and failure detection.
  */
 public class YarnApplicationMasterRunner {
@@ -295,7 +295,7 @@ public class YarnApplicationMasterRunner {
 			LeaderRetrievalService leaderRetriever = 
 				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager);
 			
-			Props resourceMasterProps = YarnFrameworkMaster.createActorProps(
+			Props resourceMasterProps = YarnResourceManager.createActorProps(
 				getYarnMasterClass(),
 				config, yarnConfig,
 				leaderRetriever,
@@ -365,8 +365,8 @@ public class YarnApplicationMasterRunner {
 	//  JobManager and the archive of completed jobs
 	// ------------------------------------------------------------------------
 	
-	protected Class<? extends YarnFrameworkMaster> getYarnMasterClass() {
-		return YarnFrameworkMaster.class;
+	protected Class<? extends YarnResourceManager> getYarnMasterClass() {
+		return YarnResourceManager.class;
 	}
 	
 	protected Class<? extends JobManager> getJobManagerClass() {

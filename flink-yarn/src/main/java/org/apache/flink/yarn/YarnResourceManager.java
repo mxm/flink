@@ -65,7 +65,7 @@ import static java.util.Objects.requireNonNull;
  * Specialized Flink Resource Manager implementation for YARN clusters.
  * Implements the YARN-specific logic for container requests and failure monitoring.
  */
-public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWorkerNode> {
+public class YarnResourceManager extends FlinkResourceManager<RegisteredYarnWorkerNode> {
 	
 	/** The heartbeat interval while the resource master is waiting for containers */
 	private static final int FAST_YARN_HEARTBEAT_INTERVAL_MS = 500;
@@ -120,7 +120,7 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	private int failedContainersSoFar;
 
 
-	public YarnFrameworkMaster(
+	public YarnResourceManager(
 			Configuration flinkConfig,
 			LeaderRetrievalService leaderRetrievalService,
 			YarnConfiguration yarnConfig,
@@ -598,9 +598,9 @@ public class YarnFrameworkMaster extends FlinkResourceManager<RegisteredYarnWork
 	 * @param log
 	 *             The logger to log to.
 	 * 
-	 * @return The Props object to instantiate the YarnFrameworkMaster actor.
+	 * @return The Props object to instantiate the YarnResourceManager actor.
 	 */
-	public static Props createActorProps(Class<? extends YarnFrameworkMaster> actorClass,
+	public static Props createActorProps(Class<? extends YarnResourceManager> actorClass,
 			Configuration flinkConfig,
 			YarnConfiguration yarnConfig,
 			LeaderRetrievalService leaderRetrievalService,

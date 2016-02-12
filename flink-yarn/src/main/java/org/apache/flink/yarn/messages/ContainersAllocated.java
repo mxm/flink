@@ -19,12 +19,13 @@
 package org.apache.flink.yarn.messages;
 
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
+import org.apache.flink.yarn.YarnResourceManager;
 import org.apache.hadoop.yarn.api.records.Container;
 
 import java.util.List;
 
 /**
- * Message sent by the callback handler to the {@link org.apache.flink.yarn.YarnFrameworkMaster}
+ * Message sent by the callback handler to the {@link YarnResourceManager}
  * to notify it that a set of new containers is available.
  * 
  * NOTE: This message is not serializable, because the Container object is not serializable.
