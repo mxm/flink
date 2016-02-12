@@ -19,7 +19,6 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
-import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
@@ -42,7 +41,7 @@ public class TestingApplicationMaster extends ApplicationMasterBase {
 
 	@Override
 	public Class<? extends FlinkResourceManager<?>> getResourceManagerClass() {
-		return StandaloneResourceManager.class;
+		return TestingYarnResourceManager.class;
 	}
 
 	public static void main(String[] args) {

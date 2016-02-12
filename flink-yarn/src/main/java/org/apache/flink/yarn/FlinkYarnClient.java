@@ -23,6 +23,6 @@ package org.apache.flink.yarn;
 public class FlinkYarnClient extends FlinkYarnClientBase {
 	@Override
 	protected Class<?> getApplicationMasterClass() {
-		return ApplicationMaster.class;
+		return YarnApplicationMasterRunner.class;
 	}
 }
