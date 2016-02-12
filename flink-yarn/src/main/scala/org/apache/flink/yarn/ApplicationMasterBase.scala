@@ -135,7 +135,7 @@ abstract class ApplicationMasterBase {
       // method to start the actor system.
       def startActorSystem(
           portsIterator: java.util.Iterator[Integer])
-        : (ActorSystem, ActorRef, ActorRef, ActorRef, Option[WebMonitor]) = {
+        : (ActorSystem, ActorRef, ActorRef, Option[WebMonitor]) = {
         val availableSocket = NetUtils.createSocketFromPorts(
           portsIterator,
           new NetUtils.SocketFactory {
@@ -152,7 +152,7 @@ abstract class ApplicationMasterBase {
           port // return for if
         }
 
-        val (actorSystem, jobManager, archive, webMonitor) =
+        val (actorSystem, jobManager, archive, webMonitor, resourceManager) =
           JobManager.startActorSystemAndJobManagerActors(
             config,
             JobManagerMode.CLUSTER,
@@ -160,17 +160,10 @@ abstract class ApplicationMasterBase {
             tryPort,
             getJobManagerClass,
             getArchivistClass,
-            getResourceManagerClass
+            Option(getResourceManagerClass)
         )
 
-        val lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config)
-        val resourceManager = FlinkResourceManager.startResourceManagerActors(
-          config,
-          actorSystem,
-          lrs,
-          classOf[StandaloneResourceManager])
-
-        (actorSystem, jobManager, archive, resourceManager, webMonitor)
+        (actorSystem, jobManager, archive, webMonitor)
       }
 
       // try starting the actor system
@@ -178,7 +171,7 @@ abstract class ApplicationMasterBase {
         startActorSystem(portsIterator),
         {!portsIterator.hasNext})
 
-      val (actorSystem, jmActor, _, _, webMonitor) = result match {
+      val (actorSystem, jmActor, _, webMonitor) = result match {
         case Success(r) => r
         case Failure(failure) => throw new RuntimeException("Unable to start actor system", failure)
       }
