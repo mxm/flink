@@ -25,6 +25,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
+import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
@@ -91,7 +92,7 @@ public class ResourceManagerITCase {
 				TestingUtils.createResourceManager(system, jobManager.actor(), config);
 
 			// Wait for resource manager
-			expectMsgEquals(true);
+			expectMsgEquals(Messages.getAcknowledge());
 
 			// check if we registered the task manager resource
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), me);
@@ -128,7 +129,7 @@ public class ResourceManagerITCase {
 			jobManager.tell(new TestingJobManagerMessages.NotifyWhenResourceManagerConnected(), me);
 
 			// Wait for resource manager
-			expectMsgEquals(true);
+			expectMsgEquals(Messages.getAcknowledge());
 
 			// start task manager and wait for registration
 			ActorGateway taskManager =

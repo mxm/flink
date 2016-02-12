@@ -353,7 +353,7 @@ trait TestingJobManagerLike extends FlinkActor {
 
     case msg: RegisterResourceManager =>
       super.handleMessage(msg)
-      waitForResourceManagerConnected foreach (_ ! true)
+      waitForResourceManagerConnected foreach (_ ! Acknowledge)
       waitForResourceManagerConnected.clear()
   }
 
