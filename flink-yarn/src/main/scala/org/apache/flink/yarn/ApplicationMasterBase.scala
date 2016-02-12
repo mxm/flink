@@ -152,7 +152,7 @@ abstract class ApplicationMasterBase {
           port // return for if
         }
 
-        val (actorSystem, jobManager, archive, webMonitor, resourceManager) =
+        val (actorSystem, jobManager, archive, webMonitor, resourceManagerOption) =
           JobManager.startActorSystemAndJobManagerActors(
             config,
             JobManagerMode.CLUSTER,
