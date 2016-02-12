@@ -133,7 +133,7 @@ public class ResourceManagerITCase {
 
 			// start task manager and wait for registration
 			ActorGateway taskManager =
-				TestingUtils.createTaskManager(system, jobManager.actor(), config, false, true);
+				TestingUtils.createTaskManager(system, jobManager.actor(), config, true, true);
 
 			// check if we registered the task manager resource
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), me);
