@@ -38,7 +38,9 @@ import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.client._
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.messages._
+import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.execution.UnrecoverableException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
@@ -943,6 +945,7 @@ class JobManager(
   /**
     * Handler to be executed when a task manager terminates.
     * (Akka Deathwatch or notifiction from ResourceManager)
+ *
     * @param taskManager The ActorRef of the taskManager
     */
   private def handleTaskManagerTerminated(taskManager: ActorRef): Unit = {
@@ -1742,14 +1745,16 @@ object JobManager {
       listeningAddress: String,
       listeningPort: Int)
     : Unit = {
-    
-    val (jobManagerSystem, _, _, _) = startActorSystemAndJobManagerActors(
+
+    // TODO RM we could start the resource manager here but it is not necessary in standalone mode!
+    val (jobManagerSystem, _, _, _, _) = startActorSystemAndJobManagerActors(
       configuration,
       executionMode,
       listeningAddress,
       listeningPort,
       classOf[JobManager],
-      classOf[MemoryArchivist]
+      classOf[MemoryArchivist],
+      Option(classOf[StandaloneResourceManager])
     )
 
     // block until everything is shut down
@@ -1863,6 +1868,7 @@ object JobManager {
     * @param listeningPort The port where the JobManager should listen for messages
     * @param jobManagerClass The class of the JobManager to be started
     * @param archiveClass The class of the Archivist to be started
+    * @param resourceManagerClass Optional class of resource manager if one should be started
     * @return A tuple containing the started ActorSystem, ActorRefs to the JobManager and the
     *         Archivist and an Option containing a possibly started WebMonitor
     */
@@ -1872,8 +1878,9 @@ object JobManager {
       listeningAddress: String,
       listeningPort: Int,
       jobManagerClass: Class[_ <: JobManager],
-      archiveClass: Class[_ <: MemoryArchivist])
-    : (ActorSystem, ActorRef, ActorRef, Option[WebMonitor]) = {
+      archiveClass: Class[_ <: MemoryArchivist],
+      resourceManagerClass: Option[Class[_ <: FlinkResourceManager[_]]])
+    : (ActorSystem, ActorRef, ActorRef, Option[WebMonitor], Option[ActorRef]) = {
 
     LOG.info("Starting JobManager")
 
@@ -1983,7 +1990,22 @@ object JobManager {
           monitor.start(jobManagerAkkaUrl)
       }
 
-      (jobManagerSystem, jobManager, archive, webMonitor)
+      val resourceManager =
+        resourceManagerClass match {
+          case Some(rmClass) =>
+            LOG.debug("Starting Resource manager actor")
+            Option(
+              FlinkResourceManager.startResourceManagerActors(
+                configuration,
+                jobManagerSystem,
+                LeaderRetrievalUtils.createLeaderRetrievalService(configuration),
+                rmClass))
+          case None =>
+            LOG.info("Resource Manager class not provided. No resource manager will be started.")
+            None
+        }
+
+      (jobManagerSystem, jobManager, archive, webMonitor, resourceManager)
     }
     catch {
       case t: Throwable =>

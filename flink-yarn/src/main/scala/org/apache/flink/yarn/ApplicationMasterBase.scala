@@ -159,7 +159,8 @@ abstract class ApplicationMasterBase {
             ownHostname,
             tryPort,
             getJobManagerClass,
-            getArchivistClass
+            getArchivistClass,
+            getResourceManagerClass
         )
 
         val lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config)
