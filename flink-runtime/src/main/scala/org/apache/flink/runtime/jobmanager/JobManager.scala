@@ -23,7 +23,7 @@ import java.net.{BindException, ServerSocket, UnknownHostException, InetAddress,
 import java.util.UUID
 import java.util.concurrent.{TimeUnit, ExecutorService}
 
-import akka.actor.Status.Failure
+import akka.actor.Status.{Success, Failure}
 import akka.actor._
 import akka.pattern.ask
 
@@ -162,7 +162,7 @@ class JobManager(
   val webMonitorPort : Int = flinkConfiguration.getInteger(
     ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
 
-  /** The resource manager actor responsible for allocating and monitoring task managers. */
+  /** The resource manager actor responsible for allocating and managing task manager resources. */
   var currentResourceManager: Option[ActorRef] = None
 
   /**
@@ -330,11 +330,11 @@ class JobManager(
       currentResourceManager = Option(msg.resourceManager())
 
       val taskManagerResources = instanceManager.getAllRegisteredInstances.asScala.map(
-        instance => instance.getResourceId).toList
+        instance => instance.getResourceId).toList.asJava
 
       // confirm registration and send known task managers with their resource ids
       sender ! decorateMessage(
-        new RegisterResourceManagerSuccessful(taskManagerResources.asJava))
+        new RegisterResourceManagerSuccessful(taskManagerResources))
 
     case msg @ RegisterTaskManager(
           resourceId,
@@ -348,7 +348,18 @@ class JobManager(
 
       currentResourceManager match {
         case Some(rm) =>
-          rm ! decorateMessage(new RegisterResource(taskManager, msg))
+          val future = (rm ? decorateMessage(new RegisterResource(taskManager, msg)))(timeout)
+          future.onComplete {
+            case scala.util.Success(response) =>
+              // the resource manager is available and answered
+              self ! response
+            case scala.util.Failure(t) =>
+              // slow or unreachable resource manager, register anyway and let the rm reconnect
+              self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
+              // TODO RM this is odd and needs to be fixed
+              currentResourceManager = None
+          }(context.dispatcher)
+
         case None =>
           log.info("Task Manager Registration but not connected to ResourceManager")
           // ResourceManager not yet available
