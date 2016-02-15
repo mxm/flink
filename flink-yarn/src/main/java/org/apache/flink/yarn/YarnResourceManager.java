@@ -122,8 +122,8 @@ public class YarnResourceManager extends FlinkResourceManager<RegisteredYarnWork
 
 	public YarnResourceManager(
 			Configuration flinkConfig,
-			LeaderRetrievalService leaderRetrievalService,
 			YarnConfiguration yarnConfig,
+			LeaderRetrievalService leaderRetrievalService,
 			String applicationMasterHostName,
 			String webInterfaceURL,
 			ContaineredTaskManagerParameters taskManagerParameters,

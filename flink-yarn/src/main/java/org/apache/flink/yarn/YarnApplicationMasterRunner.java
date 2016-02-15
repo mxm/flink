@@ -297,7 +297,8 @@ public class YarnApplicationMasterRunner {
 			
 			Props resourceMasterProps = YarnResourceManager.createActorProps(
 				getYarnMasterClass(),
-				config, yarnConfig,
+				config,
+				yarnConfig,
 				leaderRetriever,
 				appMasterHostname,
 				webMonitorURL,

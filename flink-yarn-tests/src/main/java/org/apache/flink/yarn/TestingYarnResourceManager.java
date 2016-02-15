@@ -43,8 +43,8 @@ public class TestingYarnResourceManager extends YarnResourceManager {
 		int numInitialTaskManagers) {
 
 		super(flinkConfig,
-			leaderRetrievalService,
 			yarnConfig,
+			leaderRetrievalService,
 			applicationMasterHostName,
 			webInterfaceURL,
 			taskManagerParameters,
