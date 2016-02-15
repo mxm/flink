@@ -31,6 +31,7 @@ import org.apache.flink.runtime.clusterframework.messages.RegisterResourceSucces
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
 import org.apache.flink.runtime.clusterframework.messages.RemoveResource;
 import org.apache.flink.runtime.clusterframework.messages.ResourceRemoved;
+import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -131,6 +132,39 @@ public class ResourceManagerTest {
 			expectMsgClass(RegisterResourceManager.class);
 
 			// wait for next try after timeout
+			expectMsgClass(RegisterResourceManager.class);
+
+		}};
+		}};
+	}
+
+	@Test
+	public void testTriggerReconnect() {
+		new JavaTestKit(system){{
+		new Within(duration("10 seconds")) {
+		@Override
+		protected void run() {
+
+			// set a long timeout for lookups such that the test fails in case of timeouts
+			Configuration shortTimeoutConfig = config.clone();
+			shortTimeoutConfig.setString(ConfigConstants.AKKA_LOOKUP_TIMEOUT, "99999 s");
+
+			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), shortTimeoutConfig);
+
+			// wait for registration message
+			RegisterResourceManager msg = expectMsgClass(RegisterResourceManager.class);
+			// all went well
+			resourceManager.tell(
+				new RegisterResourceManagerSuccessful(Collections.<ResourceID>emptyList()),
+				fakeJobManager);
+
+			// force a reconnect
+			resourceManager.tell(
+				new TriggerRegistrationAtJobManager(fakeJobManager.actor()),
+				fakeJobManager);
+
+			// new registration attempt should come in
 			expectMsgClass(RegisterResourceManager.class);
 
 		}};

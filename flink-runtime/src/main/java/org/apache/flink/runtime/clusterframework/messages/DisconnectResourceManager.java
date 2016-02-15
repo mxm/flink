@@ -19,33 +19,27 @@
 package org.apache.flink.runtime.clusterframework.messages;
 
 import akka.actor.ActorRef;
+import com.google.common.base.Preconditions;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
-import java.io.Serializable;
-
 /**
- * Causes the resource manager to try and apply at the leader JobManager.
+ * This message signals that the resource manager should be disconnected.
  */
-public class TriggerRegistrationAtJobManager implements RequiresLeaderSessionID, Serializable {
+public class DisconnectResourceManager implements RequiresLeaderSessionID, java.io.Serializable {
 	private static final long serialVersionUID = 1L;
-	
-	private final String jobManagerAddress;
-	
-	public TriggerRegistrationAtJobManager(ActorRef jobManager) {
-		this(jobManager.path().toSerializationFormat());
+
+	private final ActorRef resourceManager;
+
+	public DisconnectResourceManager(ActorRef resourceManager) {
+		this.resourceManager = Preconditions.checkNotNull(resourceManager);
 	}
-
-	public TriggerRegistrationAtJobManager(String jobManagerAddress) {
-		this.jobManagerAddress = jobManagerAddress;
-	}
-
-
-	public String jobManagerAddress() {
-		return jobManagerAddress;
+	
+	public ActorRef resourceManager() {
+		return resourceManager;
 	}
 
 	@Override
 	public String toString() {
-		return "TriggerRegistrationAtJobManager " + jobManagerAddress;
+		return "DisconnectResourceManager " + resourceManager.path();
 	}
 }

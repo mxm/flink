@@ -336,6 +336,21 @@ class JobManager(
       sender ! decorateMessage(
         new RegisterResourceManagerSuccessful(taskManagerResources))
 
+    case msg: DisconnectResourceManager =>
+      log.debug(s"Resource manager disconnect: $msg")
+
+      currentResourceManager match {
+        case Some(rm) if rm.equals(msg.resourceManager()) =>
+          // we should ditch the current resource manager
+          log.debug("Disconnecting resource manager $rm.")
+          // send the old one a disconnect message
+          rm ! decorateMessage(new TriggerRegistrationAtJobManager(self))
+          currentResourceManager = None
+        case None =>
+          // not connected, thus ignoring this message
+          log.debug("No resource manager connected. Can't disconnect.")
+      }
+
     case msg @ RegisterTaskManager(
           resourceId,
           connectionInfo,
@@ -356,8 +371,7 @@ class JobManager(
             case scala.util.Failure(t) =>
               // slow or unreachable resource manager, register anyway and let the rm reconnect
               self ! decorateMessage(new RegisterResourceSuccessful(taskManager, msg))
-              // TODO RM this is odd and needs to be fixed
-              currentResourceManager = None
+              self ! decorateMessage(new DisconnectResourceManager(rm))
           }(context.dispatcher)
 
         case None =>
