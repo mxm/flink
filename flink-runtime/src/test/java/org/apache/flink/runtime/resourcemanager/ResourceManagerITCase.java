@@ -121,12 +121,13 @@ public class ResourceManagerITCase {
 			ActorGateway jobManager = TestingUtils.createJobManager(system, config);
 			ActorGateway me =
 				TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+
+			// notify about a resource manager registration at the job manager
+			jobManager.tell(new TestingJobManagerMessages.NotifyWhenResourceManagerConnected(), me);
+
 			// start the resource manager
 			ActorGateway resourceManager =
 				TestingUtils.createResourceManager(system, jobManager.actor(), config);
-
-			// notify about its registration at the job manager
-			jobManager.tell(new TestingJobManagerMessages.NotifyWhenResourceManagerConnected(), me);
 
 			// Wait for resource manager
 			expectMsgEquals(Messages.getAcknowledge());
