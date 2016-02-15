@@ -29,7 +29,7 @@ class ApplicationMaster extends ApplicationMasterBase {
   override def getJobManagerClass: Class[_ <: JobManager] = classOf[YarnJobManager]
   override def getArchivistClass: Class[_ <: MemoryArchivist] = classOf[MemoryArchivist]
   override def getResourceManagerClass: Class[_ <: FlinkResourceManager[_]] =
-    classOf[StandaloneResourceManager]
+    classOf[YarnResourceManager]
 }
 
 object ApplicationMaster {

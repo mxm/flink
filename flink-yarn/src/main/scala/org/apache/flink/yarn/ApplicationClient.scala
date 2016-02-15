@@ -21,13 +21,10 @@ package org.apache.flink.yarn
 import java.util.UUID
 
 import akka.actor._
-import akka.pattern
-import akka.util.Timeout
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.{LeaderSessionMessageFilter, FlinkActor, LogMessages}
-import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
 import org.apache.flink.yarn.YarnMessages._
 import scala.collection.mutable
@@ -35,13 +32,13 @@ import scala.concurrent.duration._
 
 import scala.language.postfixOps
 
-/** Actor which is responsible to repeatedly poll the Yarn cluster status from the JobManager.
+/** Actor which is responsible to repeatedly poll the Yarn cluster status from the ResourceManager.
   *
-  * This class represents the bridge between the [[FlinkYarnCluster]] and the [[YarnJobManager]].
+  * This class represents the bridge between the [[FlinkYarnCluster]] and the [[YarnResourceManager]].
   *
   * @param flinkConfig Configuration object
   * @param leaderRetrievalService [[LeaderRetrievalService]] which is used to retrieve the current
-  *                              leading [[YarnJobManager]]
+  *                              leading [[org.apache.flink.runtime.jobmanager.JobManager]]
   */
 class ApplicationClient(
     val flinkConfig: Configuration,

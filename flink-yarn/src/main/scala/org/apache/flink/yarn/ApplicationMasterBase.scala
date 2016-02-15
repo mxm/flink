@@ -43,7 +43,7 @@ import scala.io.Source
 import scala.util.{Failure, Success}
 
 /** Base class for all application masters. This base class provides functionality to start a
-  * [[JobManager]] implementation in a Yarn container.
+  * [[YarnResourceManager]] implementation in a Yarn container.
   *
   * The only functions which have to be overwritten are the getJobManagerClass and
   * getArchivistClass, which define the actors to be started.

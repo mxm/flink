@@ -32,6 +32,8 @@ import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
+import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.yarn.messages.ContainersAllocated;
 import org.apache.flink.yarn.messages.ContainersComplete;
@@ -62,10 +64,11 @@ import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Specialized Flink Resource Manager implementation for YARN clusters.
- * Implements the YARN-specific logic for container requests and failure monitoring.
+ * Specialized Flink Resource Manager implementation for YARN clusters. It is started as the
+ * YARN ApplicationMaster and implements the YARN-specific logic for container requests and failure
+ * monitoring.
  */
-public class YarnResourceManager extends FlinkResourceManager<RegisteredYarnWorkerNode> {
+public abstract class YarnResourceManager extends FlinkResourceManager<RegisteredYarnWorkerNode> {
 	
 	/** The heartbeat interval while the resource master is waiting for containers */
 	private static final int FAST_YARN_HEARTBEAT_INTERVAL_MS = 500;
@@ -146,6 +149,17 @@ public class YarnResourceManager extends FlinkResourceManager<RegisteredYarnWork
 		this.containersInLaunch = new HashMap<>();
 		this.containersBeingReturned = new HashMap<>();
 	}
+
+
+	// ------------------------------------------------------------------------
+	//  Abstract methods to retrieve the Actor classes
+	// ------------------------------------------------------------------------
+
+	public abstract Class<? extends JobManager> getJobManagerClass();
+
+	public abstract Class<? extends MemoryArchivist> getArchivistClass();
+
+	public abstract Class<? extends FlinkResourceManager<?>> getResourceManagerClass();
 
 	// ------------------------------------------------------------------------
 	//  Actor messages
