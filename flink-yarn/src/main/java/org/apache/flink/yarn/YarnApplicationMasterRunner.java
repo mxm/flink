@@ -371,7 +371,7 @@ public class YarnApplicationMasterRunner {
 	}
 	
 	protected Class<? extends JobManager> getJobManagerClass() {
-		return JobManager.class;
+		return YarnJobManager.class;
 	}
 
 	protected Class<? extends MemoryArchivist> getArchivistClass() {

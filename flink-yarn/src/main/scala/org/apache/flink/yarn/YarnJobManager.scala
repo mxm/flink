@@ -34,6 +34,7 @@ import org.apache.flink.configuration.{Configuration => FlinkConfiguration, Conf
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy
+import org.apache.flink.runtime.clusterframework.messages.RegisterInfoMessageListener
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.{SubmittedJobGraphStore, JobManager}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
@@ -123,6 +124,16 @@ class YarnJobManager(
 
   def handleYarnMessage: Receive = {
 
+    case msg: RegisterInfoMessageListener =>
+      // forward to resource manager
+      currentResourceManager match {
+        case Some(rm) =>
+          // we forward the message
+          rm.forward(decorateMessage(msg))
+        case None =>
+          // client has to try again
+      }
+
     case StopAMAfterJob(jobId) =>
       log.info(s"ApplicatonMaster will shut down YARN session when job $jobId has finished.")
       stopWhenJobFinished = jobId
@@ -135,7 +146,7 @@ class YarnJobManager(
               self ! decorateMessage(RequestJobStatus(stopWhenJobFinished))
             }
           }
-        )
+        )(context.dispatcher)
       }
 
       sender() ! decorateMessage(Acknowledge)
@@ -147,9 +158,9 @@ class YarnJobManager(
           instanceManager.getTotalNumberOfSlots)
       )
 
-    case StartYarnSession(hadoopConfig, webServerPort) =>
-      // TODO RM
-      startYarnSession(hadoopConfig, webServerPort)
+//       TODO RM
+//    case StartYarnSession(hadoopConfig, webServerPort) =>
+//      startYarnSession(hadoopConfig, webServerPort)
 
     case jnf: JobNotFound =>
       log.warn(s"Job with ID ${jnf.jobID} not found in JobManager")

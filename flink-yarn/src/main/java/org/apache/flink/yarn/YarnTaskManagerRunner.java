@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import java.io.IOException;
 import java.security.PrivilegedAction;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -86,8 +87,8 @@ public class YarnTaskManagerRunner {
 			ugi.addToken(toks);
 		}
 
-		// TODO RM get resource id
-		final ResourceID resourceId = ResourceID.generate();
+		String containerID = Objects.requireNonNull(System.getenv(Environment.CONTAINER_ID.key()));
+		final ResourceID resourceId = new ResourceID(containerID);
 
 		ugi.doAs(new PrivilegedAction<Object>() {
 			@Override

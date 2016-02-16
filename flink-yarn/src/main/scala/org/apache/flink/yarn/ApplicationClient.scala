@@ -23,8 +23,8 @@ import java.util.UUID
 import akka.actor._
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.clusterframework.messages.{RegisterInfoMessageListenerSuccessful,
-RegisterInfoMessageListener}
+import org.apache.flink.runtime.clusterframework.messages.{InfoMessage,
+RegisterInfoMessageListenerSuccessful, RegisterInfoMessageListener}
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.{LeaderSessionMessageFilter, FlinkActor, LogMessages}
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
@@ -61,7 +61,7 @@ class ApplicationClient(
   var yarnJobManager: Option[ActorRef] = None
   var pollingTimer: Option[Cancellable] = None
   var running = false
-  var messagesQueue : mutable.Queue[YarnMessage] = mutable.Queue[YarnMessage]()
+  var messagesQueue : mutable.Queue[InfoMessage] = mutable.Queue[InfoMessage]()
   var latestClusterStatus : Option[FlinkYarnClusterStatus] = None
   var stopMessageReceiver : Option[ActorRef] = None
 
@@ -134,10 +134,10 @@ class ApplicationClient(
         }
       }
 
-    case RegisterInfoMessageListenerSuccessful =>
+    case msg: RegisterInfoMessageListenerSuccessful =>
       val jm = sender()
 
-      log.info(s"Successfully registered at the JobManager $jm")
+      log.info(s"Successfully registered at the ResourceManager $jm")
 
       yarnJobManager = Some(jm)
 
@@ -211,7 +211,7 @@ class ApplicationClient(
 
     // -----------------  handle messages from the cluster -------------------
     // receive remote messages
-    case msg: YarnMessage =>
+    case msg: InfoMessage =>
       log.debug(s"Received new YarnMessage $msg. Now ${messagesQueue.size} messages in queue")
       messagesQueue.enqueue(msg)
 

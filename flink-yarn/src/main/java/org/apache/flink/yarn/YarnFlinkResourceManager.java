@@ -33,7 +33,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.flink.yarn.messages.ContainersAllocated;
 import org.apache.flink.yarn.messages.ContainersComplete;
 
@@ -168,9 +167,6 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		} else if (message instanceof ContainersComplete) {
 			containersComplete(((ContainersComplete) message).containers());
 
-		} else if (message instanceof YarnMessages.PollYarnClusterStatus) {
-			// special yarn cluster polling
-			yarnClusterStatusPolling();
 		} else {
 			// message handled by the generic resource master code
 			super.handleMessage(message);
@@ -509,13 +505,6 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		// in case failed containers were among the finished containers, make
 		// sure we re-examine and request new ones
 		triggerCheckWorkers();
-	}
-
-	/**
-	 * Special YARN Application client message that polls the Yarn cluster status
-	 */
-	private void yarnClusterStatusPolling() {
-//		new FlinkYarnClusterStatus()
 	}
 
 	// ------------------------------------------------------------------------

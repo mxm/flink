@@ -50,7 +50,6 @@ import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJ
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 
 import org.apache.flink.runtime.messages.RegistrationMessages;
@@ -268,7 +267,8 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 				registerMessageListener(sender());
 				sender().tell(decorateMessage(
 					RegisterInfoMessageListenerSuccessful.get()),
-					self());
+					// answer as the JobManager
+					jobManager);
 			}
 
 			// --- unknown messages
