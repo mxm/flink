@@ -167,6 +167,9 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		}
 	}
 
+	/**
+	 * The class to bootstrap the application master of the Yarn cluster (runs main method).
+	 */
 	protected abstract Class<?> getApplicationMasterClass();
 
 	@Override

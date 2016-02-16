@@ -24,16 +24,15 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
-
 /**
- * A testing YARN resource manager which may alter the default yarn resource manager's behavior.
+ * Flink's testing resource manager for Yarn.
  */
-public class TestingYarnResourceManager extends YarnResourceManager {
+public class TestingYarnFlinkResourceManager extends YarnFlinkResourceManager {
 
-	public TestingYarnResourceManager(
+	public TestingYarnFlinkResourceManager(
 		Configuration flinkConfig,
-		LeaderRetrievalService leaderRetrievalService,
 		YarnConfiguration yarnConfig,
+		LeaderRetrievalService leaderRetrievalService,
 		String applicationMasterHostName,
 		String webInterfaceURL,
 		ContaineredTaskManagerParameters taskManagerParameters,
@@ -42,7 +41,8 @@ public class TestingYarnResourceManager extends YarnResourceManager {
 		int maxFailedContainers,
 		int numInitialTaskManagers) {
 
-		super(flinkConfig,
+		super(
+			flinkConfig,
 			yarnConfig,
 			leaderRetrievalService,
 			applicationMasterHostName,
@@ -53,17 +53,4 @@ public class TestingYarnResourceManager extends YarnResourceManager {
 			maxFailedContainers,
 			numInitialTaskManagers);
 	}
-
-	/**
-	 * Overwrite messages here if desired
-	 */
-	@Override
-	protected void handleMessage(Object message) {
-		super.handleMessage(message);
-	}
-
-	//
-	// Testing messages go here
-	//
-
 }

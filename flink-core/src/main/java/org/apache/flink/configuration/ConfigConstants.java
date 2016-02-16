@@ -750,18 +750,6 @@ public final class ConfigConstants {
 	 */
 	public static final String DEFAULT_CONTAINERED_JOB_MANAGER_PORT = "0";
 
-	// --------------------------Standalone Setup -----------------------------
-	
-	/**
-	 * Default heartbeat interval for TaskManagers in standalone setups. 
-	 */
-	public static final long DEFAULT_STANDALONE_HEARTBEAT_INTERVAL = 5000;
-
-	/**
-	 * Default maximal heartbeat pause before a TaskManager is marked as dead by the JobManager.
-	 */
-	public static final long DEFAULT_STANDALONE_HEARTBEAT_MAX_PAUSE = 15000;
-	
 	// ------------------------ File System Behavior ------------------------
 
 	/**

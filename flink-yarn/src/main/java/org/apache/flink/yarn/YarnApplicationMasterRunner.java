@@ -69,9 +69,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * This class is the executable entry point for the YARN application master.
  * It starts actor system and the actors for {@link org.apache.flink.runtime.jobmanager.JobManager}
- * and {@link YarnResourceManager}.
+ * and {@link YarnFlinkResourceManager}.
  * 
- * The JobManager handles Flink job execution, while the YarnResourceManager handles container
+ * The JobManager handles Flink job execution, while the YarnFlinkResourceManager handles container
  * allocation and failure detection.
  */
 public class YarnApplicationMasterRunner {
@@ -266,8 +266,8 @@ public class YarnApplicationMasterRunner {
 			
 			// 1) Web Monitor (we need its port to register)
 			// 2) JobManager & Archive (in non-HA case, the leader service takes this)
-			// 3)  Resource framework master for YARN
-			// 4) Process reapers for the JobManager and YarnFramework Master
+			// 3) Resource Master for YARN
+			// 4) Process reapers for the JobManager and Resource Master
 
 			// 1: the web monitor
 			LOG.debug("Starting web frontend");
@@ -287,7 +287,7 @@ public class YarnApplicationMasterRunner {
 				getJobManagerClass(),
 				getArchivistClass())._1();
 			
-			// 3: The resource framework master
+			// 3: Flink's Yarn resource manager
 			LOG.debug("Starting YARN application master actor");
 
 			// we need the leader retrieval service here to be informed of new
@@ -295,8 +295,8 @@ public class YarnApplicationMasterRunner {
 			LeaderRetrievalService leaderRetriever = 
 				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager);
 			
-			Props resourceMasterProps = YarnResourceManager.createActorProps(
-				getYarnMasterClass(),
+			Props resourceMasterProps = YarnFlinkResourceManager.createActorProps(
+				getResourceManagerClass(),
 				config,
 				yarnConfig,
 				leaderRetriever,
@@ -366,8 +366,8 @@ public class YarnApplicationMasterRunner {
 	//  JobManager and the archive of completed jobs
 	// ------------------------------------------------------------------------
 	
-	protected Class<? extends YarnResourceManager> getYarnMasterClass() {
-		return YarnResourceManager.class;
+	protected Class<? extends YarnFlinkResourceManager> getResourceManagerClass() {
+		return YarnFlinkResourceManager.class;
 	}
 	
 	protected Class<? extends JobManager> getJobManagerClass() {

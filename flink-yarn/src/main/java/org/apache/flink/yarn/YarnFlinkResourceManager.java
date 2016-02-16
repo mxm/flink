@@ -32,12 +32,12 @@ import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
 import org.apache.flink.yarn.messages.ContainersAllocated;
 import org.apache.flink.yarn.messages.ContainersComplete;
 
+import org.apache.hadoop.util.Options;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -68,7 +68,7 @@ import static java.util.Objects.requireNonNull;
  * YARN ApplicationMaster and implements the YARN-specific logic for container requests and failure
  * monitoring.
  */
-public abstract class YarnResourceManager extends FlinkResourceManager<RegisteredYarnWorkerNode> {
+public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYarnWorkerNode> {
 	
 	/** The heartbeat interval while the resource master is waiting for containers */
 	private static final int FAST_YARN_HEARTBEAT_INTERVAL_MS = 500;
@@ -122,8 +122,11 @@ public abstract class YarnResourceManager extends FlinkResourceManager<Registere
 	/** The number of failed containers since the master became active */
 	private int failedContainersSoFar;
 
+	/** The Flink ApplicationClient which will poll the cluster status in regular intervals */
+	private ActorRef applicationClient;
 
-	public YarnResourceManager(
+
+	public YarnFlinkResourceManager(
 			Configuration flinkConfig,
 			YarnConfiguration yarnConfig,
 			LeaderRetrievalService leaderRetrievalService,
@@ -150,31 +153,25 @@ public abstract class YarnResourceManager extends FlinkResourceManager<Registere
 		this.containersBeingReturned = new HashMap<>();
 	}
 
-
-	// ------------------------------------------------------------------------
-	//  Abstract methods to retrieve the Actor classes
-	// ------------------------------------------------------------------------
-
-	public abstract Class<? extends JobManager> getJobManagerClass();
-
-	public abstract Class<? extends MemoryArchivist> getArchivistClass();
-
-	public abstract Class<? extends FlinkResourceManager<?>> getResourceManagerClass();
-
 	// ------------------------------------------------------------------------
 	//  Actor messages
 	// ------------------------------------------------------------------------
 
 	@Override
 	protected void handleMessage(Object message) {
+
 		// check for YARN specific actor messages first
+
 		if (message instanceof ContainersAllocated) {
 			containersAllocated(((ContainersAllocated) message).containers());
-		}
-		else if (message instanceof ContainersComplete) {
+
+		} else if (message instanceof ContainersComplete) {
 			containersComplete(((ContainersComplete) message).containers());
-		}
-		else {
+
+		} else if (message instanceof YarnMessages.PollYarnClusterStatus) {
+			// special yarn cluster polling
+			yarnClusterStatusPolling();
+		} else {
 			// message handled by the generic resource master code
 			super.handleMessage(message);
 		}
@@ -289,8 +286,9 @@ public abstract class YarnResourceManager extends FlinkResourceManager<Registere
 			Priority priority = Priority.newInstance(0);
 
 			// Resource requirements for worker containers
-			// NOTE: VCores are hard-coded to one currently (YARN is not accounting for CPUs)
-			Resource capability = Resource.newInstance(containerMemorySizeMB, 1);
+			int taskManagerSlots = Integer.valueOf(System.getenv(FlinkYarnClientBase.ENV_SLOTS));
+			int vcores = config.getInteger(ConfigConstants.YARN_VCORES, Math.max(taskManagerSlots, 1));
+			Resource capability = Resource.newInstance(containerMemorySizeMB, vcores);
 
 			resourceManagerClient.addContainerRequest(
 				new AMRMClient.ContainerRequest(capability, null, null, priority));
@@ -513,6 +511,13 @@ public abstract class YarnResourceManager extends FlinkResourceManager<Registere
 		triggerCheckWorkers();
 	}
 
+	/**
+	 * Special YARN Application client message that polls the Yarn cluster status
+	 */
+	private void yarnClusterStatusPolling() {
+//		new FlinkYarnClusterStatus()
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -612,9 +617,9 @@ public abstract class YarnResourceManager extends FlinkResourceManager<Registere
 	 * @param log
 	 *             The logger to log to.
 	 * 
-	 * @return The Props object to instantiate the YarnResourceManager actor.
+	 * @return The Props object to instantiate the YarnFlinkResourceManager actor.
 	 */
-	public static Props createActorProps(Class<? extends YarnResourceManager> actorClass,
+	public static Props createActorProps(Class<? extends YarnFlinkResourceManager> actorClass,
 			Configuration flinkConfig,
 			YarnConfiguration yarnConfig,
 			LeaderRetrievalService leaderRetrievalService,
@@ -625,7 +630,7 @@ public abstract class YarnResourceManager extends FlinkResourceManager<Registere
 			int numInitialTaskManagers,
 			Logger log)
 	{
-		final long yarnHeartbeatIntervalMS = flinkConfig.getInteger(
+		final int yarnHeartbeatIntervalMS = flinkConfig.getInteger(
 			ConfigConstants.YARN_HEARTBEAT_DELAY_SECONDS, DEFAULT_YARN_HEARTBEAT_INTERVAL_MS / 1000) * 1000;
 
 		final long yarnExpiryIntervalMS = yarnConfig.getLong(
@@ -646,7 +651,8 @@ public abstract class YarnResourceManager extends FlinkResourceManager<Registere
 		}
 
 		return Props.create(actorClass,
-			flinkConfig, yarnConfig,
+			flinkConfig,
+			yarnConfig,
 			leaderRetrievalService,
 			applicationMasterHostName,
 			webFrontendURL,

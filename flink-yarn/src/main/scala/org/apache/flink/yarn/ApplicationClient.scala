@@ -23,6 +23,8 @@ import java.util.UUID
 import akka.actor._
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.clusterframework.messages.{RegisterInfoMessageListenerSuccessful,
+RegisterInfoMessageListener}
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.{LeaderSessionMessageFilter, FlinkActor, LogMessages}
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
@@ -34,7 +36,8 @@ import scala.language.postfixOps
 
 /** Actor which is responsible to repeatedly poll the Yarn cluster status from the ResourceManager.
   *
-  * This class represents the bridge between the [[FlinkYarnCluster]] and the [[YarnResourceManager]].
+  * This class represents the bridge between the [[FlinkYarnCluster]] and the
+  * [[YarnApplicationMasterRunner]].
   *
   * @param flinkConfig Configuration object
   * @param leaderRetrievalService [[LeaderRetrievalService]] which is used to retrieve the current
@@ -112,7 +115,7 @@ class ApplicationClient(
           val jobManager = context.actorSelection(jobManagerAkkaURL)
 
           jobManager ! decorateMessage(
-            RegisterApplicationClient
+            RegisterInfoMessageListener.get()
           )
 
           val nextTimeout = (currentTimeout * 2).min(ApplicationClient.MAX_REGISTRATION_TIMEOUT)
@@ -131,7 +134,7 @@ class ApplicationClient(
         }
       }
 
-    case AcknowledgeApplicationClientRegistration =>
+    case RegisterInfoMessageListenerSuccessful =>
       val jm = sender()
 
       log.info(s"Successfully registered at the JobManager $jm")

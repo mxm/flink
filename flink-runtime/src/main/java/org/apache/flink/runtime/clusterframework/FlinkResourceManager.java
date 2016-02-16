@@ -34,6 +34,7 @@ import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.clusterframework.messages.CheckAndAllocateContainers;
 import org.apache.flink.runtime.clusterframework.messages.FatalErrorOccurred;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
+import org.apache.flink.runtime.clusterframework.messages.RegisterInfoMessageListenerSuccessful;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResource;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceFailed;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
@@ -265,7 +266,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 
 			else if (message instanceof RegisterInfoMessageListener) {
 				registerMessageListener(sender());
-				sender().tell(decorateMessage(Acknowledge.get()), self());
+				sender().tell(decorateMessage(
+					RegisterInfoMessageListenerSuccessful.get()),
+					self());
 			}
 
 			// --- unknown messages
