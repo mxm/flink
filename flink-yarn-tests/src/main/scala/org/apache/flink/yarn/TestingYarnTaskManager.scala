@@ -60,4 +60,18 @@ class TestingYarnTaskManager(
     network,
     numberOfSlots,
     leaderRetrievalService)
-  with TestingTaskManagerLike {}
+  with TestingTaskManagerLike {
+
+  object YarnTaskManager {
+
+    /** Entry point (main method) to run the TaskManager on YARN.
+      * @param args The command line arguments.
+      */
+    def main(args: Array[String]): Unit = {
+      YarnTaskManagerRunner.runYarnTaskManager(args, classOf[TestingYarnTaskManager])
+    }
+
+  }
+}
+
+

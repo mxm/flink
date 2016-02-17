@@ -333,8 +333,7 @@ class JobManager(
         instance => instance.getResourceId).toList.asJava
 
       // confirm registration and send known task managers with their resource ids
-      sender ! decorateMessage(
-        new RegisterResourceManagerSuccessful(taskManagerResources))
+      sender ! decorateMessage(new RegisterResourceManagerSuccessful(self, taskManagerResources))
 
     case msg: DisconnectResourceManager =>
       log.debug(s"Resource manager disconnect: $msg")
@@ -960,6 +959,44 @@ class JobManager(
         context.unwatch(taskManager)
       }
 
+    case msg: StopCluster =>
+
+      log.info(s"Stopping JobManager with final application status ${msg.finalStatus()} " +
+        s"and diagnostics: ${msg.message()}")
+
+      val respondTo = sender()
+
+      // stop all task managers
+      instanceManager.getAllRegisteredInstances.asScala foreach {
+        instance =>
+          instance.getActorGateway.tell(msg)
+      }
+
+      // send resource manager the ok
+      currentResourceManager match {
+        case Some(rm) =>
+
+          // inform rm
+          rm ! decorateMessage(msg)
+
+          respondTo ! decorateMessage(new StopClusterSuccessful())
+
+          // Await actor system termination and shut down JVM
+          new ProcessShutDownThread(
+            log.logger,
+            context.system,
+            FiniteDuration(10, SECONDS)).start()
+
+          // Shutdown and discard all queued messages
+          context.system.shutdown()
+
+        case None =>
+          // retry
+          context.system.scheduler.scheduleOnce(
+            2 seconds, self, decorateMessage(msg)
+          )(context.dispatcher)
+      }
+
     case RequestLeaderSessionID =>
       sender() ! ResponseLeaderSessionID(leaderSessionID.orNull)
 
@@ -970,7 +1007,7 @@ class JobManager(
   /**
     * Handler to be executed when a task manager terminates.
     * (Akka Deathwatch or notifiction from ResourceManager)
- *
+    *
     * @param taskManager The ActorRef of the taskManager
     */
   private def handleTaskManagerTerminated(taskManager: ActorRef): Unit = {

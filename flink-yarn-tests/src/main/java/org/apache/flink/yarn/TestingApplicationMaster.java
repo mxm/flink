@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
 
@@ -37,6 +38,11 @@ public class TestingApplicationMaster extends YarnApplicationMasterRunner {
 	@Override
 	public Class<? extends MemoryArchivist> getArchivistClass() {
 		return TestingMemoryArchivist.class;
+	}
+
+	@Override
+	protected Class<? extends TaskManager> getTaskManagerClass() {
+		return TestingYarnTaskManager.class;
 	}
 
 	@Override

@@ -38,6 +38,7 @@ import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.core.memory.{HybridMemorySegment, HeapMemorySegment, MemorySegmentFactory, MemoryType}
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
+import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.{BlobCache, BlobService}
@@ -64,7 +65,7 @@ import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, 
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.FlinkSecuredRunner
-import org.apache.flink.runtime.util.{EnvironmentInformation, LeaderRetrievalUtils, MathUtils, SignalHandler}
+import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 import org.apache.flink.util.NetUtils
 
@@ -310,6 +311,17 @@ class TaskManager(
     case Disconnect(msg) =>
       handleJobManagerDisconnect(sender(), s"ResourceManager requested disconnect: $msg")
       triggerTaskManagerRegistration()
+
+    case msg: StopCluster =>
+      log.info(s"Stopping TaskManager with final application status ${msg.finalStatus()} " +
+        s"and diagnostics: ${msg.message()}")
+      context.system.shutdown()
+
+      // Await actor system termination and shut down JVM
+      new ProcessShutDownThread(
+        log.logger,
+        context.system,
+        FiniteDuration(10, SECONDS)).start()
 
     case FatalError(message, cause) =>
       killTaskManagerFatal(message, cause)
@@ -1657,8 +1669,7 @@ object TaskManager {
    *                                      TCP network stack.
    * @param taskManagerClass The class of the TaskManager actor. May be used to give
    *                         subclasses that understand additional actor messages.
-   *
-   * @throws org.apache.flink.configuration.IllegalConfigurationException
+    * @throws org.apache.flink.configuration.IllegalConfigurationException
    *                              Thrown, if the given config contains illegal values.
    * @throws java.io.IOException Thrown, if any of the I/O components (such as buffer pools,
    *                             I/O manager, ...) cannot be properly started.
@@ -1827,10 +1838,8 @@ object TaskManager {
    * @param taskManagerUrl The akka URL of the JobManager.
    * @param system The local actor system that should perform the lookup.
    * @param timeout The maximum time to wait until the lookup fails.
-   *
-   * @throws java.io.IOException Thrown, if the lookup fails.
-   *
-   * @return The ActorRef to the TaskManager
+    * @throws java.io.IOException Thrown, if the lookup fails.
+    * @return The ActorRef to the TaskManager
    */
   @throws(classOf[IOException])
   def getTaskManagerRemoteReference(

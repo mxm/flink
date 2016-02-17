@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn
 
+import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
@@ -25,7 +26,7 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.taskmanager.{TaskManagerConfiguration, TaskManager}
-import org.apache.flink.yarn.YarnMessages.StopYarnSession
+import org.apache.flink.runtime.util.ProcessShutDownThread
 
 import scala.concurrent.duration._
 
@@ -52,32 +53,17 @@ class YarnTaskManager(
     leaderRetrievalService) {
 
   override def handleMessage: Receive = {
-    handleYarnMessages orElse super.handleMessage
-  }
-
-  def handleYarnMessages: Receive = {
-    case StopYarnSession(status, diagnostics) =>
-      log.info(s"Stopping YARN TaskManager with final application status $status " +
-        s"and diagnostics: $diagnostics")
-      context.system.shutdown()
-
-      // Await actor system termination and shut down JVM
-      new YarnProcessShutDownThread(
-        log.logger,
-        context.system,
-        FiniteDuration(10, SECONDS)).start()
+    super.handleMessage
   }
 }
 
-object YarnTaskManager {
-
-  /** Entry point (main method) to run the TaskManager on YARN.
-    * @param args The command line arguments.
-    */
-  def main(args: Array[String]): Unit = {
-    // TODO RM similiar as YarnTaskManagerRunner
-    // TODO RM pass yarn container id as resource id
-//    YarnTaskManagerRunner.main(..)
-  }
+  object YarnTaskManager {
+    /** Entry point (main method) to run the TaskManager on YARN.
+      *
+      * @param args The command line arguments.
+      */
+    def main(args: Array[String]): Unit = {
+      YarnTaskManagerRunner.runYarnTaskManager(args, classOf[YarnTaskManager])
+    }
 
 }

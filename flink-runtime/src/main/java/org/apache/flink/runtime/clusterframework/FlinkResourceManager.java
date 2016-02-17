@@ -251,7 +251,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 			}
 			else if (message instanceof RegisterResourceManagerSuccessful) {
 				RegisterResourceManagerSuccessful msg = (RegisterResourceManagerSuccessful) message;
-				jobManagerLeaderConnected(sender(), msg.currentlyRegisteredTaskManagers());
+				jobManagerLeaderConnected(msg.jobManager(), msg.currentlyRegisteredTaskManagers());
 			}
 
 			// --- end of application
@@ -264,11 +264,13 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 			// --- miscellaneous messages
 
 			else if (message instanceof RegisterInfoMessageListener) {
-				registerMessageListener(sender());
-				sender().tell(decorateMessage(
-					RegisterInfoMessageListenerSuccessful.get()),
-					// answer as the JobManager
-					jobManager);
+				if (jobManager != null) {
+					registerMessageListener(sender());
+					sender().tell(decorateMessage(
+						RegisterInfoMessageListenerSuccessful.get()),
+						// answer as the JobManager
+						jobManager);
+				}
 			}
 
 			// --- unknown messages
@@ -530,44 +532,12 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	private void shutdownCluster(ApplicationStatus status, String diagnostics) {
 		LOG.info("Shutting down cluster with status {} : {}", status, diagnostics);
 
-		// TODO RM
-//
-//		// the shutdown consists of the following steps:
-//		// 1) send message to job manager
-//		// 2) await reply
-//
-//		ShutdownTaskManager shutdownMessage = new ShutdownTaskManager(
-//			"The cluster is being shutdown with application status " + status);
-//
-//		Timeout timeout = new Timeout(messageTimeout);
-//		Deadline deadline = messageTimeout.fromNow();
-//
-//		List<Future<?>> futures = new ArrayList<>(registeredWorkers.size());
-//		for (ResourceID resourceID : registeredWorkers) {
-//			futures.add(
-//				Patterns.ask(tm.taskManagerActor(), decorateMessage(shutdownMessage),
-//				timeout));
-//		}
-//
-//		// now we wait on the futures until all nodes responded, or the
-//		// futures time out. That gives the nodes a chance to shut down cleanly
-//		try {
-//			for (Future<?> f : futures) {
-//				Await.ready(f, deadline.timeLeft());
-//			}
-//		} catch (InterruptedException ignored) {
-//			// we make only a best effort to cleanly shut down. if we are interrupted,
-//			// the framework logic must act as a failsafe to eventually deallocate the container
-//		} catch (TimeoutException e) {
-//			log.error("Failed to shutdown all workers.");
-//		}
-//
-//		// shut the resource master down.
-//		shutdownApplication(status, diagnostics);
-//
-//		// we shut down the whole process now.
-//		int exitCode = status.processExitCode();
-//		System.exit(exitCode);
+		// shut the resource master down.
+		shutdownApplication(status, diagnostics);
+
+		// we shut down the whole process now.
+		int exitCode = status.processExitCode();
+		System.exit(exitCode);
 	}
 
 	// ------------------------------------------------------------------------
@@ -759,110 +729,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	public static void startResourceManager() {
 
 	}
-
-	// TODO RM
-//	/**
-//	 * Starts and runs the TaskManager.
-//	 *
-//	 * This method first tries to select the network interface to use for the TaskManager
-//	 * communication. The network interface is used both for the actor communication
-//	 * (coordination) as well as for the data exchange between task managers. Unless
-//	 * the hostname/interface is explicitly configured in the configuration, this
-//	 * method will try out various interfaces and methods to connect to the JobManager
-//	 * and select the one where the connection attempt is successful.
-//	 *
-//	 * After selecting the network interface, this method brings up an actor system
-//	 * for the TaskManager and its actors, starts the TaskManager's services
-//	 * (library cache, shuffle network stack, ...), and starts the TaskManager itself.
-//	 *
-//	 * @param configuration The configuration for the TaskManager.
-//	 * @param taskManagerClass The actor class to instantiate.
-//	 *                         Allows to use TaskManager subclasses for example for YARN.
-//	 */
-//	@throws(classOf[Exception])
-//	def selectNetworkInterfaceAndRunTaskManager(
-//		configuration: Configuration,
-//		resourceID: ResourceID,
-//		taskManagerClass: Class[_ <:TaskManager])
-//	: Unit = {
-//
-//		val (taskManagerHostname, actorSystemPort) = selectNetworkInterfaceAndPort(configuration)
-//
-//		runTaskManager(
-//			taskManagerHostname,
-//			resourceID,
-//			actorSystemPort,
-//			configuration,
-//			taskManagerClass)
-//	}
-//
-//	@throws(classOf[IOException])
-//		@throws(classOf[IllegalConfigurationException])
-//	def selectNetworkInterfaceAndPort(
-//		configuration: Configuration)
-//	: (String, Int) = {
-//
-//		var taskManagerHostname = configuration.getString(
-//			ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, null)
-//
-//		if (taskManagerHostname != null) {
-//			LOG.info("Using configured hostname/address for TaskManager: " + taskManagerHostname)
-//		}
-//		else {
-//			val leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(configuration)
-//			val lookupTimeout = AkkaUtils.getLookupTimeout(configuration)
-//
-//			val taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
-//				leaderRetrievalService,
-//				lookupTimeout)
-//
-//			taskManagerHostname = taskManagerAddress.getHostName()
-//			LOG.info(s"TaskManager will use hostname/address '$taskManagerHostname' " +
-//				s"(${taskManagerAddress.getHostAddress()}) for communication.")
-//		}
-//
-//		// if no task manager port has been configured, use 0 (system will pick any free port)
-//		val actorSystemPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0)
-//		if (actorSystemPort < 0 || actorSystemPort > 65535) {
-//			throw new IllegalConfigurationException("Invalid value for '" +
-//				ConfigConstants.TASK_MANAGER_IPC_PORT_KEY +
-//				"' (port for the TaskManager actor system) : " + actorSystemPort +
-//				" - Leave config parameter empty or use 0 to let the system choose a port automatically.")
-//		}
-//
-//		(taskManagerHostname, actorSystemPort)
-//	}
-//
-//	/**
-//	 * Starts and runs the TaskManager. Brings up an actor system for the TaskManager and its
-//	 * actors, starts the TaskManager's services (library cache, shuffle network stack, ...),
-//	 * and starts the TaskManager itself.
-//	 *
-//	 * This method will also spawn a process reaper for the TaskManager (kill the process if
-//	 * the actor fails) and optionally start the JVM memory logging thread.
-//	 *
-//	 * @param taskManagerHostname The hostname/address of the interface where the actor system
-//	 *                         will communicate.
-//	 * @param resourceID The id of the resource which the task manager will run on.
-//	 * @param actorSystemPort The port at which the actor system will communicate.
-//	 * @param configuration The configuration for the TaskManager.
-//	 */
-//	@throws(classOf[Exception])
-//	def runTaskManager(
-//		taskManagerHostname: String,
-//		resourceID: ResourceID,
-//		actorSystemPort: Int,
-//		configuration: Configuration)
-//	: Unit = {
-//
-//		runTaskManager(
-//			taskManagerHostname,
-//			resourceID,
-//			actorSystemPort,
-//			configuration,
-//			classOf[TaskManager])
-//	}
-
 
 	/**
 	 * Starts the resource manager actors.

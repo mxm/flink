@@ -23,12 +23,13 @@ import java.util.UUID
 import akka.actor._
 import grizzled.slf4j.Logger
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.clusterframework.messages.{InfoMessage,
-RegisterInfoMessageListenerSuccessful, RegisterInfoMessageListener}
+import org.apache.flink.runtime.clusterframework.ApplicationStatus
+import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.{LeaderSessionMessageFilter, FlinkActor, LogMessages}
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
 import org.apache.flink.yarn.YarnMessages._
+import org.apache.hadoop.yarn.api.records.FinalApplicationStatus
 import scala.collection.mutable
 import scala.concurrent.duration._
 
@@ -179,18 +180,33 @@ class ApplicationClient(
       }
 
     case LocalStopYarnSession(status, diagnostics) =>
-      log.info("Sending StopYarnSession request to ApplicationMaster.")
-      stopMessageReceiver = Some(sender())
+      log.info("Sending StopCluster request to JobManager.")
+
+      // TODO RM seems obsolete
+      //      stopMessageReceiver = Some(sender())
+
+      val clusterStatus =
+        status match {
+          case FinalApplicationStatus.SUCCEEDED => ApplicationStatus.SUCCEEDED
+          case FinalApplicationStatus.KILLED => ApplicationStatus.CANCELED
+          case FinalApplicationStatus.FAILED => ApplicationStatus.FAILED
+          case _ => ApplicationStatus.UNKNOWN
+        }
+
+      // TODO RM add retry handler
       yarnJobManager foreach {
-        _ ! decorateMessage(StopYarnSession(status, diagnostics))
+        _ ! decorateMessage(new StopCluster(clusterStatus, diagnostics))
       }
 
-    case JobManagerStopped =>
+    case msg: StopClusterSuccessful =>
       log.info("Remote JobManager has been stopped successfully. " +
         "Stopping local application client")
-      stopMessageReceiver foreach {
-        _ ! decorateMessage(JobManagerStopped)
-      }
+
+      // TODO RM seems obsolete
+//      stopMessageReceiver foreach {
+//        _ ! decorateMessage(msg)
+//      }
+
       // poison ourselves
       self ! decorateMessage(PoisonPill)
 
@@ -232,7 +248,7 @@ class ApplicationClient(
     log.info(s"Disconnect from JobManager ${yarnJobManager.getOrElse(ActorRef.noSender)}.")
 
     yarnJobManager foreach {
-      _ ! decorateMessage(UnregisterClient)
+      _ ! decorateMessage(UnRegisterInfoMessageListener.get())
     }
 
     pollingTimer foreach {

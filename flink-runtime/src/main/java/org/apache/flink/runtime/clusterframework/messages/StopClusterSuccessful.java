@@ -18,41 +18,22 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
-import static java.util.Objects.requireNonNull;
-
 /**
- * Generic message to signal the cluster framework to shut the cluster down.
+ * Generic message to signal the cluster listener that the cluster has been shut down.
  */
-public class StopCluster implements RequiresLeaderSessionID, java.io.Serializable {
+public class StopClusterSuccessful implements RequiresLeaderSessionID, java.io.Serializable {
 
 	private static final long serialVersionUID = -8957259342982181684L;
 
-	private final ApplicationStatus finalStatus;
 
-	private final String message;
-
-	public StopCluster(ApplicationStatus finalStatus, String message) {
-		this.finalStatus = requireNonNull(finalStatus);
-		this.message = message == null ? "" : message;
+	public StopClusterSuccessful() {
+		// TODO RM convert to singleton
 	}
-
-	// ------------------------------------------------------------------------
-
-	public ApplicationStatus finalStatus() {
-		return finalStatus;
-	}
-
-	public String message() {
-		return message;
-	}
-
-	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
-		return "StopApplication { message='" + message + "' }";
+		return "StopClusterSuccessful{}";
 	}
 }

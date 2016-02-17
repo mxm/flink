@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework.messages;
 
+import akka.actor.ActorRef;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
 
@@ -35,6 +36,9 @@ public class RegisterResourceManagerSuccessful implements RequiresLeaderSessionI
 
 	private static final long serialVersionUID = 817011779310941753L;
 
+	/** The JobManager which we registered with. */
+	private final ActorRef jobManager;
+
 	/** The list of registered TaskManagers that the JobManager currently knows */
 	private final Collection<ResourceID> currentlyRegisteredTaskManagers;
 
@@ -45,12 +49,19 @@ public class RegisterResourceManagerSuccessful implements RequiresLeaderSessionI
 	 * @param currentlyRegisteredTaskManagers
 	 *         The list of TaskManagers that the JobManager currently knows. 
 	 */
-	public RegisterResourceManagerSuccessful(Collection<ResourceID> currentlyRegisteredTaskManagers)
+	public RegisterResourceManagerSuccessful(ActorRef jobManager,
+			Collection<ResourceID> currentlyRegisteredTaskManagers)
 	{
+		this.jobManager = jobManager;
 		this.currentlyRegisteredTaskManagers = requireNonNull(currentlyRegisteredTaskManagers);
 	}
 	
 	// ------------------------------------------------------------------------
+
+
+	public ActorRef jobManager() {
+		return jobManager;
+	}
 
 	public Collection<ResourceID> currentlyRegisteredTaskManagers() {
 		return currentlyRegisteredTaskManagers;
@@ -58,11 +69,11 @@ public class RegisterResourceManagerSuccessful implements RequiresLeaderSessionI
 
 	// ------------------------------------------------------------------------
 
-
 	@Override
 	public String toString() {
 		return "RegisterResourceManagerSuccessful{" +
-			"currentlyRegisteredTaskManagers=" + currentlyRegisteredTaskManagers +
+			"jobManager=" + jobManager +
+			", currentlyRegisteredTaskManagers=" + currentlyRegisteredTaskManagers +
 			'}';
 	}
 }

@@ -18,23 +18,16 @@
 
 package org.apache.flink.yarn
 
-import java.io.File
-import java.lang.reflect.Method
-import java.nio.ByteBuffer
-import java.util.Collections
 import java.util.concurrent.{TimeUnit, ExecutorService}
-import java.util.{List => JavaList}
 
 import akka.actor.ActorRef
 
-import grizzled.slf4j.Logger
-
 import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.{Configuration => FlinkConfiguration, ConfigConstants}
-import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
+import org.apache.flink.runtime.clusterframework.ApplicationStatus
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy
-import org.apache.flink.runtime.clusterframework.messages.RegisterInfoMessageListener
+import org.apache.flink.runtime.clusterframework.messages.{UnRegisterInfoMessageListener, StopCluster, RegisterInfoMessageListener}
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.{SubmittedJobGraphStore, JobManager}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
@@ -46,24 +39,10 @@ import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.yarn.YarnMessages._
 
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.hadoop.io.DataOutputBuffer
-import org.apache.hadoop.security.UserGroupInformation
-import org.apache.hadoop.yarn.api.ApplicationConstants
-import org.apache.hadoop.yarn.api.ApplicationConstants.Environment
-import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse
-import org.apache.hadoop.yarn.api.records._
-import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync
-import org.apache.hadoop.yarn.client.api.NMClient
-import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest
-import org.apache.hadoop.yarn.conf.YarnConfiguration
-import org.apache.hadoop.yarn.exceptions.YarnException
-import org.apache.hadoop.yarn.util.Records
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.Try
+
 
 /** JobManager actor for execution on Yarn. It enriches the [[JobManager]] with additional messages
   * to start/administer/stop the Yarn session.
@@ -124,7 +103,7 @@ class YarnJobManager(
 
   def handleYarnMessage: Receive = {
 
-    case msg: RegisterInfoMessageListener =>
+    case msg @ (_: RegisterInfoMessageListener | _: UnRegisterInfoMessageListener) =>
       // forward to resource manager
       currentResourceManager match {
         case Some(rm) =>
@@ -158,10 +137,6 @@ class YarnJobManager(
           instanceManager.getTotalNumberOfSlots)
       )
 
-//       TODO RM
-//    case StartYarnSession(hadoopConfig, webServerPort) =>
-//      startYarnSession(hadoopConfig, webServerPort)
-
     case jnf: JobNotFound =>
       log.warn(s"Job with ID ${jnf.jobID} not found in JobManager")
       if (stopWhenJobFinished == null) {
@@ -181,14 +156,14 @@ class YarnJobManager(
               s"Shutting down YARN session")
             if (jobStatus.status == JobStatus.FINISHED) {
               self ! decorateMessage(
-                StopYarnSession(
-                  FinalApplicationStatus.SUCCEEDED,
+                new StopCluster(
+                  ApplicationStatus.SUCCEEDED,
                   s"The monitored job with ID ${jobStatus.jobID} has finished.")
               )
             } else {
               self ! decorateMessage(
-                StopYarnSession(
-                  FinalApplicationStatus.FAILED,
+                new StopCluster(
+                  ApplicationStatus.FAILED,
                   s"The monitored job with ID ${jobStatus.jobID} has failed to complete.")
               )
             }

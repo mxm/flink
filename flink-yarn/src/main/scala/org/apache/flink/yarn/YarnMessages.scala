@@ -32,13 +32,7 @@ object YarnMessages {
   case class YarnMessage(message: String, date: Date = new Date())
   case class ApplicationMasterStatus(numTaskManagers: Int, numSlots: Int)
 
-  case object UnregisterClient extends RequiresLeaderSessionID
-
-  case class StopYarnSession(status: FinalApplicationStatus, diagnostics: String)
-    extends RequiresLeaderSessionID
   case class LocalStopYarnSession(status: FinalApplicationStatus, diagnostics: String)
-
-  case object JobManagerStopped
 
   /**
     * Entry point to start a new YarnSession.

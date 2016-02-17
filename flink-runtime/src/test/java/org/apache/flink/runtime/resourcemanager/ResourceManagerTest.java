@@ -90,7 +90,9 @@ public class ResourceManagerTest {
 			resourceList.add(ResourceID.generate());
 			resourceList.add(ResourceID.generate());
 
-			resourceManager.tell(new RegisterResourceManagerSuccessful(resourceList), fakeJobManager);
+			resourceManager.tell(
+				new RegisterResourceManagerSuccessful(fakeJobManager.actor(), resourceList),
+				fakeJobManager);
 
 			resourceManager.tell(new TestingResourceManager.GetRegisteredResources(), fakeJobManager);
 			TestingResourceManager.GetRegisteredResourcesReply reply =
@@ -156,7 +158,7 @@ public class ResourceManagerTest {
 			RegisterResourceManager msg = expectMsgClass(RegisterResourceManager.class);
 			// all went well
 			resourceManager.tell(
-				new RegisterResourceManagerSuccessful(Collections.<ResourceID>emptyList()),
+				new RegisterResourceManagerSuccessful(fakeJobManager.actor(), Collections.<ResourceID>emptyList()),
 				fakeJobManager);
 
 			// force a reconnect
@@ -186,7 +188,9 @@ public class ResourceManagerTest {
 
 			// register with JM
 			expectMsgClass(RegisterResourceManager.class);
-			resourceManager.tell(new RegisterResourceManagerSuccessful(Collections.<ResourceID>emptyList()), fakeJobManager);
+			resourceManager.tell(
+				new RegisterResourceManagerSuccessful(fakeJobManager.actor(), Collections.<ResourceID>emptyList()),
+				fakeJobManager);
 
 			ResourceID resourceID = ResourceID.generate();
 
@@ -258,7 +262,9 @@ public class ResourceManagerTest {
 
 			// register with JM
 			expectMsgClass(RegisterResourceManager.class);
-			resourceManager.tell(new RegisterResourceManagerSuccessful(Collections.<ResourceID>emptyList()), fakeJobManager);
+			resourceManager.tell(
+				new RegisterResourceManagerSuccessful(fakeJobManager.actor(), Collections.<ResourceID>emptyList()),
+				fakeJobManager);
 
 			ResourceID resourceID = ResourceID.generate();
 
@@ -312,7 +318,9 @@ public class ResourceManagerTest {
 
 			// register with JM
 			expectMsgClass(RegisterResourceManager.class);
-			resourceManager.tell(new RegisterResourceManagerSuccessful(Collections.<ResourceID>emptyList()), fakeJobManager);
+			resourceManager.tell(
+				new RegisterResourceManagerSuccessful(fakeJobManager.actor(), Collections.<ResourceID>emptyList()),
+				fakeJobManager);
 
 			ResourceID resourceID1 = ResourceID.generate();
 			ResourceID resourceID2 = ResourceID.generate();
@@ -359,5 +367,14 @@ public class ResourceManagerTest {
 
 		}};
 		}};
+	}
+
+	/**
+	 * Tests cluster shutdown procedure of RM
+	 */
+	// TODO RM
+	@Test
+	public void testClusterShutdown() {
+
 	}
 }
