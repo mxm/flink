@@ -211,6 +211,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	}
 
 	/**
+// TODO RM			String expected = "Starting TaskManagers with command: $JAVA_HOME/bin/java -Xms424m -Xmx424m";
 	 * Test the YARN Java API
 	 */
 	@Test
