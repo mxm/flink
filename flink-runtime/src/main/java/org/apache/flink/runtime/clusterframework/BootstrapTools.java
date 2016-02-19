@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 
@@ -154,6 +155,7 @@ public class BootstrapTools {
 	}
 
 	/**
+	 * // TODO RM not documentation here...
 	 * @param config
 	 * @param actorSystem
 	 * @param logger
@@ -161,26 +163,34 @@ public class BootstrapTools {
 	 * @throws Exception
 	 */
 	public static WebMonitor startWebMonitorIfConfigured(
-				Configuration config, 
+				Configuration config,
 				ActorSystem actorSystem,
+				ActorRef jobManager,
 				Logger logger) throws Exception {
-		
+
 		if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
-			logger.info("Starting JobManger web frontend");
-			
+			logger.info("Starting JobManager Web Frontend");
+
 			LeaderRetrievalService leaderRetrievalService = 
-				LeaderRetrievalUtils.createLeaderRetrievalService(config);
+				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager);
 
 			// start the web frontend. we need to load this dynamically
 			// because it is not in the same project/dependencies
-			return WebMonitorUtils.startWebRuntimeMonitor(
+			WebMonitor monitor = WebMonitorUtils.startWebRuntimeMonitor(
 				config, leaderRetrievalService, actorSystem);
+
+			// start the web monitor
+			if (monitor != null) {
+				String jobManagerAkkaURL = AkkaUtils.getAkkaURL(actorSystem, jobManager);
+				monitor.start(jobManagerAkkaURL);
+			}
+			return monitor;
 		}
 		else {
 			return null;
 		}
 	}
-	
+
 	/**
 	 * @param baseConfig
 	 * @param jobManagerHostname

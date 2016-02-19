@@ -496,7 +496,8 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		// Set up the container launch context for the application master
 		ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
 
-		String amCommand = "$JAVA_HOME/bin/java"//-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
+		String amCommand = "$JAVA_HOME/bin/java"
+//		String amCommand = "$JAVA_HOME/bin/java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
 			+ " -Xmx" + Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration) + "M " +javaOpts;
 
 		if(hasLogback || hasLog4j) {

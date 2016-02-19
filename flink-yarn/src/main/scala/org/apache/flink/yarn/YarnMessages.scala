@@ -29,7 +29,6 @@ import scala.concurrent.duration.{Deadline, FiniteDuration}
 
 object YarnMessages {
 
-  case class YarnMessage(message: String, date: Date = new Date())
   case class ApplicationMasterStatus(numTaskManagers: Int, numSlots: Int)
 
   case class LocalStopYarnSession(status: FinalApplicationStatus, diagnostics: String)

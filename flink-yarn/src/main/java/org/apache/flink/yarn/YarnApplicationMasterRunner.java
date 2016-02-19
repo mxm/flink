@@ -20,6 +20,7 @@ package org.apache.flink.yarn;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.Address;
 import akka.actor.Props;
 
 import org.apache.flink.client.CliFrontend;
@@ -264,19 +265,13 @@ public class YarnApplicationMasterRunner {
 			
 			// ---- (4) start the actors and components in this order:
 			
-			// 1) Web Monitor (we need its port to register)
-			// 2) JobManager & Archive (in non-HA case, the leader service takes this)
+			// 1) JobManager & Archive (in non-HA case, the leader service takes this)
+			// 2) Web Monitor (we need its port to register)
 			// 3) Resource Master for YARN
 			// 4) Process reapers for the JobManager and Resource Master
 
-			// 1: the web monitor
-			LOG.debug("Starting web frontend");
 			
-			webMonitor = BootstrapTools.startWebMonitorIfConfigured(config, actorSystem, LOG);
-			final String webMonitorURL = webMonitor == null ? null :
-				"http://" + appMasterHostname + ":" + webMonitor.getServerPort();
-			
-			// 2: the JobManager
+			// 1: the JobManager
 			LOG.debug("Starting JobManager actor");
 
 			// we start the JobManager with its standard name
@@ -286,9 +281,26 @@ public class YarnApplicationMasterRunner {
 				scala.Option.<String>empty(),
 				getJobManagerClass(),
 				getArchivistClass())._1();
-			
+
+
+			// 2: the web monitor
+			LOG.debug("Starting Web Frontend");
+
+//			TODO
+
+			// For the web interface to show the correct values
+			final Address address = AkkaUtils.getAddress(actorSystem);
+			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host().get());
+			config.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port().get().toString());
+
+//			final String jobManagerAkkaURL = AkkaUtils.getAkkaURL(actorSystem, jobManager);
+//			final String jobManagerAkkaURL = JobManager.getRemoteJobManagerAkkaURL(config);
+			webMonitor = BootstrapTools.startWebMonitorIfConfigured(config, actorSystem, jobManager, LOG);
+			final String webMonitorURL = webMonitor == null ? null :
+				"http://" + appMasterHostname + ":" + webMonitor.getServerPort();
+
 			// 3: Flink's Yarn resource manager
-			LOG.debug("Starting YARN application master actor");
+			LOG.debug("Starting YARN Flink Resource Manager");
 
 			// we need the leader retrieval service here to be informed of new
 			// leader session IDs, even though there can be only one leader ever

@@ -129,6 +129,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	}
 
 	/**
+
+			Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster"));
+			Assert.assertTrue(logs.contains("Starting JobManager"));
+			Assert.assertTrue(logs.contains("Starting JobManager Web Frontend"));
 	 * Test querying the YARN cluster.
 	 *
 	 * This test validates through 666*2 cores in the "cluster".
