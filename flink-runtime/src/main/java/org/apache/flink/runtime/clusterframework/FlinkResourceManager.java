@@ -554,11 +554,30 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * explicitly release individual workers.
 	 */
 	private void checkWorkersPool() {
+		int numWorkersPending = getNumWorkerRequestsPending();
+		int numWorkersPendingRegistration = getNumWorkersPendingRegistration();
+
+		// sanity checks
+		Preconditions.checkState(numWorkersPending < 0,
+			"Number of pending workers should never be below 0.");
+		Preconditions.checkState(numWorkersPendingRegistration < 0,
+			"Number of pending workers pending registration should never be below 0.");
+
 		// see how many workers we want, and whether we have enough
 		int allAvailableAndPending = registeredWorkers.size() +
-			getNumWorkersPendingRegistration() + getNumWorkerRequestsPending();
+			numWorkersPending + numWorkersPendingRegistration;
 
 		int missing = designatedPoolSize - allAvailableAndPending;
+		// TODO RM remove next lines
+//		System.out.println("allAvailablePending = registeredWorkers.size() + getNumWorkersPendingRegistration() + getNumWorkerRequestsPending() = " + allAvailableAndPending);
+//		System.out.println("registeredWorkers.size() = " + registeredWorkers.size());
+//		System.out.println("getNumWorkersPendingRegistration() = " + getNumWorkersPendingRegistration());
+//		System.out.println("getNumWorkerRequestsPending() = " + getNumWorkerRequestsPending());
+//
+//		System.out.println("missing = designatedPoolSize - allAvailableAndPending = " + missing);
+//		System.out.println("designatedPoolSize = " + designatedPoolSize);
+//		System.out.println("allAvailableAndPending = " + allAvailableAndPending);
+
 		if (missing > 0) {
 			requestNewWorkers(missing);
 		}
@@ -695,7 +714,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	/**
 	 * Gets the number of requested workers that have not yet been granted.
 	 *
-	 * @return The number pending worker requests.
+	 * @return The number pending worker requests. Must never be smaller than 0.
 	 */
 	protected abstract int getNumWorkerRequestsPending();
 
@@ -704,6 +723,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 * has not yet registered at the job manager.
 	 *
 	 * @return The number of started containers pending TaskManager registration.
+	 * Must never be smaller than 0.
 	 */
 	protected abstract int getNumWorkersPendingRegistration();
 

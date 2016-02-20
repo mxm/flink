@@ -78,4 +78,4 @@ class TestingYarnJobManager(
     checkpointRecoveryFactory,
     savepointStore,
     jobRecoveryTimeout)
-  with TestingJobManagerLike
+  with TestingJobManagerLike {}

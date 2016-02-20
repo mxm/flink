@@ -376,7 +376,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		final int numRegistered = getNumberOfRegisteredTaskManagers();
 		
 		for (Container container : containers) {
-			numPendingContainerRequests--;
+			numPendingContainerRequests = Math.max(0, numPendingContainerRequests - 1);
 			LOG.info("Received new container: {} - Remaining pending container requests: {}",
 				container.getId(), numPendingContainerRequests);
 			
@@ -404,8 +404,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 					containersBeingReturned.put(container.getId(), container);
 					resourceManagerClient.releaseAssignedContainer(container.getId());
 				}
-			}
-			else {
+			} else {
 				// return excessive container
 				log.info("Returning excess container {}", container.getId());
 				containersBeingReturned.put(container.getId(), container);
@@ -417,7 +416,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		
 		// if we are waiting for no further containers, we can go to the
 		// regular heartbeat interval
-		if (numPendingContainerRequests == 0) {
+		if (numPendingContainerRequests <= 0) {
 			resourceManagerClient.setHeartbeatInterval(yarnHeartbeatIntervalMillis);
 		}
 		

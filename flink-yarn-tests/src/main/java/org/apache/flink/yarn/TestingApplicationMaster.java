@@ -23,6 +23,8 @@ import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingMemoryArchivist;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.SignalHandler;
 
 /**
  * Yarn application master which starts the {@link TestingYarnJobManager},
@@ -49,4 +51,15 @@ public class TestingApplicationMaster extends YarnApplicationMasterRunner {
 	public Class<? extends YarnFlinkResourceManager> getResourceManagerClass() {
 		return TestingYarnFlinkResourceManager.class;
 	}
+
+	// TODO RM
+	public static void main(String[] args) {
+		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN ApplicationMaster / JobManager", args);
+		SignalHandler.register(LOG);
+
+		// run and exit with the proper return code
+		int returnCode = new TestingApplicationMaster().run(args);
+		System.exit(returnCode);
+	}
+
 }

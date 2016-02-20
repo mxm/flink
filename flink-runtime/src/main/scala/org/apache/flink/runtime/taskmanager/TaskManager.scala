@@ -859,8 +859,6 @@ class TaskManager(
         new AkkaActorGateway(jobManager, leaderSessionID.orNull),
         new AkkaActorGateway(self, leaderSessionID.orNull)
       )
-
-
     }
     catch {
       case e: Exception =>

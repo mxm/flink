@@ -78,7 +78,7 @@ import java.util.concurrent.TimeUnit;
 public class YarnApplicationMasterRunner {
 
 	/** Logger */
-	private static final Logger LOG = LoggerFactory.getLogger(YarnApplicationMasterRunner.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(YarnApplicationMasterRunner.class);
 
 	/** The maximum time that TaskManagers may be waiting to register at the JobManager,
 	 * before they quit */
@@ -286,15 +286,10 @@ public class YarnApplicationMasterRunner {
 			// 2: the web monitor
 			LOG.debug("Starting Web Frontend");
 
-//			TODO
-
-			// For the web interface to show the correct values
 			final Address address = AkkaUtils.getAddress(actorSystem);
 			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host().get());
 			config.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port().get().toString());
 
-//			final String jobManagerAkkaURL = AkkaUtils.getAkkaURL(actorSystem, jobManager);
-//			final String jobManagerAkkaURL = JobManager.getRemoteJobManagerAkkaURL(config);
 			webMonitor = BootstrapTools.startWebMonitorIfConfigured(config, actorSystem, jobManager, LOG);
 			final String webMonitorURL = webMonitor == null ? null :
 				"http://" + appMasterHostname + ":" + webMonitor.getServerPort();

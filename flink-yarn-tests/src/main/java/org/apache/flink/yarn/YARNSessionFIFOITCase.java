@@ -133,6 +133,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			Assert.assertTrue(logs.contains("Starting YARN ApplicationMaster"));
 			Assert.assertTrue(logs.contains("Starting JobManager"));
 			Assert.assertTrue(logs.contains("Starting JobManager Web Frontend"));
+// TODO RM				if(command.contains(YarnTaskManager.class.getSimpleName())) {
+// TODO RM				ok = o.indexOf("Launching TaskManager") > 0;
+// TODO RM		Assert.assertTrue("Expect to see new container started", eC.contains("Launching TaskManager") && eC.contains("on host"));
 	 * Test querying the YARN cluster.
 	 *
 	 * This test validates through 666*2 cores in the "cluster".
