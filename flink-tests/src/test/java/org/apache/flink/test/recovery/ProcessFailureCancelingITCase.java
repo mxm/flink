@@ -102,7 +102,6 @@ public class ProcessFailureCancelingITCase {
 			jmConfig.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
 
 			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<>(localAddress));
-			// TODO RM
 			ActorRef jmActor = JobManager.startJobManagerActors(
 				jmConfig,
 				jmActorSystem,

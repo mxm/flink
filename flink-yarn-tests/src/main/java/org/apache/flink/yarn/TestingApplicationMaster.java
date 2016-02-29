@@ -52,7 +52,6 @@ public class TestingApplicationMaster extends YarnApplicationMasterRunner {
 		return TestingYarnFlinkResourceManager.class;
 	}
 
-	// TODO RM
 	public static void main(String[] args) {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN ApplicationMaster / JobManager", args);
 		SignalHandler.register(LOG);
