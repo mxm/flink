@@ -84,12 +84,12 @@ public class ResourceManagerITCase {
 
 			expectMsgClass(RegistrationMessages.AcknowledgeRegistration.class);
 
-			// register at testing job manager to receive a message once a resource manager registers
-			jobManager.tell(new TestingJobManagerMessages.NotifyWhenResourceManagerConnected(), me);
-
 			// now start the resource manager
 			ActorGateway resourceManager =
 				TestingUtils.createResourceManager(system, jobManager.actor(), config);
+
+			// register at testing job manager to receive a message once a resource manager registers
+			resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), me);
 
 			// Wait for resource manager
 			expectMsgEquals(Messages.getAcknowledge());
@@ -122,12 +122,12 @@ public class ResourceManagerITCase {
 			ActorGateway me =
 				TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
 
-			// notify about a resource manager registration at the job manager
-			jobManager.tell(new TestingJobManagerMessages.NotifyWhenResourceManagerConnected(), me);
-
 			// start the resource manager
 			ActorGateway resourceManager =
 				TestingUtils.createResourceManager(system, jobManager.actor(), config);
+
+			// notify about a resource manager registration at the job manager
+			resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), me);
 
 			// Wait for resource manager
 			expectMsgEquals(Messages.getAcknowledge());

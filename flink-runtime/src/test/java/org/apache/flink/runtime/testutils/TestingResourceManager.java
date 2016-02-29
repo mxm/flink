@@ -18,17 +18,28 @@
 
 package org.apache.flink.runtime.testutils;
 
+import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.messages.Messages;
 
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * A testing resource manager which may alter the default standalone resource master's behavior.
  */
 public class TestingResourceManager extends StandaloneResourceManager {
+
+	/** Set of Actors which want to be informed of a connection to the job manager */
+	private Set<ActorRef> waitForResourceManagerConnected = new HashSet<>();
+
+	/** Flag to signal a connection to the JobManager */
+	private boolean isConnected = false;
 
 	public TestingResourceManager(Configuration flinkConfig, LeaderRetrievalService leaderRetriever) {
 		super(flinkConfig, leaderRetriever);
@@ -45,6 +56,27 @@ public class TestingResourceManager extends StandaloneResourceManager {
 		} else if (message instanceof FailResource) {
 			ResourceID resourceID = ((FailResource) message).resourceID;
 			notifyWorkerFailed(resourceID, "Failed for test case.");
+
+		} else if (message instanceof NotifyWhenResourceManagerConnected) {
+			if (isConnected) {
+				sender().tell(
+					Messages.getAcknowledge(),
+					self());
+			} else {
+				waitForResourceManagerConnected.add(sender());
+			}
+		} else if (message instanceof RegisterResourceManagerSuccessful) {
+			super.handleMessage(message);
+
+			isConnected = true;
+
+			for (ActorRef ref : waitForResourceManagerConnected) {
+				ref.tell(
+					Messages.getAcknowledge(),
+					self());
+			}
+			waitForResourceManagerConnected.clear();
+
 		} else {
 			super.handleMessage(message);
 		}
@@ -75,5 +107,12 @@ public class TestingResourceManager extends StandaloneResourceManager {
 		public FailResource(ResourceID resourceID) {
 			this.resourceID = resourceID;
 		}
+	}
+
+	/**
+	 * The sender of this message will be informed of a connection to the Job Manager
+	 */
+	public static class NotifyWhenResourceManagerConnected {
+
 	}
 }

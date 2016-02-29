@@ -89,11 +89,6 @@ object TestingJobManagerMessages {
    */
   case class NotifyWhenAtLeastNumTaskManagerAreRegistered(numRegisteredTaskManager: Int)
 
-  /**
-    * Notifies the sender when a resource manager registers with the JobManager
-    */
-  case class NotifyWhenResourceManagerConnected()
-
   /** Disables the post stop method of the [[TestingJobManager]].
     *
     * Only the leaderElectionService is stopped in the postStop method call to revoke the leadership

@@ -22,8 +22,7 @@ import akka.actor.{Terminated, Cancellable, ActorRef}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.FlinkActor
-import org.apache.flink.runtime.clusterframework.messages.{RegisterResourceSuccessful,
-RegisterResourceManager}
+import org.apache.flink.runtime.clusterframework.messages.RegisterResourceSuccessful
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
@@ -69,8 +68,6 @@ trait TestingJobManagerLike extends FlinkActor {
     new Ordering[(Int, ActorRef)] {
       override def compare(x: (Int, ActorRef), y: (Int, ActorRef)): Int = y._1 - x._1
     })
-
-  val waitForResourceManagerConnected = scala.collection.mutable.Set[ActorRef]()
 
   var disconnectDisabled = false
 
@@ -349,14 +346,6 @@ trait TestingJobManagerLike extends FlinkActor {
         val receiver = waitForNumRegisteredTaskManagers.dequeue()._2
         receiver ! Acknowledge
       }
-
-    case msg: NotifyWhenResourceManagerConnected =>
-      waitForResourceManagerConnected += sender()
-
-    case msg: RegisterResourceManager =>
-      super.handleMessage(msg)
-      waitForResourceManagerConnected foreach (_ ! Acknowledge)
-      waitForResourceManagerConnected.clear()
   }
 
   def checkIfAllVerticesRunning(jobID: JobID): Boolean = {
