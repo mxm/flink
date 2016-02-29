@@ -47,6 +47,7 @@ import org.apache.flink.runtime.clusterframework.messages.ResourceRemoved;
 import org.apache.flink.runtime.clusterframework.messages.SetWorkerPoolSize;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
+import org.apache.flink.runtime.clusterframework.messages.UnRegisterInfoMessageListener;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -64,8 +65,10 @@ import scala.concurrent.duration.FiniteDuration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -120,7 +123,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	private final Map<ResourceID, WorkerType> registeredWorkers;
 
 	/** List of listeners for info messages */
-	private ActorRef infoMessageListener;
+	private final Set<ActorRef> infoMessageListeners;
 
 	/** The JobManager that the framework master manages resources for */
 	private ActorRef jobManager;
@@ -157,6 +160,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 		}
 		this.messageTimeout = lt;
 		this.designatedPoolSize = numInitialTaskManagers;
+		this.infoMessageListeners = new HashSet<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -268,12 +272,16 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 
 			else if (message instanceof RegisterInfoMessageListener) {
 				if (jobManager != null) {
-					registerMessageListener(sender());
+					infoMessageListeners.add(sender());
 					sender().tell(decorateMessage(
 						RegisterInfoMessageListenerSuccessful.get()),
 						// answer as the JobManager
 						jobManager);
 				}
+			}
+
+			else if (message instanceof UnRegisterInfoMessageListener) {
+				infoMessageListeners.remove(sender());
 			}
 
 			// --- unknown messages
@@ -470,7 +478,8 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 
 			jobManager = null;
 			leaderSessionID = null;
-			infoMessageListener = null;
+
+			infoMessageListeners.clear();
 
 			registeredWorkers.clear();
 		}
@@ -749,13 +758,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	// ------------------------------------------------------------------------
 
 	protected void sendInfoMessage(String message) {
-		if (infoMessageListener != null) {
-			infoMessageListener.tell(decorateMessage(new InfoMessage(message)), self());
+		for (ActorRef listener : infoMessageListeners) {
+			listener.tell(decorateMessage(new InfoMessage(message)), self());
 		}
-	}
-
-	protected void registerMessageListener(ActorRef listener) {
-		infoMessageListener = listener;
 	}
 
 
