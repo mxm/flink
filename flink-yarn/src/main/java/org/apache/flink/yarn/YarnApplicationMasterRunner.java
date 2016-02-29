@@ -20,7 +20,6 @@ package org.apache.flink.yarn;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Address;
 import akka.actor.Props;
 
 import org.apache.flink.client.CliFrontend;
