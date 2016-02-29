@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.Address;
 import com.typesafe.config.Config;
 
 import org.apache.flink.configuration.ConfigConstants;
@@ -50,19 +51,19 @@ import java.util.Iterator;
 public class BootstrapTools {
 
 	/**
-	 * 
-	 * @param configuration
-	 * @param listeningAddress
-	 * @param portRangeDefinition
-	 * @param logger
-	 * @return
+	 * Starts an ActorSystem with the given configuration listening at the address/ports.
+	 * @param configuration The Flink configuration
+	 * @param listeningAddress The address to listen at.
+	 * @param portRangeDefinition The port range to choose a port from.
+	 * @param logger The logger to output log information.
+	 * @return The ActorSystem which has been started
 	 * @throws Exception
 	 */
 	public static ActorSystem startActorSystem(Configuration configuration,
 										String listeningAddress,
 										String portRangeDefinition,
 										Logger logger) throws Exception {
-		
+
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
 		try {
@@ -92,7 +93,7 @@ public class BootstrapTools {
 					availableSocket.close();
 				} catch (IOException ignored) {}
 			}
-				
+
 			try {
 				return startActorSystem(configuration, listeningAddress, port, logger);
 			}
@@ -105,19 +106,19 @@ public class BootstrapTools {
 				} // else fall through the loop and try the next port
 			}
 		}
-		
+
 		// if we come here, we have exhausted the port range
 		throw new BindException("Could not start actor system on any port in port range "
 			+ portRangeDefinition);
 	}
 
 	/**
-	 * 
-	 * @param configuration
-	 * @param listeningAddress
-	 * @param listeningPort
-	 * @param logger
-	 * @return
+	 * Starts an Actor System at a specific port.
+	 * @param configuration The Flink configuration.
+	 * @param listeningAddress The address to listen at.
+	 * @param listeningPort The port to listen at.
+	 * @param logger the logger to output log information.
+	 * @return The ActorSystem which has been started.
 	 * @throws Exception
 	 */
 	public static ActorSystem startActorSystem(
@@ -125,7 +126,7 @@ public class BootstrapTools {
 						String listeningAddress,
 						int listeningPort,
 						Logger logger) throws Exception {
-		
+
 		String hostPortUrl = NetUtils.hostAndPortToUrlString(listeningAddress, listeningPort);
 		logger.info("Trying to start actor system at " + hostPortUrl);
 
@@ -155,11 +156,11 @@ public class BootstrapTools {
 	}
 
 	/**
-	 * // TODO RM not documentation here...
-	 * @param config
-	 * @param actorSystem
-	 * @param logger
-	 * @return
+	 * Starts the web frontend.
+	 * @param config The Flink config.
+	 * @param actorSystem The ActorSystem to start the web frontend in.
+	 * @param logger Logger for log output
+	 * @return WebMonitor instance.
 	 * @throws Exception
 	 */
 	public static WebMonitor startWebMonitorIfConfigured(
@@ -167,6 +168,12 @@ public class BootstrapTools {
 				ActorSystem actorSystem,
 				ActorRef jobManager,
 				Logger logger) throws Exception {
+
+
+		// this ensures correct values are present in the web frontend
+		final Address address = AkkaUtils.getAddress(actorSystem);
+		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host().get());
+		config.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port().get().toString());
 
 		if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
 			logger.info("Starting JobManager Web Frontend");
@@ -192,12 +199,13 @@ public class BootstrapTools {
 	}
 
 	/**
-	 * @param baseConfig
-	 * @param jobManagerHostname
-	 * @param jobManagerPort
-	 * @param numSlots
-	 * @param registrationTimeout
-	 * @return
+	 * Generate a task manager configuration.
+	 * @param baseConfig Config to start from.
+	 * @param jobManagerHostname Job manager host name.
+	 * @param jobManagerPort Port of the job manager.
+	 * @param numSlots Number of slots to configure.
+	 * @param registrationTimeout Timeout for registration
+	 * @return TaskManager configuration
 	 */
 	public static Configuration generateTaskManagerConfiguration(
 				Configuration baseConfig,
@@ -205,7 +213,7 @@ public class BootstrapTools {
 				int jobManagerPort,
 				int numSlots,
 				FiniteDuration registrationTimeout) {
-		
+
 		Configuration cfg = baseConfig.clone();
 
 		cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerHostname);
@@ -214,7 +222,7 @@ public class BootstrapTools {
 		if (numSlots != -1){
 			cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
 		}
-		
+
 		return cfg; 
 	}
 
@@ -238,10 +246,10 @@ public class BootstrapTools {
 	}
 
 	/**
-	* // TODO RM
-	* @param config
-	* @param deprecated
-	* @param designated
+	* Sets the value of a new config key to the value of a deprecated config key.
+	* @param config Config to write
+	* @param deprecated The old config key
+	* @param designated The new config key
 	*/
 	public static void substituteDeprecatedConfigKey(Configuration config, String deprecated, String designated) {
 		// set the designated key only if it is not set already
@@ -254,10 +262,11 @@ public class BootstrapTools {
 	}
 
 	/**
-	* // TODO RM
-	* @param config
-	* @param deprecatedPrefix
-	* @param designatedPrefix
+	* Sets the value of of a new config key to the value of a deprecated config key. Taking into
+	* account the changed prefix.
+	* @param config Config to write
+	* @param deprecatedPrefix Old prefix of key
+	* @param designatedPrefix New prefix of key
 	*/
 	public static void substituteDeprecatedConfigPrefix(Configuration config,
 			String deprecatedPrefix, String designatedPrefix)
@@ -280,15 +289,15 @@ public class BootstrapTools {
 	}
 
 	/**
-	 * 
-	 * @param flinkConfig
-	 * @param tmParams
-	 * @param configDirectory
-	 * @param logDirectory
-	 * @param hasLogback
-	 * @param hasLog4j
-	 * @param mainClass
-	 * @return
+	 * Generates the shell command to start a task manager.
+	 * @param flinkConfig The Flink configuration.
+	 * @param tmParams Paramaters for the task manager.
+	 * @param configDirectory The configuration directory for the flink-conf.yaml
+	 * @param logDirectory The log directory.
+	 * @param hasLogback Uses logback?
+	 * @param hasLog4j Uses log4j?
+	 * @param mainClass The main class to start with.
+	 * @return A String containing the task manager startup command.
 	 */
 	public static String getTaskManagerShellCommand(
 		Configuration flinkConfig,
@@ -306,7 +315,7 @@ public class BootstrapTools {
 
 		String  javaOpts = flinkConfig.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
 		tmCommand.append(' ').append(javaOpts);
-		
+
 		if (hasLogback || hasLog4j) {
 			tmCommand.append(" -Dlog.file=").append(logDirectory).append("/taskmanager.log");
 			if (hasLogback) {
@@ -323,13 +332,13 @@ public class BootstrapTools {
 		tmCommand.append(" --configDir ").append(configDirectory);
 		tmCommand.append(" 1> ").append(logDirectory).append("/taskmanager.out");
 		tmCommand.append(" 2> ").append(logDirectory).append("/taskmanager.err");
-		
+
 		return tmCommand.toString();
 	}
-	
-	
+
+
 	// ------------------------------------------------------------------------
-	
+
 	/** Private constructor to prevent instantiation */
 	private BootstrapTools() {}
 }

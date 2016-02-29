@@ -551,13 +551,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	private void shutdownCluster(ApplicationStatus status, String diagnostics) {
 		LOG.info("Shutting down cluster with status {} : {}", status, diagnostics);
 
-		// shut the resource master down.
 		shutdownApplication(status, diagnostics);
-
-		// we shut down the whole process now.
-		// TODO RM remove this
-//		int exitCode = status.processExitCode();
-//		System.exit(exitCode);
 	}
 
 	// ------------------------------------------------------------------------
@@ -588,15 +582,6 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 			numWorkersPending + numWorkersPendingRegistration;
 
 		int missing = designatedPoolSize - allAvailableAndPending;
-		// TODO RM remove next lines
-//		System.out.println("allAvailablePending = registeredWorkers.size() + getNumWorkersPendingRegistration() + getNumWorkerRequestsPending() = " + allAvailableAndPending);
-//		System.out.println("registeredWorkers.size() = " + registeredWorkers.size());
-//		System.out.println("getNumWorkersPendingRegistration() = " + getNumWorkersPendingRegistration());
-//		System.out.println("getNumWorkerRequestsPending() = " + getNumWorkerRequestsPending());
-//
-//		System.out.println("missing = designatedPoolSize - allAvailableAndPending = " + missing);
-//		System.out.println("designatedPoolSize = " + designatedPoolSize);
-//		System.out.println("allAvailableAndPending = " + allAvailableAndPending);
 
 		if (missing > 0) {
 			requestNewWorkers(missing);

@@ -286,10 +286,6 @@ public class YarnApplicationMasterRunner {
 			// 2: the web monitor
 			LOG.debug("Starting Web Frontend");
 
-			final Address address = AkkaUtils.getAddress(actorSystem);
-			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host().get());
-			config.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port().get().toString());
-
 			webMonitor = BootstrapTools.startWebMonitorIfConfigured(config, actorSystem, jobManager, LOG);
 			final String webMonitorURL = webMonitor == null ? null :
 				"http://" + appMasterHostname + ":" + webMonitor.getServerPort();
