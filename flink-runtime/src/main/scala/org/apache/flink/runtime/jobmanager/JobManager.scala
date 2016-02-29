@@ -979,7 +979,7 @@ class JobManager(
           // inform rm
           rm ! decorateMessage(msg)
 
-          respondTo ! decorateMessage(new StopClusterSuccessful())
+          respondTo ! decorateMessage(StopClusterSuccessful.get())
 
           // trigger shutdown
           shutdown()
@@ -1816,7 +1816,6 @@ object JobManager {
       listeningPort: Int)
     : Unit = {
 
-    // TODO RM we could start the resource manager here but it is not necessary in standalone mode!
     val (jobManagerSystem, _, _, _, _) = startActorSystemAndJobManagerActors(
       configuration,
       executionMode,

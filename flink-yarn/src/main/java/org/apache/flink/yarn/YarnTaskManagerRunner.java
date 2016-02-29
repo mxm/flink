@@ -86,6 +86,7 @@ public class YarnTaskManagerRunner {
 			ugi.addToken(toks);
 		}
 
+		// Infer the resource identifier from the environment variable
 		String containerID = Objects.requireNonNull(System.getenv(Environment.CONTAINER_ID.key()));
 		final ResourceID resourceId = new ResourceID(containerID);
 

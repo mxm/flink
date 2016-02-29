@@ -45,7 +45,6 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 
 	@Override
 	protected void newJobManagerLeaderAvailable(String leaderAddress, UUID leaderSessionID) {
-		// TODO RM only notify of new leader when the leaderAddress shares the same path
 		super.newJobManagerLeaderAvailable(leaderAddress, leaderSessionID);
 	}
 
@@ -67,7 +66,7 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	protected void fatalError(String message, Throwable error) {
 		log.error("FATAL ERROR IN RESOURCE MANAGER: " + message, error);
 		LOG.error("Shutting down process");
-		
+
 		// kill this process
 		System.exit(EXIT_CODE_FATAL_ERROR);
 	}

@@ -206,9 +206,6 @@ class ForkableFlinkMiniCluster(
     }
   }
 
-  // TODO RM
-//  def restartResourceManager
-
 
   def restartTaskManager(index: Int): Unit = {
     (taskManagerActorSystems, taskManagerActors) match {

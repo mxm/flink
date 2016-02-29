@@ -182,9 +182,6 @@ class ApplicationClient(
     case LocalStopYarnSession(status, diagnostics) =>
       log.info("Sending StopCluster request to JobManager.")
 
-      // TODO RM seems obsolete
-      //      stopMessageReceiver = Some(sender())
-
       val clusterStatus =
         status match {
           case FinalApplicationStatus.SUCCEEDED => ApplicationStatus.SUCCEEDED
@@ -193,7 +190,6 @@ class ApplicationClient(
           case _ => ApplicationStatus.UNKNOWN
         }
 
-      // TODO RM add retry handler
       yarnJobManager foreach {
         // forward to preserve the sender's address
         _ forward decorateMessage(new StopCluster(clusterStatus, diagnostics))
@@ -202,11 +198,6 @@ class ApplicationClient(
     case msg: StopClusterSuccessful =>
       log.info("Remote JobManager has been stopped successfully. " +
         "Stopping local application client")
-
-      // TODO RM seems obsolete
-//      stopMessageReceiver foreach {
-//        _ ! decorateMessage(msg)
-//      }
 
       // poison ourselves
       self ! decorateMessage(PoisonPill)

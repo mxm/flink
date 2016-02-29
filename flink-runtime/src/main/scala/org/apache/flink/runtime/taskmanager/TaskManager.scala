@@ -1364,7 +1364,7 @@ object TaskManager {
         null
     }
 
-    // TODO RM
+    // In Standalone mode, we generate a resource identifier.
     val resourceId = ResourceID.generate()
 
     // run the TaskManager (if requested in an authentication enabled context)

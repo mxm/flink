@@ -25,11 +25,20 @@ import org.apache.flink.runtime.messages.RequiresLeaderSessionID;
  */
 public class StopClusterSuccessful implements RequiresLeaderSessionID, java.io.Serializable {
 
-	private static final long serialVersionUID = -8957259342982181684L;
+	private static final long serialVersionUID = 42L;
 
+	private static StopClusterSuccessful INSTANCE;
 
-	public StopClusterSuccessful() {
-		// TODO RM convert to singleton
+	/**
+	 * Private constructor. Initial singleton in get() method.
+	 */
+	private StopClusterSuccessful() {}
+
+	public static StopClusterSuccessful get() {
+		if (INSTANCE == null) {
+			INSTANCE = new StopClusterSuccessful();
+		}
+		return INSTANCE;
 	}
 
 	@Override

@@ -180,7 +180,6 @@ trait TestingJobManagerLike extends FlinkActor {
       val waiting = waitForTaskManagerToBeTerminated.getOrElse(taskManager.path.name, Set())
       waitForTaskManagerToBeTerminated += taskManager.path.name -> (waiting + sender)
 
-      // TODO RM
     case msg@Terminated(taskManager) =>
       super.handleMessage(msg)
 

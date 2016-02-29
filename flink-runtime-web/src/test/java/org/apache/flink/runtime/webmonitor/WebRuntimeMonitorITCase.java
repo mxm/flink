@@ -176,7 +176,6 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				jmConfig.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
 						webMonitor[i].getServerPort());
 
-				// TODO RM
 				jobManager[i] = JobManager.startJobManagerActors(
 					jmConfig,
 					jobManagerSystem[i],
