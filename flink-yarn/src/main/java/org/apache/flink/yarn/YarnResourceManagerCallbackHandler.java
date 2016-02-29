@@ -38,7 +38,7 @@ import java.util.List;
 public class YarnResourceManagerCallbackHandler implements AMRMClientAsync.CallbackHandler {
 
 	/** The yarn master to which we report the callbacks */
-	private final ActorGateway yarnFrameworkMaster;
+	private ActorGateway yarnFrameworkMaster;
 
 	/** The progress we report */
 	private float currentProgress;
@@ -86,5 +86,13 @@ public class YarnResourceManagerCallbackHandler implements AMRMClientAsync.Callb
 	@Override
 	public void onError(Throwable error) {
 		yarnFrameworkMaster.tell(new FatalErrorOccurred("Connection to YARN Resource Manager failed", error));
+	}
+
+	/**
+	 * Leaders may change. The current gateway can be adjusted here.
+	 * @param gateway The current gateway to the leading job manager.
+	 */
+	public void setCurrentLeaderGateway(ActorGateway gateway) {
+		this.yarnFrameworkMaster = gateway;
 	}
 }

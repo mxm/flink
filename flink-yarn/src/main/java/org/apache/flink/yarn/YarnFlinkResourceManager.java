@@ -27,7 +27,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.clusterframework.messages.SetWorkerPoolSize;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -36,7 +35,6 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.yarn.messages.ContainersAllocated;
 import org.apache.flink.yarn.messages.ContainersComplete;
 
-import org.apache.hadoop.util.Options;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -103,9 +101,6 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	/** Number of failed TaskManager containers before stopping the application. -1 means infinite. */ 
 	private final int maxFailedContainers;
 
-	/** The number of workers to size to pool to initially */
-	private final int numInitialTaskManagers;
-
 	/** Callback handler for the asynchronous resourceManagerClient */
 	private YarnResourceManagerCallbackHandler resourceManagerCallbackHandler;
 
@@ -121,9 +116,6 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 	/** The number of failed containers since the master became active */
 	private int failedContainersSoFar;
 
-	/** The Flink ApplicationClient which will poll the cluster status in regular intervals */
-	private ActorRef applicationClient;
-
 
 	public YarnFlinkResourceManager(
 			Configuration flinkConfig,
@@ -137,7 +129,7 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 			int maxFailedContainers,
 			int numInitialTaskManagers) {
 
-		super(flinkConfig, leaderRetrievalService);
+		super(numInitialTaskManagers, flinkConfig, leaderRetrievalService);
 
 		this.yarnConfig = requireNonNull(yarnConfig);
 		this.taskManagerParameters = requireNonNull(taskManagerParameters);
@@ -146,7 +138,6 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 		this.webInterfaceURL = webInterfaceURL;
 		this.yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMillis;
 		this.maxFailedContainers = maxFailedContainers;
-		this.numInitialTaskManagers = numInitialTaskManagers;
 
 		this.containersInLaunch = new HashMap<>();
 		this.containersBeingReturned = new HashMap<>();
@@ -220,9 +211,12 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 			// adjust the progress indicator
 			updateProgress();
 		}
+	}
 
-		// make sure that we grab all workers we need
-		selfGateway.tell(new SetWorkerPoolSize(numInitialTaskManagers));
+	@Override
+	protected void leaderUpdated() {
+		AkkaActorGateway newGateway = new AkkaActorGateway(self(), getLeaderSessionID());
+		resourceManagerCallbackHandler.setCurrentLeaderGateway(newGateway);
 	}
 
 	@Override

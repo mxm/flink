@@ -195,7 +195,8 @@ class ApplicationClient(
 
       // TODO RM add retry handler
       yarnJobManager foreach {
-        _ ! decorateMessage(new StopCluster(clusterStatus, diagnostics))
+        // forward to preserve the sender's address
+        _ forward decorateMessage(new StopCluster(clusterStatus, diagnostics))
       }
 
     case msg: StopClusterSuccessful =>

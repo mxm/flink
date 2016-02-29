@@ -35,7 +35,7 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	
 
 	public StandaloneResourceManager(Configuration flinkConfig, LeaderRetrievalService leaderRetriever) {
-		super(flinkConfig, leaderRetriever);
+		super(0, flinkConfig, leaderRetriever);
 	}
 
 	// ------------------------------------------------------------------------
@@ -52,6 +52,11 @@ public class StandaloneResourceManager extends FlinkResourceManager<ResourceID> 
 	@Override
 	protected void initialize() throws Exception {
 		// nothing to initialize
+	}
+
+	@Override
+	protected void leaderUpdated() {
+		// nothing to update
 	}
 
 	@Override

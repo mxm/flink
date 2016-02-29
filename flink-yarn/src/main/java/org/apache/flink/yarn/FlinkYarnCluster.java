@@ -447,6 +447,13 @@ public class FlinkYarnCluster extends AbstractFlinkYarnCluster {
 									"Flink YARN Client requested shutdown"),
 							new Timeout(akkaDuration));
 
+//					response.onComplete(new OnComplete<Object>() {
+//						@Override
+//						public void onComplete(Throwable failure, Object success) throws Throwable {
+//							System.out.println("What the fuck: " + failure);
+//							System.out.println("What the success: " + success);
+//						}
+//					}, this.actorSystem.dispatcher());
 					Await.ready(response, akkaDuration);
 				} catch(Exception e) {
 					LOG.warn("Error while stopping YARN Application Client", e);

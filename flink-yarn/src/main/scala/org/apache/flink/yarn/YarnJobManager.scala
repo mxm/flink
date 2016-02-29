@@ -174,10 +174,4 @@ class YarnJobManager(
       }
   }
 
-
-
-    val taskManagerSlots = env.get(FlinkYarnClientBase.ENV_SLOTS).toInt
-    val vcores: Int = flinkConfiguration
-      .getInteger(ConfigConstants.YARN_VCORES, Math.max(taskManagerSlots, 1))
-
 }

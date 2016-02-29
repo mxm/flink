@@ -133,13 +133,15 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 
 	// ------------------------------------------------------------------------
 
-
 	/**
 	 * Creates a AbstractFrameworkMaster actor.
 	 *
 	 * @param flinkConfig The Flink configuration object.
 	 */
-	protected FlinkResourceManager(Configuration flinkConfig, LeaderRetrievalService leaderRetriever) {
+	protected FlinkResourceManager(
+			int numInitialTaskManagers,
+			Configuration flinkConfig,
+			LeaderRetrievalService leaderRetriever) {
 		this.config = requireNonNull(flinkConfig);
 		this.leaderRetriever = requireNonNull(leaderRetriever);
 		this.registeredWorkers = new HashMap<>();
@@ -154,6 +156,7 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 				TimeUnit.MILLISECONDS);
 		}
 		this.messageTimeout = lt;
+		this.designatedPoolSize = numInitialTaskManagers;
 	}
 
 	// ------------------------------------------------------------------------
@@ -488,6 +491,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 
 			jobManager = newJobManagerLeader;
 
+			// inform the framework that we have updated the leader
+			leaderUpdated();
+
 			if (workers.size() > 0) {
 				LOG.info("Received TaskManagers that were registered at the leader JobManager. " +
 						"Trying to consolidate.");
@@ -518,6 +524,10 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 				}
 
 			}
+
+			// trigger initial check for requesting new workers
+			checkWorkersPool();
+
 		} else {
 			String msg = "Attempting to associate with new JobManager leader " + newJobManagerLeader
 				+ " without previously disassociating from current leader " + jobManager;
@@ -536,8 +546,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 		shutdownApplication(status, diagnostics);
 
 		// we shut down the whole process now.
-		int exitCode = status.processExitCode();
-		System.exit(exitCode);
+		// TODO RM remove this
+//		int exitCode = status.processExitCode();
+//		System.exit(exitCode);
 	}
 
 	// ------------------------------------------------------------------------
@@ -558,9 +569,9 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 		int numWorkersPendingRegistration = getNumWorkersPendingRegistration();
 
 		// sanity checks
-		Preconditions.checkState(numWorkersPending < 0,
+		Preconditions.checkState(numWorkersPending >= 0,
 			"Number of pending workers should never be below 0.");
-		Preconditions.checkState(numWorkersPendingRegistration < 0,
+		Preconditions.checkState(numWorkersPendingRegistration >= 0,
 			"Number of pending workers pending registration should never be below 0.");
 
 		// see how many workers we want, and whether we have enough
@@ -645,6 +656,12 @@ public abstract class FlinkResourceManager<WorkerType extends ResourceID> extend
 	 *                   restarted.
 	 */
 	protected abstract void initialize() throws Exception;
+
+	/**
+	 * Provides codes to handle an update of the leader (relevant for HA). The framework has to deal
+	 * with the consequences of a leader update.
+	 */
+	protected abstract void leaderUpdated();
 
 	/**
 	 * The framework specific code for shutting down the application. This should report the

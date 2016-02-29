@@ -375,6 +375,18 @@ public class ResourceManagerTest {
 	// TODO RM
 	@Test
 	public void testClusterShutdown() {
+		new JavaTestKit(system){{
+		new Within(duration("10 seconds")) {
+		@Override
+		protected void run() {
 
+			fakeJobManager = TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+			resourceManager = TestingUtils.createResourceManager(system, fakeJobManager.actor(), config);
+
+
+
+
+		}};
+		}};
 	}
 }
