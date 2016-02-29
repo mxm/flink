@@ -389,4 +389,11 @@ trait TestingJobManagerLike extends FlinkActor {
       }
     }
   }
+
+  /**
+    * No killing of the VM for testing.
+    */
+  override protected def shutdown(): Unit = {
+    system.shutdown()
+  }
 }

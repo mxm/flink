@@ -22,13 +22,14 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.messages.StopCluster;
+import org.apache.flink.runtime.clusterframework.messages.StopClusterSuccessful;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.messages.Messages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
-import org.apache.flink.runtime.testingUtils.TestingCluster;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
 import org.junit.After;
@@ -145,6 +146,51 @@ public class ResourceManagerITCase {
 			assertEquals(1, reply.resources.size());
 
 		}};
+		}};
+	}
+
+
+	/**
+	 * Tests cluster shutdown procedure of RM
+	 */
+	@Test
+	public void testClusterShutdown() {
+		new JavaTestKit(system){{
+			new Within(duration("30 seconds")) {
+				@Override
+				protected void run() {
+
+					ActorGateway me =
+						TestingUtils.createForwardingActor(system, getTestActor(), Option.<String>empty());
+
+					ActorGateway jobManager = TestingUtils.createJobManager(system, config);
+
+					ActorGateway resourceManager =
+						TestingUtils.createResourceManager(system, jobManager.actor(), config);
+
+					// notify about a resource manager registration at the job manager
+					resourceManager.tell(new TestingResourceManager.NotifyWhenResourceManagerConnected(), me);
+
+					// Wait for resource manager
+					expectMsgEquals(Messages.getAcknowledge());
+
+					jobManager.tell(new StopCluster(ApplicationStatus.SUCCEEDED, "Shutting down."), me);
+
+					expectMsgClass(StopClusterSuccessful.class);
+
+					boolean isTerminated = false;
+					for (int i=0; i < 10 && !isTerminated; i++) {
+						isTerminated = system.isTerminated();
+						try {
+							Thread.sleep(1000);
+						} catch (InterruptedException e) {
+							// try again
+						}
+					}
+
+					assertTrue(isTerminated);
+
+				}};
 		}};
 	}
 

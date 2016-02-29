@@ -981,14 +981,8 @@ class JobManager(
 
           respondTo ! decorateMessage(new StopClusterSuccessful())
 
-          // Await actor system termination and shut down JVM
-          new ProcessShutDownThread(
-            log.logger,
-            context.system,
-            FiniteDuration(10, SECONDS)).start()
-
-          // Shutdown and discard all queued messages
-          context.system.shutdown()
+          // trigger shutdown
+          shutdown()
 
         case None =>
           // retry
@@ -1687,6 +1681,20 @@ class JobManager(
           // ignore accumulator values for old job
         }
     }
+  }
+
+  /**
+    * Shutdown method which may be overridden for testing.
+    */
+  protected def shutdown() : Unit = {
+    // Await actor system termination and shut down JVM
+    new ProcessShutDownThread(
+      log.logger,
+      context.system,
+      FiniteDuration(10, SECONDS)).start()
+
+    // Shutdown and discard all queued messages
+    context.system.shutdown()
   }
 }
 
