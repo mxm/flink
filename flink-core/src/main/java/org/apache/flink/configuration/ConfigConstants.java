@@ -116,10 +116,24 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_IPC_ADDRESS_KEY = "jobmanager.rpc.address";
 
 	/**
+	 * The config parameter defines the network address the JobManager binds to.
+	 * By default, this is not set and not necessary to configure because the JobManager uses
+	 * {@code JOB_MANAGER_IPC_ADDRESS_KEY}.
+	 */
+	public static final String JOB_MANAGER_BIND_IPC_ADDRESS_KEY = "jobmanager.rpc.bind-address";
+
+	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the job manager.
 	 */
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
+
+	/**
+	 * The config parameters defines the network port the JobManager binds to.
+	 * By default, this is not set and not necessary to configure because the JobManager uses
+	 * {@code JOB_MANAGER_IPC_PORT_KEY}.
+	 */
+	public static final String JOB_MANAGER_BIND_IPC_PORT_KEY = "jobmanager.rpc.bind-port";
 
 	/**
 	 * The config parameter defining the network port to connect to

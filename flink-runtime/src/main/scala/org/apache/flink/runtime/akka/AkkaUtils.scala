@@ -94,6 +94,12 @@ object AkkaUtils {
     createActorSystem(getDefaultAkkaConfig)
   }
 
+  @throws(classOf[UnknownHostException])
+  def getAkkaConfig(configuration: Configuration,
+                    listeningAddress: Option[(String, Int)]): Config = {
+    getAkkaConfig(configuration, listeningAddress, None)
+  }
+
   /**
    * Creates an akka config with the provided configuration values. If the listening address is
    * specified, then the actor system will listen on the respective address.
@@ -105,7 +111,8 @@ object AkkaUtils {
    */
   @throws(classOf[UnknownHostException])
   def getAkkaConfig(configuration: Configuration,
-                    listeningAddress: Option[(String, Int)]): Config = {
+                    listeningAddress: Option[(String, Int)],
+                    bindingAddress: Option[(String, Int)]): Config = {
     val defaultConfig = getBasicAkkaConfig(configuration)
 
     listeningAddress match {
@@ -113,7 +120,20 @@ object AkkaUtils {
       case Some((hostname, port)) =>
         val ipAddress = InetAddress.getByName(hostname)
         val hostString = "\"" + NetUtils.ipAddressToUrlString(ipAddress) + "\""
-        val remoteConfig = getRemoteAkkaConfig(configuration, hostString, port)
+
+        val (bindHostString, bindPort) =
+          bindingAddress match {
+            case Some((specialBindHost, specialBindPort)) =>
+              val ipAddress = InetAddress.getByName(specialBindHost)
+              val bindHostString = "\"" + NetUtils.ipAddressToUrlString(ipAddress) + "\""
+              (bindHostString, specialBindPort)
+            case None =>
+              (hostname, port)
+          }
+
+        val remoteConfig = getRemoteAkkaConfig(configuration,
+          hostString, port, bindHostString, bindPort)
+
         remoteConfig.withFallback(defaultConfig)
 
       case None =>
@@ -199,7 +219,8 @@ object AkkaUtils {
    * @return Flink's Akka configuration for remote actor systems
    */
   private def getRemoteAkkaConfig(configuration: Configuration,
-                                  hostname: String, port: Int): Config = {
+                                  hostname: String, port: Int,
+                                  bindHostname: String, bindPort: Int): Config = {
     val akkaAskTimeout = Duration(configuration.getString(
       ConfigConstants.AKKA_ASK_TIMEOUT,
       ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT))
@@ -272,6 +293,7 @@ object AkkaUtils {
          |      tcp {
          |        transport-class = "akka.remote.transport.netty.NettyTransport"
          |        port = $port
+         |        bind-port: $bindPort
          |        connection-timeout = $akkaTCPTimeout
          |        maximum-frame-size = $akkaFramesize
          |        tcp-nodelay = on
@@ -290,6 +312,7 @@ object AkkaUtils {
            |    netty {
            |      tcp {
            |        hostname = $hostname
+           |        bind-hostname = $bindHostname
            |      }
            |    }
            |  }
