@@ -940,6 +940,7 @@ under the License.
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
+					<skip>true</skip>
 				</configuration>
 				<executions>
 					<execution>
