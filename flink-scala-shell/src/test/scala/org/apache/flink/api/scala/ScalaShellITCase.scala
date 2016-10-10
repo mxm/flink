@@ -291,8 +291,7 @@ class ScalaShellITCase extends TestLogger {
     val out: StringWriter = new StringWriter
 
     val baos: ByteArrayOutputStream = new ByteArrayOutputStream
-    val oldOut: PrintStream = System.out
-    System.setOut(new PrintStream(baos))
+    val oldStdOut = replaceStdOut(baos)
 
     val confFile: String = classOf[ScalaShellLocalStartupITCase]
       .getResource("/flink-conf.yaml")
@@ -318,7 +317,7 @@ class ScalaShellITCase extends TestLogger {
     baos.flush()
 
     val output: String = baos.toString
-    System.setOut(oldOut)
+    replaceStdOut(oldStdOut)
 
     Assert.assertTrue(output.contains("IntCounter: 2"))
     Assert.assertTrue(output.contains("foobar"))
@@ -368,8 +367,7 @@ object ScalaShellITCase {
     val out = new StringWriter()
     val baos = new ByteArrayOutputStream()
 
-    val oldOut = System.out
-    System.setOut(new PrintStream(baos))
+    val oldStdOut = replaceStdOut(baos)
 
     // new local cluster
     val host = "localhost"
@@ -405,7 +403,7 @@ object ScalaShellITCase {
 
     repl.closeInterpreter()
 
-    System.setOut(oldOut)
+    restoreStdOut(oldStdOut)
 
     baos.flush()
 
@@ -422,5 +420,27 @@ object ScalaShellITCase {
       }
     }
     throw new RuntimeException("Library folder not found in any of the supplied paths!")
+  }
+
+  def replaceStdOut(stream: OutputStream): PrintStream = {
+    val stdOut = System.out
+    stdOut.flush()
+    System.setOut(new PrintStream(new DoubleOutputStream(stdOut, stream)))
+    stdOut
+  }
+
+  def restoreStdOut(stdout: PrintStream) = {
+    // flush before setting old standard out
+    System.out.flush()
+    System.setOut(stdout)
+  }
+
+  private class DoubleOutputStream(val stream1: OutputStream, val stream2: OutputStream)
+      extends OutputStream {
+    // always write to both streams
+    override def write(b: Int): Unit = {
+      stream1.write(b)
+      stream2.write(b)
+    }
   }
 }
