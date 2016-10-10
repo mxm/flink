@@ -74,8 +74,7 @@ class ScalaShellLocalStartupITCase extends TestLogger {
     val in: BufferedReader = new BufferedReader(new StringReader(input + "\n"))
     val out: StringWriter = new StringWriter
     val baos: ByteArrayOutputStream = new ByteArrayOutputStream
-    val oldOut: PrintStream = System.out
-    System.setOut(new PrintStream(baos))
+    val oldOut = replaceStdOut(baos)
 
     val confFile: String = classOf[ScalaShellLocalStartupITCase]
       .getResource("/flink-conf.yaml")
@@ -90,7 +89,7 @@ class ScalaShellLocalStartupITCase extends TestLogger {
 
     baos.flush()
     val output: String = baos.toString
-    System.setOut(oldOut)
+    restoreStdOut(oldOut)
 
     Assert.assertTrue(output.contains("IntCounter: 2"))
     Assert.assertTrue(output.contains("foobar"))
@@ -103,5 +102,27 @@ class ScalaShellLocalStartupITCase extends TestLogger {
     Assert.assertFalse(output.contains("Error"))
     Assert.assertFalse(output.contains("ERROR"))
     Assert.assertFalse(output.contains("Exception"))
+  }
+
+  def replaceStdOut(stream: OutputStream): PrintStream = {
+    val stdOut = System.out
+    stdOut.flush()
+    System.setOut(new PrintStream(new DoubleOutputStream(stdOut, stream)))
+    stdOut
+  }
+
+  def restoreStdOut(stdout: PrintStream) = {
+    // flush before setting old standard out
+    System.out.flush()
+    System.setOut(stdout)
+  }
+
+  private class DoubleOutputStream(val stream1: OutputStream, val stream2: OutputStream)
+    extends OutputStream {
+    // always write to both streams
+    override def write(b: Int): Unit = {
+      stream1.write(b)
+      stream2.write(b)
+    }
   }
 }
