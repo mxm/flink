@@ -97,7 +97,19 @@ object AkkaUtils {
   @throws(classOf[UnknownHostException])
   def getAkkaConfig(configuration: Configuration,
                     listeningAddress: Option[(String, Int)]): Config = {
-    getAkkaConfig(configuration, listeningAddress, None)
+
+    val bindAddress =
+      listeningAddress match {
+        case Some((host, port)) =>
+          val bindHost =
+            configuration.getString(ConfigConstants.JOB_MANAGER_BIND_IPC_ADDRESS_KEY, host)
+          val bindPort =
+            configuration.getInteger(ConfigConstants.JOB_MANAGER_BIND_IPC_PORT_KEY, port)
+          Option(bindHost, bindPort)
+        case None => None
+      }
+
+    getAkkaConfig(configuration, listeningAddress, bindAddress)
   }
 
   /**
@@ -221,6 +233,10 @@ object AkkaUtils {
   private def getRemoteAkkaConfig(configuration: Configuration,
                                   hostname: String, port: Int,
                                   bindHostname: String, bindPort: Int): Config = {
+
+    LOG.info(s"Using listening address $hostname:$port" +
+      s" and binding to address $bindHostname:$bindPort")
+
     val akkaAskTimeout = Duration(configuration.getString(
       ConfigConstants.AKKA_ASK_TIMEOUT,
       ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT))
