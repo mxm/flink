@@ -320,9 +320,9 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>com.typesafe.akka</groupId>
-				<artifactId>akka-remote_${scala.binary.version}</artifactId>
-				<version>${akka.version}</version>
+				<groupId>com.dataartisans.flakka</groupId>
+				<artifactId>flakka-remote_${scala.binary.version}</artifactId>
+				<version>2.3-custom</version>
 			</dependency>
 
 			<dependency>

@@ -70,8 +70,8 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-remote_${scala.binary.version}</artifactId>
+			<groupId>com.dataartisans.flakka</groupId>
+			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
 		</dependency>
 
 		<dependency>
