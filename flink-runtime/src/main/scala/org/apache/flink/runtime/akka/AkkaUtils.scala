@@ -309,7 +309,7 @@ object AkkaUtils {
          |      tcp {
          |        transport-class = "akka.remote.transport.netty.NettyTransport"
          |        port = $port
-         |        bind-port: $bindPort
+         |        bind-port = $bindPort
          |        connection-timeout = $akkaTCPTimeout
          |        maximum-frame-size = $akkaFramesize
          |        tcp-nodelay = on

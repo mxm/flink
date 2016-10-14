@@ -38,7 +38,7 @@ jobmanager.rpc.port: 6123
 
 # custom port to bind on
 
-jobmanager.rpc.bind-address: 6123
+jobmanager.rpc.bind-port: 6123
 
 
 # The heap size for the JobManager JVM
