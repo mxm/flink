@@ -195,6 +195,7 @@ public class YarnClusterClient extends ClusterClient {
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		if (isDetached()) {
 			if (newlyCreatedCluster) {
+				// detached job execution only allows a single job and the cluster shuts down afterwards
 				stopAfterJob(jobGraph.getJobID());
 			}
 			return super.runDetached(jobGraph, classLoader);
@@ -422,15 +423,6 @@ public class YarnClusterClient extends ClusterClient {
 
 	public boolean hasBeenShutdown() {
 		return hasBeenShutDown.get();
-	}
-
-
-	private class ClientShutdownHook extends Thread {
-		@Override
-		public void run() {
-			LOG.info("Shutting down YarnClusterClient from the client shutdown hook");
-			shutdown();
-		}
 	}
 
 	// -------------------------- Polling ------------------------

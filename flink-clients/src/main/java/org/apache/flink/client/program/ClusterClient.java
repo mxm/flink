@@ -776,6 +776,8 @@ public abstract class ClusterClient {
 	/**
 	 * Returns true if the client already has the user jar and providing it again would
 	 * result in duplicate uploading of the jar.
+	 * @param userJarFiles List of files to check for inclusion at the client
+	 * @return true if all the jars are provided by the client
 	 */
 	public abstract boolean hasUserJarsInClassPath(List<URL> userJarFiles);
 
