@@ -20,7 +20,6 @@ package org.apache.flink.client;
 
 import java.net.InetSocketAddress;
 import java.net.URL;
-import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.List;
 
@@ -64,66 +63,52 @@ public class RemoteExecutor extends PlanExecutor {
 	private int defaultParallelism = 1;
 
 
-	public RemoteExecutor(String hostname, int port)
-			throws UnknownHostException {
+	public RemoteExecutor(String hostname, int port) {
 		this(hostname, port, new Configuration(), Collections.<URL>emptyList(),
 				Collections.<URL>emptyList());
 	}
 
-	public RemoteExecutor(String hostname, int port, URL jarFile)
-			throws UnknownHostException {
+	public RemoteExecutor(String hostname, int port, URL jarFile) {
 		this(hostname, port, new Configuration(), Collections.singletonList(jarFile),
 				Collections.<URL>emptyList());
 	}
 
-	public RemoteExecutor(String hostport, URL jarFile)
-			throws UnknownHostException {
+	public RemoteExecutor(String hostport, URL jarFile) {
 		this(ClientUtils.parseHostPortAddress(hostport), new Configuration(), Collections.singletonList(jarFile),
 				Collections.<URL>emptyList());
 	}
 
-	public RemoteExecutor(String hostname, int port, List<URL> jarFiles)
-			throws UnknownHostException {
+	public RemoteExecutor(String hostname, int port, List<URL> jarFiles) {
 		this(new InetSocketAddress(hostname, port), new Configuration(), jarFiles,
 				Collections.<URL>emptyList());
 	}
 
-	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration)
-			throws UnknownHostException {
+	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration) {
 		this(hostname, port, clientConfiguration, Collections.<URL>emptyList(),
 				Collections.<URL>emptyList());
 	}
 
-	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration, URL jarFile)
-			throws UnknownHostException {
+	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration, URL jarFile) {
 		this(hostname, port, clientConfiguration, Collections.singletonList(jarFile),
 				Collections.<URL>emptyList());
 	}
 
-	public RemoteExecutor(String hostport, Configuration clientConfiguration, URL jarFile)
-			throws UnknownHostException {
+	public RemoteExecutor(String hostport, Configuration clientConfiguration, URL jarFile) {
 		this(ClientUtils.parseHostPortAddress(hostport), clientConfiguration,
 				Collections.singletonList(jarFile), Collections.<URL>emptyList());
 	}
 
 	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration,
-			List<URL> jarFiles, List<URL> globalClasspaths)
-			throws UnknownHostException {
+			List<URL> jarFiles, List<URL> globalClasspaths) {
 		this(new InetSocketAddress(hostname, port), clientConfiguration, jarFiles, globalClasspaths);
 	}
 
 	public RemoteExecutor(InetSocketAddress inet, Configuration clientConfiguration,
-			List<URL> jarFiles, List<URL> globalClasspaths)
-			throws UnknownHostException {
+			List<URL> jarFiles, List<URL> globalClasspaths) {
 		this.clientConfiguration = clientConfiguration;
 		this.jarFiles = jarFiles;
 		this.globalClasspaths = globalClasspaths;
 
-		// check if the address is available
-		if (inet.isUnresolved()) {
-			throw new UnknownHostException(
-				"The configured address could not be resolved: " + inet);
-		}
 
 		clientConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, inet.getHostName());
 		clientConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, inet.getPort());
