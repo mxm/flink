@@ -20,12 +20,16 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.TestLogger;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * Tests that verify that the LeaderRetrievalSevice correctly handles non-resolvable host names
@@ -33,8 +37,16 @@ import static org.junit.Assert.*;
  */
 public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 
-	private static final String nonExistingHostname = "foo.bar.com.invalid.";
+	private static final String nonExistingHostname = "foo.bar.com.invalid";
 
+	@BeforeClass
+	public static void check() {
+		checkPreconditions();
+	}
+
+	/*
+	 * Tests that the StandaloneLeaderRetrievalService resolves host names if specified.
+	 */
 	@Test
 	public void testUnresolvableHostname1() {
 
@@ -45,9 +57,30 @@ public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 17234);
 
 			LeaderRetrievalUtils.createLeaderRetrievalService(config);
-			fail("This should fail with an UnknownHostException");
 		}
-		catch (IllegalConfigurationException e) {
+		catch (Exception e) {
+			System.err.println("Shouldn't throw an exception!");
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	/*
+	 * Tests that the StandaloneLeaderRetrievalService does not resolve host names by default.
+	 */
+	@Test
+	public void testUnresolvableHostname2() {
+
+		try {
+			Configuration config = new Configuration();
+
+			config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, nonExistingHostname);
+			config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, 17234);
+
+			LeaderRetrievalUtils.createLeaderRetrievalService(config, true);
+			fail("This should fail with an IllegalConfigurationException");
+		}
+		catch (UnknownHostException e) {
 			// that is what we want!
 		}
 		catch (Exception e) {
@@ -57,4 +90,19 @@ public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 		}
 	}
 
+	private static void checkPreconditions() {
+		// the test can only work if the invalid URL cannot be resolves
+		// some internet providers resolve unresolvable URLs to navigational aid servers,
+		// voiding this test.
+		boolean throwsException;
+		try {
+			//noinspection ResultOfMethodCallIgnored
+			InetAddress.getByName(nonExistingHostname);
+			throwsException = false;
+		}
+		catch (UnknownHostException e) {
+			throwsException = true;
+		}
+		assumeTrue(throwsException);
+	}
 }
